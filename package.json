@@ -1,0 +1,20 @@
+{
+  "name": "riichi-core",
+  "version": "0.1.0",
+  "description": "Riichi Mahjong game engine",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/summivox/riichi-core.git"
+  },
+  "keywords": [
+    "Mahjong",
+    "Riichi"
+  ],
+  "author": "summivox",
+  "license": "GPLv2",
+  "bugs": {
+    "url": "https://github.com/summivox/riichi-core/issues"
+  },
+  "homepage": "https://github.com/summivox/riichi-core#readme"
+}
