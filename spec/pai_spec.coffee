@@ -152,7 +152,6 @@ describe "Pai", ->
         expect(pai.isSangenpai()).toBe(true)
         expect(pai.isYaochuupai()).toBe(true)
 
-
   describe "dora handling", ->
 
     it "should report correct equivalent pai for all suupai", ->
@@ -170,31 +169,35 @@ describe "Pai", ->
         pai = Pai paiStr
         expect(pai.equivNumber()).toEqual(n)
 
-    it "tests equivalance to another pai", ->
+    it "can test equivalance to another pai", ->
+      a = Pai '0p'
+      b = Pai '5p'
+      c = Pai '0s'
+      d = Pai '5s'
       expect(Pai('0p').isEquivTo(Pai('5p'))).toBe(true)
       expect(Pai('5s').isEquivTo(Pai('0s'))).toBe(true)
-      expect(Pai('0p').isEquivto(Pai('0s'))).toBe(false)
+      expect(Pai('0p').isEquivTo(Pai('0s'))).toBe(false)
       expect(Pai('1m').isEquivTo(Pai('1z'))).toBe(false)
 
-    it "calculates correct dora from suupai dora indicator", ->
+    it "can calculate correct dora from suupai dora indicator", ->
       forSuupai (paiStr, n, m, suite) ->
         pai = Pai paiStr
         succStr = pai.succ().toString()
         switch n
           when 0
             expect(succStr).toEqual(6 + suite)
-          when 1..8
-            expect(succStr).toEqual((n+1) + suite)
           when 9
             expect(succStr).toEqual(1 + suite)
+          else
+            expect(succStr).toEqual((n+1) + suite)
 
-    it "calculates correct dora from fonpai dora indicator", ->
+    it "can calculate correct dora from fonpai dora indicator", ->
       expect(Pai('E').succ().toString()).toEqual('2z')
       expect(Pai('S').succ().toString()).toEqual('3z')
       expect(Pai('W').succ().toString()).toEqual('4z')
       expect(Pai('N').succ().toString()).toEqual('1z')
 
-    it "calculates correct dora from sangenpai dora indicator", ->
+    it "can calculate correct dora from sangenpai dora indicator", ->
       expect(Pai('B').succ().toString()).toEqual('6z')
       expect(Pai('F').succ().toString()).toEqual('7z')
       expect(Pai('Z').succ().toString()).toEqual('5z')
@@ -205,3 +208,9 @@ describe "Pai", ->
       expect(Pai('F').isSuccOf(Pai('C'))).toBe(false)
       expect(Pai('0m').isSuccOf(Pai('4m'))).toBe(true)
       expect(Pai('6p').isSuccOf(Pai('0p'))).toBe(true)
+
+  describe "literals", ->
+    it "has correct succ links", ->
+      expect(Pai['0m'].succ).toBe(Pai['6m'])
+      expect(Pai['F'].succ).toBe(Pai['C'])
+      expect(Pai['4p'].succ).toBe(Pai['5p'].equivPai)
