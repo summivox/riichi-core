@@ -1,5 +1,4 @@
 Pai = require './pai.js'
-trie = require './agari-trie.js'
 
 module.exports = class Tehai
 
@@ -45,7 +44,7 @@ module.exports = class Tehai
     return ret
 
   constructor: ->
-    @junteihai = []
+    @juntehai = []
     @tsumo = null
     @fuuro = []
     @tenpai = []
@@ -53,6 +52,6 @@ module.exports = class Tehai
 
   dahai: (pai) ->
     if !@tsumo? then throw new Error 'riichi-core: tehai: cannot dahai without tsumo'
-    i = @junteihai.indexOf pai
-    @junteihai[i] = @tsumo
-    @junteihai.sort Pai.compare
+    i = @juntehai.indexOf pai
+    @juntehai[i] = @tsumo
+    @juntehai.sort Pai.compare

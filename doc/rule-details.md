@@ -28,7 +28,7 @@ Kawa {discards} | almost always yes
 Fuuro {melds} (others) | almost always yes
 Fuuro {melds} (yours) | usually yes
 Dora hyoujihai {indicator} | usually yes
-Your own junteihai {concealed part of hand} | **NO**
+Your own juntehai {concealed part of hand} | **NO**
 
 
 [karaten-wiki]: https://ja.wikipedia.org/wiki/%E8%81%B4%E7%89%8C#.E3.83.8E.E3.83.BC.E3.83.86.E3.83.B3.E7.BD.B0.E7.AC.A6.E3.81.AB.E9.96.A2.E4.BF.82.E3.81.99.E3.82.8B.E8.81.B4.E7.89.8C
