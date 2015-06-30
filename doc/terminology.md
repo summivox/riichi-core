@@ -8,8 +8,13 @@ There are many equivalent yet confusing ways to refer to the same thing in the R
 This document lists all canonical terms (bold) and shorthands (in code blocks) adopted in this project, as well as their commonly-used equivalent terms and shorthands (in curly braces).
 
 The main policy for choosing canonical term:
-*   Prefer original Japanese term (from Wikipedia) written in full Romaji
+*   Prefer Japanese terms (from Wikipedia) with Chinese-inspired pronunciation written in [Hepburn Romaji][romaji]
+*   Usual `camelCase` and `CamelCase` rules apply to separate Romaji words (e.g. `uraDoraHyoujihai`)
 *   Allow convenience shorthands as long as they do not cause ambiguity
+
+[romaji]: https://en.wikipedia.org/wiki/Hepburn_romanization
+
+
 
 # General
 
@@ -24,6 +29,7 @@ The main policy for choosing canonical term:
     *   __Dahai__ {打牌, discard (tile)}
 *   __Toitsu__ {対子, pair}
     *   __Jantou__ {雀頭, pair in normal winning hand}
+    *   __Tanki__ {単騎, single tile wait (for jantou)}
 *   __Mentsu__ {面子, meld}
     *   __Shuntsu__ {順子, run}
     *   __Koutsu__ {刻子, triplet}
@@ -32,17 +38,17 @@ The main policy for choosing canonical term:
     *   __Kantsu__ {槓子, quad}
         *   __Minkan__ {明槓, open quad}
         *   __Ankan__ {暗槓, concealed quad}
-*   __Fuuro__ {副露, open meld}
-    *   __Chii__ {吃, チー, make run}
-    *   __Pon__ {碰, ポン, make triplet}
-    *   __Kan__ {槓, カン, make quad}
-        *   __Daiminkan__ {大明槓, (make) open quad}
-        *   __Kakan__ {加槓, (make) added open quad}
-        *   __Ankan__ {暗槓, (make) concealed quad}
+*   __Fuuro__ {副露, 鳴く, 喰う, (make/declare) open meld}
+    *   __Chii__ {吃, チー, declare open run}
+    *   __Pon__ {碰, ポン, declare open triplet}
+    *   __Kan__ {槓, カン, declare open quad}
+        *   __Daiminkan__ {大明槓, (make/declare) open quad}
+        *   __Kakan__ {加槓, (make/declare) added open quad}
+        *   __Ankan__ {暗槓, (make/declare) concealed quad}
 *   __Menzen__ {門前, fully concealed hand}
-*   __Tenpai__ {聴牌, ready, waiting}
-    *   __Keishiki~__ {形式聴牌, ready (only in form)}
-    *   __Karaten__ {空聴, hopeless ready}
+*   __Tenpai__ {聴牌, ready}
+    *   __Keiten__ {形聴, 形式聴牌, ready only in form}
+    *   __Karaten__ {空聴, void ready}
     *   __Furiten__ {振聴, sacred discard}
 *   __Agari__ {和了, houra, win}
     *   __Tsumo__ {自摸和, win on self draw}
@@ -70,7 +76,7 @@ Main hierarchy:
         *   `/1z|E/` __Ton__ {東, higashi, east}
         *   `/2z|S/` __Nan__ {南, minami, south}
         *   `/3z|W/` __Shaa__ {西, nishi, west}
-        *   `/4z|N/` __Peii__ {北, kita, north}
+        *   `/4z|N/` __Pei__ {北, kita, north}
         *   __Chanfonpai__ {圏/荘/場風牌, bakazehai, prevailing/round wind}
         *   __Menfonpai__ {門/自風牌, jikazehai, seat wind}
     *   `/[5-7]z|[BGRPFCDHTZ]/` __Sangenpai__ {三元牌, dragons}
@@ -83,6 +89,8 @@ Other categories:
 
 Note:
 *   `/[1-7]z/` are the canonical shorthands; `/[ESWNBGRPFCDHT]/` (single capitals) are permitted alternative shorthands.
+
+
 
 # References
 
