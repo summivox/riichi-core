@@ -17,6 +17,8 @@ TSUUPAI_ALT_MAP = {
   D: 5, H: 6, T: 7
   Z: 7
 }
+SUITES = ['m', 'p', 's', 'z']
+SUITE_NUMBER = {m: 0, p: 1, s: 2, z: 3}
 
 module.exports = class Pai
 
@@ -49,6 +51,7 @@ module.exports = class Pai
   # extract parts of tile
   number: -> Number @paiStr[0]
   suite: -> @paiStr[1]
+  suiteNumber: -> SUITE_NUMBER[@suite()]
 
   # test if tile belongs to a category
   isSuupai: -> @suite() != 'z'
@@ -94,11 +97,10 @@ module.exports = class Pai
 # Build dictionary of pai literals
 blacklist =
   toString: true
-suites = ['m', 'p', 's', 'z']
 for m in [0..3]
   for n in [0..9]
-    paiStr = n + suites[m]
-    try Pai paiStr catch _ then continue
+    paiStr = n + SUITES[m]
+    try Pai paiStr catch e then continue
     Pai[paiStr] = {}
 for own paiStr, paiLit of Pai
   paiObj = Pai paiStr
@@ -116,11 +118,102 @@ for own paiStr, paiLit of Pai
 for alt, n of TSUUPAI_ALT_MAP
   Pai[alt] = Pai[n + 'z']
 
+
 # comparison functions for sorting
 #   m < p < s < z
 #   m, p, s : 1 < 2 < 3 < 4 < 0 < 5 < 6 < 7 < 8 < 9
 Pai.compare = (a, b) ->
-  if d = a.suite.charCodeAt(0) - b.suite.charCodeAt(0) then return d
+  if d = a.suiteNumber - b.suiteNumber then return d
   if d = a.equivNumber - b.equivNumber then return d
   if d = a.number - b.number then return d
   return 0
+
+
+# representations for a set of pai's:
+#
+# * contracted multi-pai string (tenhou-compatible)
+#   e.g. 3347m40p11237s26z5m
+#
+# * sorted array of Pai literals
+#
+# * "bins" for simplified calculations
+#   bins[0][i] => # of pai (i+1)-m  ;  0 <= i < 8
+#   bins[1][i] => # of pai (i+1)-p  ;  0 <= i < 8
+#   bins[2][i] => # of pai (i+1)-s  ;  0 <= i < 8
+#   bins[3][i] => # of pai (i+1)-z  ;  0 <= i < 6
+#
+#   NOTE: bins format treats 0m/0p/0s as 5m/5p/5s
+
+# string <=> array
+Pai.arrayFromString = (s) ->
+  ret = []
+  for run in s.match /\d*\D/g
+    l = run.length
+    if l <= 2
+      # not contracted
+      ret.push Pai[run]
+    else
+      # contracted
+      suite = run[l-1]
+      for i in [0...(l-1)]
+        number = run[i]
+        ret.push Pai[number + suite]
+  ret.sort Pai.compare
+  ret
+Pai.arrayToString = (paiArray) ->
+  if !paiArray? then throw Error 'riichi-core: tehai: stringify: null input'
+  l = paiArray.length
+  if l == 0 then return ''
+
+  # make a sorted copy
+  paiArray = paiArray.slice().sort Pai.compare
+  ret = ''
+  run = [paiArray[0].number]
+  suite = paiArray[0].suite
+  flush = -> ret += run.join('') + suite
+
+  for i in [1...l]
+    pai = paiArray[i]
+    if pai.suite == suite
+      run.push pai.number
+    else
+      flush()
+      run = [pai.number]
+      suite = pai.suite
+  flush()
+  return ret
+
+# string => bins
+Pai.binsFromString = (s) ->
+  ret = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0]
+  ]
+  for run in s.match /\d*\D/g
+    l = run.length
+    if l <= 2
+      # not contracted
+      pai = Pai[run]
+      ret[pai.suiteNumber][pai.number-1]++
+    else
+      # contracted
+      suiteNumber = SUITE_NUMBER[run[l-1]]
+      for i in [0...(l-1)]
+        number = Number run[i]
+        if number == 0 then number = 5
+        ret[suiteNumber][number-1]++
+  ret
+
+# array => bins
+Pai.binsFromArray = (paiArray) ->
+  ret = [
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0]
+  ]
+  for pai in paiArray
+    ret[pai.suiteNumber][pai.equivNumber-1]++
+  ret

@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/summivox/riichi-core/issues"
   },
-  "homepage": "https://github.com/summivox/riichi-core#readme"
+  "homepage": "https://github.com/summivox/riichi-core#readme",
+  "dependencies": {
+    "lodash": "^3.9.3"
+  }
 }
