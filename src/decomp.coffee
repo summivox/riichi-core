@@ -35,11 +35,14 @@ patterns = [
   { name: 'kanchan', target: 'shuntsu', kernel: [1, 0, 1], wait: [1] }
   { name: 'ryanmen', target: 'shuntsu', kernel: [1, 1]   , wait: [-1, 2] }
 ]
+TARGET_ID = { shuntsu: 0, koutsu : 1, jantou : 2 } # index for pattern.target
+
 nPatterns = patterns.length
 
 do ->
   for pattern, id in patterns
     pattern.id = id
+    pattern.targetId = TARGET_ID[pattern.target]
     pattern.nPai = _.sum pattern.kernel
     if wait = pattern.wait
       pattern.waitAbs = waitAbs = new Array N
@@ -51,7 +54,6 @@ do ->
 # handling of pattern caps:
 #   shuntsu + koutsu = mentsu <= 4
 #   jantou <= 1
-TARGET     = { shuntsu: 0, koutsu : 1, jantou : 2 } # id
 CAP_MENTSU = 4
 CAP_JANTOU = 1
 
@@ -120,7 +122,7 @@ makeDecomp1Lookup = ->
   # try place given pattern at offset
   # return: if successfully placed
   tryPlace = (pattern, offset) ->
-    {id, target, kernel, nPai} = pattern
+    {id, targetId, kernel, nPai} = pattern
 
     # check if out of boundary
     if offset + kernel.length > N then return false
@@ -134,7 +136,7 @@ makeDecomp1Lookup = ->
     if !canPlace then return false
 
     state.nPai += nPai
-    state.nTarget[TARGET[target]]++
+    state.nTarget[targetId]++
     for x, rel in kernel
       state.bin[offset + rel] += x
     state.placements.push(compactPlacement(id, offset))
@@ -143,10 +145,10 @@ makeDecomp1Lookup = ->
   # undo most recent placement (repeated n times)
   unPlace = (pattern, offset, n) ->
     if !n then return
-    {target, kernel, nPai} = pattern
+    {targetId, kernel, nPai} = pattern
 
     state.nPai -= nPai*n
-    state.nTarget[TARGET[target]] -= n
+    state.nTarget[targetId] -= n
     for x, rel in kernel
       state.bin[offset + rel] -= x*n
     state.placements.splice(-n, n)
@@ -264,7 +266,7 @@ decomp1sFromBins = (bins, key) ->
     decomp1LookupEntry(bins[1], key)
     decomp1LookupEntry(bins[2], key)
     decomp1LookupEntry(bins[3], key)
-      .filter (decomp1) -> decomp1.nTarget[TARGET['shuntsu']] == 0
+      .filter (decomp1) -> decomp1.nTarget[TARGET_ID['shuntsu']] == 0
   ]
 
 # produce decomp from 4*decomp1 (which in turn come from each bin/suite)
