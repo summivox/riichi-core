@@ -93,30 +93,41 @@ module.exports = class Pai
     Pai(n + @suite())
   isSuccOf: (pred) -> @equivPai().isEqualTo(pred.succ())
 
+# export constants
+Pai.SUITES = SUITES
+Pai.SUITE_NUMBER = SUITE_NUMBER
 
 # Build dictionary of pai literals
-blacklist =
-  toString: true
-for m in [0..3]
-  for n in [0..9]
-    paiStr = n + SUITES[m]
-    try Pai paiStr catch e then continue
-    Pai[paiStr] = {}
-for own paiStr, paiLit of Pai
-  paiObj = Pai paiStr
-  for k, v of paiObj
-    if blacklist[k] then continue
-    # convert predicate functions to values
-    if v instanceof Function
-      if v.length > 0 then continue
-      v = paiObj[k]()
-    # link pai literals
-    if v instanceof Pai then v = Pai[v.toString()]
-    paiLit[k] = v
+do ->
+  blacklist =
+    toString: true
+  f = -> return @paiStr
+  prototype = {toString: f, toJSON: f}
+  for m in [0..3]
+    for n in [0..9]
+      paiStr = n + SUITES[m]
+      try Pai paiStr catch e then continue
+      Pai[paiStr] = Object.create(prototype)
+  for own paiStr, paiLit of Pai
+    paiObj = Pai paiStr
+    for k, v of paiObj
+      if blacklist[k] then continue
+      # convert predicate functions to values
+      if v instanceof Function
+        if v.length > 0 then continue
+        v = paiObj[k]()
+      # link pai literals
+      if v instanceof Pai then v = Pai[v.toString()]
+      paiLit[k] = v
 
 # link alternative shorthands
-for alt, n of TSUUPAI_ALT_MAP
-  Pai[alt] = Pai[n + 'z']
+do ->
+  for alt, n of TSUUPAI_ALT_MAP
+    Pai[alt] = Pai[n + 'z']
+  for n in [0..9]
+    a = Pai[n] = new Array 4
+    for m in [0..3]
+      a[m] = Pai[n + SUITES[m]]
 
 
 # comparison functions for sorting
@@ -137,14 +148,18 @@ Pai.compare = (a, b) ->
 # * sorted array of Pai literals
 #
 # * "bins" for simplified calculations
-#   bins[0][i] => # of pai (i+1)-m  ;  0 <= i < 8
-#   bins[1][i] => # of pai (i+1)-p  ;  0 <= i < 8
-#   bins[2][i] => # of pai (i+1)-s  ;  0 <= i < 8
-#   bins[3][i] => # of pai (i+1)-z  ;  0 <= i < 6
+#   bins[0][i] => # of pai (i+1)-m  ;  0 <= i < 9
+#   bins[1][i] => # of pai (i+1)-p  ;  0 <= i < 9
+#   bins[2][i] => # of pai (i+1)-s  ;  0 <= i < 9
+#   bins[3][i] => # of pai (i+1)-z  ;  0 <= i < 7
 #
-#   NOTE: bins format treats 0m/0p/0s as 5m/5p/5s
+#   NOTE:
+#   * bins format treats 0m/0p/0s as 5m/5p/5s
+#   * for convenience, bins[3][7] = bins[3][8] = 0
+#
+# * bitmap, lsbit-first (for unique set of pai in single suite)
+#   e.g. 0b000100100 => 36m/36p/...
 
-# string <=> array
 Pai.arrayFromString = (s) ->
   ret = []
   for run in s.match /\d*\D/g
@@ -160,7 +175,8 @@ Pai.arrayFromString = (s) ->
         ret.push Pai[number + suite]
   ret.sort Pai.compare
   ret
-Pai.arrayToString = (paiArray) ->
+
+Pai.stringFromArray = (paiArray) ->
   if !paiArray? then throw Error 'riichi-core: tehai: stringify: null input'
   l = paiArray.length
   if l == 0 then return ''
@@ -183,13 +199,12 @@ Pai.arrayToString = (paiArray) ->
   flush()
   return ret
 
-# string => bins
 Pai.binsFromString = (s) ->
   ret = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
   ]
   for run in s.match /\d*\D/g
     l = run.length
@@ -206,14 +221,32 @@ Pai.binsFromString = (s) ->
         ret[suiteNumber][number-1]++
   ret
 
-# array => bins
 Pai.binsFromArray = (paiArray) ->
   ret = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
     [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0]
+    [0, 0, 0, 0, 0, 0, 0, 0, 0]
   ]
   for pai in paiArray
     ret[pai.suiteNumber][pai.equivNumber-1]++
+  ret
+
+Pai.binFromBitmap = (bitmap) ->
+  ret = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+  i = 0
+  while bitmap
+    ret[i++] = bitmap & 1
+    bitmap >>= 1
+  ret
+
+Pai.arrayFromBitmapSuite = (bitmap, suite) ->
+  # accept both 'm/p/s/z' and 0/1/2/3
+  if suite.length then suite = SUITE_NUMBER[suite]
+  n = 1
+  ret = []
+  while bitmap
+    if bitmap & 1 then ret.push Pai[n][suite]
+    n++
+    bitmap >>= 1
   ret
