@@ -46,7 +46,7 @@ The main policy for choosing canonical term:
         *   __Kakan__ {加槓, (make/declare) added open quad}
         *   __Ankan__ {暗槓, (make/declare) concealed quad}
 *   __Menzen__ {門前, fully concealed hand}
-*   __Tenpai__ {聴牌, ready}
+*   __Tenpai__ {聴牌, ready, waiting}
     *   __Keiten__ {形聴, 形式聴牌, ready only in form}
     *   __Karaten__ {空聴, void ready}
     *   __Furiten__ {振聴, sacred discard}
@@ -71,7 +71,7 @@ Main hierarchy:
     *   `/0[mps]/` __Akahai__ {赤牌, 赤ドラ, akadora} : denotes red 5 of the same suite
     *   `/[02-8][mps]/` __Chunchanpai__ {中張牌, non-terminals}
     *   `/[19][mps]/` __Raotoupai__ {老頭牌, routouhai, terminals}
-*   `/[1-7]z|[ESWNBGRPFCDHT]/` __Tsuupai__ {字牌, jihai, honors}
+*   `/[1-7]z|[ESWNBGRPFCZ]/` __Tsuupai__ {字牌, jihai, honors}
     *   `/[1-4z]|[ESWN]/` __Fonpai__ {風牌, kazehai, winds}
         *   `/1z|E/` __Ton__ {東, higashi, east}
         *   `/2z|S/` __Nan__ {南, minami, south}
@@ -79,10 +79,10 @@ Main hierarchy:
         *   `/4z|N/` __Pei__ {北, kita, north}
         *   __Chanfonpai__ {圏/荘/場風牌, bakazehai, prevailing/round wind}
         *   __Menfonpai__ {門/自風牌, jikazehai, seat wind}
-    *   `/[5-7]z|[BGRPFCDHTZ]/` __Sangenpai__ {三元牌, dragons}
-        *   `/5z|[BPD]/` __Haku__ {白板, paipan, white, blue, frame}
-        *   `/6z|[GFH]/` __Hatsu__ {緑發, green}
-        *   `/7z|[RCTZ]/` __Chun__ {紅中, red}
+    *   `/[5-7]z|[BGRPFCZ]/` __Sangenpai__ {三元牌, dragons}
+        *   `/5z|[BP]/` __Haku__ {白板, パイパン, white, blank, blue, frame}
+        *   `/6z|[GF]/` __Hatsu__ {緑發, リューファ, green}
+        *   `/7z|[RCZ]/` __Chun__ {紅中, ホンチュン, red}
 
 Other categories:
 *   `/[19][mps]|[1-7]z/` __Yaochuupai__ {么九牌, 幺九牌, terminals and honors}

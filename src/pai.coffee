@@ -9,12 +9,11 @@
 
 SUUPAI = /([0-9])([mps])/
 TSUUPAI = /([1-7])z/
-TSUUPAI_ALT = /([ESWNBGRPFCDHTZ])/
+TSUUPAI_ALT = /([ESWNBGRPFCZ])/
 TSUUPAI_ALT_MAP = {
   E: 1, S: 2, W: 3, N: 4 # Fonpai {wind}
   B: 5, G: 6, R: 7 # Sangenpai {honor}
   P: 5, F: 6, C: 7
-  D: 5, H: 6, T: 7
   Z: 7
 }
 SUITES = ['m', 'p', 's', 'z']
