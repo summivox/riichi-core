@@ -9,24 +9,12 @@ function sum arr
   for x in arr => s += x
   s
 
-
-# magic numbers:
-#   number range: [0, N)
-#   max # of single pai in game: M
-#   max # of pai in juntehai: K
-#   max # of jantou: CAP_JANTOU = 1
-#   max # of mentsu (= shuntsu + koutsu): CAP_MENTSU
-const N = 9, M = 4, K = 14
-const CAP_JANTOU = 1
-const CAP_MENTSU = calcCapMentsu K
-function calcCapMentsu => Math.floor((it - 2)/3)
-
+{N, M, K, CAP_JANTOU, CAP_MENTSU} = require './consts.js'
 # derived
 const N_LOG2 = Math.ceil Math.log2 N
 const N_MASK = ``(1<<N_LOG2) - 1``
 const M_LOG2 = Math.ceil Math.log2 M
 const M_MASK = ``(1<<M_LOG2) - 1``
-
 
 
 # -------------------------
@@ -437,7 +425,7 @@ if require.main == module
     123m067p2366778s6s
   ]>.map Pai.binsFromString
   agariBins = <[
-    1112345678999p
+    11122345678999p
   ]>.map Pai.binsFromString
   
   iters = 10
@@ -452,17 +440,16 @@ if require.main == module
   clock = clock[1] / len / iters / 1e6 # in ms
   console.log clock
 
-  print = (x) -> null # console.log JSON.stringify(x, 0, 2)
+  print = (x) -> console.log JSON.stringify(x, 0, 2)
   print tenpai
   print discardTenpai
   print agari
 
 
 
-module.exports = {
+export
   init: makeDecomp1Lookup
-  decomp1Lookup
+  # decomp1Lookup
   decompDiscardTenpai
   decompTenpai
   decompAgari
-}
