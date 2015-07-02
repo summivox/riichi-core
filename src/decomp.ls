@@ -112,6 +112,7 @@ ensureDecomp1LookupEntry = (bin, key) ->
 
 # precompute the lookup table by searching
 makeDecomp1Lookup = ->
+  if decomp1Lookup.length then return decomp1Lookup
 
   # state: current search node
   #   nPai = # of all pai (implicit in decomp1 object)
@@ -206,7 +207,7 @@ makeDecomp1Lookup = ->
   ensureDecomp1LookupEntry(state.bin, 'complete').push(state.toDecomp1!)
   # launch search
   dfsPattern(0)
-  return makeDecomp1Lookup
+  return decomp1Lookup
 
 # prints decomp1Lookup
 # NOTE: very large output; try redirect stdout to file
@@ -312,9 +313,9 @@ decompDiscardTenpai = (bins) ->
   ret = {}
 
   # check which bin/suite cannot be decomposed without discarding:
-  # * 0: discard can come from any suite
-  # * 1: discard can only come from this suite
-  # * else: no solution
+  # - 0: discard can come from any suite
+  # - 1: discard can only come from this suite
+  # - else: no solution
   CC = decomp1sFromBins(bins, 'complete')
   WW = decomp1sFromBins(bins, 'waiting')
   sDiscard = null
@@ -461,6 +462,7 @@ if require.main == module
 export
   init: makeDecomp1Lookup
   # decomp1Lookup
+  # printDecomp1Lookup
   decompDiscardTenpai
   decompTenpai
   decompAgari
