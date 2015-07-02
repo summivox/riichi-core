@@ -10,18 +10,17 @@
 SUUPAI = /([0-9])([mps])/
 TSUUPAI = /([1-7])z/
 TSUUPAI_ALT = /([ESWNBGRPFCZ])/
-TSUUPAI_ALT_MAP = {
+TSUUPAI_ALT_MAP =
   E: 1, S: 2, W: 3, N: 4 # Fonpai {wind}
   B: 5, G: 6, R: 7 # Sangenpai {honor}
   P: 5, F: 6, C: 7
   Z: 7
-}
-SUITES = ['m', 'p', 's', 'z']
-SUITE_NUMBER = {m: 0, p: 1, s: 2, z: 3}
+SUITES = <[m p s z]>
+SUITE_NUMBER = m: 0, p: 1, s: 2, z: 3
 
 module.exports = class Pai
 
-  constructor: (paiStr) ->
+  (paiStr) ->
     # works without new
     if this not instanceof Pai then return new Pai paiStr
     # check for null
@@ -30,15 +29,15 @@ module.exports = class Pai
     if paiStr instanceof Pai then paiStr = paiStr.toString()
 
     # canonicalize representation
-    if match = paiStr.match SUUPAI
+    if m = paiStr.match SUUPAI
       # canonical suupai
       @paiStr = paiStr
-    else if match = paiStr.match TSUUPAI
+    else if m = paiStr.match TSUUPAI
       # canonical tsuupai
       @paiStr = paiStr
-    else if match = paiStr.match TSUUPAI_ALT
+    else if m = paiStr.match TSUUPAI_ALT
       # valid shorthand for tsuupai
-      @paiStr = TSUUPAI_ALT_MAP[match[1]] + 'z'
+      @paiStr = TSUUPAI_ALT_MAP[m[1]] + 'z'
     else throw new Error 'riichi-core: Pai: ctor: invalid shorthand: ' + paiStr
 
     # make immutable
@@ -92,18 +91,14 @@ module.exports = class Pai
     Pai(n + @suite())
   isSuccOf: (pred) -> @equivPai().isEqualTo(pred.succ())
 
-# export constants
-Pai.SUITES = SUITES
-Pai.SUITE_NUMBER = SUITE_NUMBER
-
 # Build dictionary of pai literals
 do ->
   blacklist =
     toString: true
   f = -> return @paiStr
   prototype = {toString: f, toJSON: f}
-  for m in [0..3]
-    for n in [0..9]
+  for m from 0 to 3
+    for n from 0 to 9
       paiStr = n + SUITES[m]
       try Pai paiStr catch e then continue
       Pai[paiStr] = Object.create(prototype)
@@ -116,17 +111,21 @@ do ->
         if v.length > 0 then continue
         v = paiObj[k]()
       # link pai literals
-      if v instanceof Pai then v = Pai[v.toString()]
+      if v instanceof Pai then v = Pai[v.paiStr]
       paiLit[k] = v
 
 # link alternative shorthands
 do ->
   for alt, n of TSUUPAI_ALT_MAP
     Pai[alt] = Pai[n + 'z']
-  for n in [0..9]
+  for n from 0 to 9
     a = Pai[n] = new Array 4
-    for m in [0..3]
+    for m from 0 to 3
       a[m] = Pai[n + SUITES[m]]
+
+# export constants
+Pai.SUITES = SUITES
+Pai.SUITE_NUMBER = SUITE_NUMBER
 
 
 # comparison functions for sorting
@@ -169,7 +168,7 @@ Pai.arrayFromString = (s) ->
     else
       # contracted
       suite = run[l-1]
-      for i in [0...(l-1)]
+      for i til l-1
         number = run[i]
         ret.push Pai[number + suite]
   ret.sort Pai.compare
@@ -187,7 +186,7 @@ Pai.stringFromArray = (paiArray) ->
   suite = paiArray[0].suite
   flush = -> ret += run.join('') + suite
 
-  for i in [1...l]
+  for i from 1 til l
     pai = paiArray[i]
     if pai.suite == suite
       run.push pai.number
@@ -199,12 +198,11 @@ Pai.stringFromArray = (paiArray) ->
   return ret
 
 Pai.binsFromString = (s) ->
-  ret = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-  ]
+  ret =
+    [0 0 0 0 0 0 0 0 0]
+    [0 0 0 0 0 0 0 0 0]
+    [0 0 0 0 0 0 0 0 0]
+    [0 0 0 0 0 0 0 0 0]
   for run in s.match /\d*\D/g
     l = run.length
     if l <= 2
@@ -214,29 +212,28 @@ Pai.binsFromString = (s) ->
     else
       # contracted
       suiteNumber = SUITE_NUMBER[run[l-1]]
-      for i in [0...(l-1)]
+      for i til (l-1)
         number = Number run[i]
         if number == 0 then number = 5
         ret[suiteNumber][number-1]++
   ret
 
 Pai.binsFromArray = (paiArray) ->
-  ret = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-    [0, 0, 0, 0, 0, 0, 0, 0, 0]
-  ]
+  ret =
+    [0 0 0 0 0 0 0 0 0]
+    [0 0 0 0 0 0 0 0 0]
+    [0 0 0 0 0 0 0 0 0]
+    [0 0 0 0 0 0 0 0 0]
   for pai in paiArray
     ret[pai.suiteNumber][pai.equivNumber-1]++
   ret
 
 Pai.binFromBitmap = (bitmap) ->
-  ret = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+  ret = [0 0 0 0 0 0 0 0 0]
   i = 0
   while bitmap
-    ret[i++] = bitmap & 1
-    bitmap >>= 1
+    ret[i++] = bitmap .&. 1
+    bitmap .>>.= 1
   ret
 
 Pai.arrayFromBitmapSuite = (bitmap, suite) ->
@@ -245,7 +242,28 @@ Pai.arrayFromBitmapSuite = (bitmap, suite) ->
   n = 1
   ret = []
   while bitmap
-    if bitmap & 1 then ret.push Pai[n][suite]
+    if bitmap .&. 1 then ret.push Pai[n][suite]
     n++
-    bitmap >>= 1
+    bitmap .>>.= 1
   ret
+
+# generate array of all 136 pai in uniform random order
+# nAkapai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]
+Pai.shuffleAll = (nAkapai = [1 1 1]) ->
+  [m0, p0, s0] = nAkapai
+  m5 = 4 - m0
+  p5 = 4 - p0
+  s5 = 4 - s0
+
+  # meh.
+  S = "1111222233334444#{'0'*m0}#{'5'*m5}6666777788889999m"+
+      "1111222233334444#{'0'*p0}#{'5'*p5}6666777788889999p"+
+      "1111222233334444#{'0'*s0}#{'5'*s5}6666777788889999s"+
+      "1111222233334444555566667777z"
+  a = Pai.arrayFromString S
+
+  # shuffle
+  for i from 136-1 til 0 by -1
+    j = ~~(Math.random() * (i + 1))
+    t = a[j] ; a[j] = a[i] ; a[i] = t
+  a
