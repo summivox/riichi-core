@@ -1,18 +1,31 @@
 # tenpai/agari standard form decomposition
 # NOTE: bin(s) format is expected (see `./pai.coffee`)
 
-_ = require 'lodash'
-
 Pai = require './pai.js'
+
+# because I don't want to require lodash
+function sum arr
+  s = 0
+  for x in arr => s += x
+  s
 
 
 # magic numbers:
 #   number range: [0, N)
 #   max # of single pai in game: M
 #   max # of pai in juntehai: K
-N = 9
-M = 4
-K = 14
+#   max # of jantou: CAP_JANTOU = 1
+#   max # of mentsu (= shuntsu + koutsu): CAP_MENTSU
+const N = 9, M = 4, K = 14
+const CAP_JANTOU = 1
+const CAP_MENTSU = calcCapMentsu K
+function calcCapMentsu => Math.floor((it - 2)/3)
+
+# derived
+const N_LOG2 = Math.ceil Math.log2 N
+const N_MASK = ``(1<<N_LOG2) - 1``
+const M_LOG2 = Math.ceil Math.log2 M
+const M_MASK = ``(1<<M_LOG2) - 1``
 
 
 
@@ -23,89 +36,90 @@ K = 14
 #   * complete (wait == null, `target == name`)
 #   * waits for valid pai `offset+wait[i]` to become `target`
 # * waitAbs[offset]: precomputed array of all valid `offset+wait[i]`
-patterns = [
+patterns =
   # complete mentsu/jantou : no wait
-  { name: 'shuntsu', target: 'shuntsu', kernel: [1, 1, 1], wait: null }
-  { name: 'koutsu' , target: 'koutsu' , kernel: [3]      , wait: null }
-  { name: 'jantou' , target: 'jantou' , kernel: [2]      , wait: null }
+  * name: 'shuntsu' target: 'shuntsu' kernel: [1 1 1] wait: null
+  * name: 'koutsu'  target: 'koutsu'  kernel: [3]     wait: null
+  * name: 'jantou'  target: 'jantou'  kernel: [2]     wait: null
   # incomplete mentsu/jantou : 1/2 wait(s)
   # NOTE: 'ryanmen' could actually become 'penchan' depending on position
-  { name: 'tanki'  , target: 'jantou' , kernel: [1]      , wait: [0] }
-  { name: 'toitsu' , target: 'koutsu' , kernel: [2]      , wait: [0] }
-  { name: 'kanchan', target: 'shuntsu', kernel: [1, 0, 1], wait: [1] }
-  { name: 'ryanmen', target: 'shuntsu', kernel: [1, 1]   , wait: [-1, 2] }
-]
-TARGET_ID = { shuntsu: 0, koutsu : 1, jantou : 2 } # index for pattern.target
+  * name: 'tanki'   target: 'jantou'  kernel: [1]     wait: [0]
+  * name: 'toitsu'  target: 'koutsu'  kernel: [2]     wait: [0]
+  * name: 'kanchan' target: 'shuntsu' kernel: [1 0 1] wait: [1]
+  * name: 'ryanmen' target: 'shuntsu' kernel: [1 1]   wait: [-1 2]
+const nPatterns = patterns.length
 
-nPatterns = patterns.length
+# index for `pattern.target` & `decomp1.nTarget`
+const TARGET_ID = shuntsu: 0, koutsu: 1, jantou: 2
+const TARGET_N = 3
 
-do ->
-  for pattern, id in patterns
-    pattern.id = id
-    pattern.targetId = TARGET_ID[pattern.target]
-    pattern.nPai = _.sum pattern.kernel
-    if wait = pattern.wait
-      pattern.waitAbs = waitAbs = new Array N
-      for offset in [0...N]
-        a = (abs for rel in wait when 0 <= (abs = offset + rel) < N)
-        waitAbs[offset] = a
-  return
-
-# handling of pattern caps:
-#   shuntsu + koutsu = mentsu <= 4
-#   jantou <= 1
-CAP_MENTSU = 4
-CAP_JANTOU = 1
+# completes infered properties for patterns
+for pattern, id in patterns
+  pattern.id = id
+  pattern.targetId = TARGET_ID[pattern.target]
+  pattern.nPai = sum pattern.kernel
+  if wait = pattern.wait
+    pattern.waitAbs = waitAbs = new Array N
+    for offset from 0 til N
+      a = [abs for rel in wait when 0 <= (abs = offset + rel) < N]
+      waitAbs[offset] = a
 
 
 
 # -------------------------
-# precompute all complete/waiting single-suite juntehai configurations and all
-# possible ways to decompose them into patterns
+# precomputed lookup table that maps complete/tenpai 1-suite juntehai (in bin
+# format) to all valid pattern decompositions of it
 #
 # decomp1Lookup[compactBin bin]:
 #   complete, waiting: array of decomp1
-# decomp1:
+# decomp1: one decomposition of bin
 #   nTarget: # of [shuntsu, koutsu, jantou], both complete and incomplete
 #   placements: array of compacted placements `{patternId, offset}`
 #
 # NOTE:
+# * `1` in `decomp1` stands for "1-suite"
 # * placements are sorted by patternId then offset (compacted: numerical order)
 # * as a result, incomplete patterns (if any) must be at the end of `placements`
-decomp1Lookup = {}
+decomp1Lookup = []
 
 
-# compact bins and placements into atoms (number/string)
+# compact bins and placements into integers (packed bitfields)
 
-compactBin = (bin) ->
-  bin.join('') # keep leading zero for easy lookup
-restoreBin = (bs) ->
-  (Number x for x in bs)
+compactBin = ->
+  s = 0
+  for x til N
+    s = (s .<<. M_LOG2) .|. it[x]
+  s
+# NOTE: the following can be used to produce a more human-readable key
+# compactBin = -> Number it.join ''
 
 compactPlacement = (patternId, offset) ->
-  patternId*10 + offset
-restorePlacement = (ps) ->
-  {patternId: ps//10, offset: ps%10}
+  (patternId .<<. N_LOG2) + offset
+restorePlacement = ->
+  patternId: it .>>. N_LOG2
+  offset:    it .&.  N_MASK
 
 
 # get entry / create empty entry in decomp1Lookup
 # key: 'complete'/'waiting'
+#
+# NOTE:
+# * cannot be trivially written even in livescript
+# * whitespaces are significant
 decomp1LookupEntry = (bin, key) ->
-  decomp1Lookup[compactBin bin]?[key] ? [] # NOTE: significant whitespace
+  decomp1Lookup[compactBin bin]?[key] ? []
 ensureDecomp1LookupEntry = (bin, key) ->
   (decomp1Lookup[compactBin bin] ||= {})[key] ||= []
 
-
-# precompute decomp1Lookup
-# NOTE: time-consuming process due to # of total conf's
+# precompute the lookup table by searching
 makeDecomp1Lookup = ->
 
   # state: current search node
   #   nPai = # of all pai (implicit in decomp1 object)
   state = {
-    bin: (0 for i in [0...N])
+    bin: [0] * N
     nPai: 0
-    nTarget: [0, 0, 0]
+    nTarget: [0] * TARGET_N
     placements: []
 
     remaining: (pattern) ->
@@ -114,8 +128,8 @@ makeDecomp1Lookup = ->
       else
         CAP_MENTSU - @nTarget[0] - @nTarget[1]
     toDecomp1: -> {
-      nTarget: @nTarget.slice()
-      placements: @placements.slice()
+      nTarget: @nTarget.slice!
+      placements: @placements.slice!
     }
   }
 
@@ -143,7 +157,7 @@ makeDecomp1Lookup = ->
     return true
 
   # undo most recent placement (repeated n times)
-  unPlace = (pattern, offset, n) ->
+  unPlace = (pattern, offset, n) !->
     if !n then return
     {targetId, kernel, nPai} = pattern
 
@@ -151,55 +165,53 @@ makeDecomp1Lookup = ->
     state.nTarget[targetId] -= n
     for x, rel in kernel
       state.bin[offset + rel] -= x*n
-    state.placements.splice(-n, n)
-    return
+    state.placements.splice(-n, n) # equivalent to `.pop!` n times
 
   # check for invalid case of pure void wait (juntehai karaten)
   isKaraten = (pattern, offset) ->
     {machiAbs} = pattern
     if !machiAbs? then return false
-    return false for m in machiAbs[offset] when state.bin[m] < M
+    for m in machiAbs[offset]
+      if state.bin[m] < M
+        return false
     return true
 
   # nested DFS: avoid searching the same configuration twice
-  dfsPattern = (minPatternId) ->
+  dfsPattern = (minPatternId) !->
     if state.nPai >= K then return
-    for patternId in [minPatternId...nPatterns] by 1
+    for patternId from minPatternId til nPatterns
       pattern = patterns[patternId]
       remaining = state.remaining(pattern)
       if remaining
         dfsOffset(patternId, 0, remaining)
-    return
-  dfsOffset = (patternId, minOffset, remaining) ->
+  dfsOffset = (patternId, minOffset, remaining) !->
     if minOffset >= N then return
     {wait} = pattern = patterns[patternId]
-    for offset in [minOffset...N] by 1
+    for offset from minOffset til N
       n = 0 # total # of patterns placed at this location
       while n < remaining && tryPlace(pattern, offset)
         n++
-        decomp1 = state.toDecomp1()
+        decomp1 = state.toDecomp1!
         if wait
           if !isKaraten(pattern, offset)
             ensureDecomp1LookupEntry(state.bin, 'waiting').push(decomp1)
-            break # only 1 incomplete pattern can be placed in total
+            break # only 1 waiting pattern can be placed in total
         else
           ensureDecomp1LookupEntry(state.bin, 'complete').push(decomp1)
           if remaining - n > 0
             dfsOffset(patternId, offset+1, remaining - n)
           dfsPattern(patternId+1)
       unPlace(pattern, offset, n)
-    return
 
   # "zero" decomposition
-  ensureDecomp1LookupEntry(state.bin, 'complete').push(state.toDecomp1())
+  ensureDecomp1LookupEntry(state.bin, 'complete').push(state.toDecomp1!)
   # launch search
   dfsPattern(0)
   return makeDecomp1Lookup
 
-# prints decomp1Lookup (compact)
+# prints decomp1Lookup
 # NOTE: very large output; try redirect stdout to file
-printDecomp1Lookup = ->
-  console.time 'print'
+printDecomp1Lookup = !->
   for bin, {complete, waiting} of decomp1Lookup
     if complete?.length
       cs = ' C' + JSON.stringify complete
@@ -207,12 +219,7 @@ printDecomp1Lookup = ->
     if waiting?.length
       ws = ' W' + JSON.stringify waiting
     else ws = ''
-    console.log "#{bin}:#{cs}#{ws}"
-  console.timeEnd 'print'
-
-console.time 'makeDecomp1Lookup'
-do makeDecomp1Lookup # TODO: run in background
-console.timeEnd 'makeDecomp1Lookup'
+    console.log "#bin:#cs#ws"
 
 
 
@@ -247,27 +254,31 @@ waitBitmapFromDecomp1 = (bin, decomp1) ->
   if waitAbs
     for w in waitAbs[offset]
       if bin[w] < M
-        ret |= 1<<w
+        ret .|.= 1 .<<. w
   ret
 
-# plus/minus decomp1.nTarget from rem ([CAP_MENTSU, CAP_JANTOU])
+# subtract mentsu/jantou count of decomp1 from remaining
 # return false if cap goes negative
-addRem = (rem, decomp1, sign) ->
-  {nTarget, placements} = decomp1
-  if !placements.length then return true
-  rem[0] += sign * (nTarget[0] + nTarget[1])
-  rem[1] += sign * nTarget[2]
+subRem = (rem, decomp1) ->
+  if !decomp1.placements.length then return true
+  {nTarget: [shuntsu, koutsu, jantou]} = decomp1
+  rem[0] -= shuntsu + koutsu
+  rem[1] -= jantou
   return rem[0] >= 0 && rem[1] >= 0
+# same as above, but add it back
+addRem = (rem, decomp1) !->
+  if !decomp1.placements.length then return true
+  {nTarget: [shuntsu, koutsu, jantou]} = decomp1
+  rem[0] += shuntsu + koutsu
+  rem[1] += jantou
 
 # decomp1 for each bin
-decomp1sFromBins = (bins, key) ->
-  [
-    decomp1LookupEntry(bins[0], key)
-    decomp1LookupEntry(bins[1], key)
-    decomp1LookupEntry(bins[2], key)
-    decomp1LookupEntry(bins[3], key)
-      .filter (decomp1) -> decomp1.nTarget[TARGET_ID['shuntsu']] == 0
-  ]
+decomp1sFromBins = (bins, key) -> [
+  decomp1LookupEntry(bins[0], key)
+  decomp1LookupEntry(bins[1], key)
+  decomp1LookupEntry(bins[2], key)
+  decomp1LookupEntry(bins[3], key).filter (.nTarget[TARGET_ID.shuntsu] == 0)
+]
 
 # produce decomp from 4*decomp1 (which in turn come from each bin/suite)
 # NOTE: need to provide corresponding suite numbers (see `decompTenpai`)
@@ -276,7 +287,7 @@ stitch = (decomp1s, suites) ->
     mentsu: []
     jantou: null
     wait: null
-  for placements, i in _.pluck decomp1s, 'placements'
+  for {placements}, i in decomp1s
     suite = suites[i]
     for placement in placements
       {patternId, offset} = restorePlacement placement
@@ -300,9 +311,25 @@ stitch = (decomp1s, suites) ->
 # return: dict of: paiStr => (3*n+1) tenpai result after discarding paiStr
 decompDiscardTenpai = (bins) ->
   ret = {}
-  for bin, s in bins
-    for n, i in bin
-      if n
+
+  # check which bin/suite cannot be decomposed without discarding:
+  # * 0: discard can come from any suite
+  # * 1: discard can only come from this suite
+  # * else: no solution
+  CC = decomp1sFromBins(bins, 'complete')
+  WW = decomp1sFromBins(bins, 'waiting')
+  sDiscard = null
+  for s til 4
+    if !CC[s].length && !WW[s].length
+      if sDiscard? then return ret
+      sDiscard = s
+  if sDiscard? then enumDiscardIn sDiscard
+  else for s til 4 => enumDiscardIn s
+
+  function enumDiscardIn s
+    bin = bins[s]
+    for i til N
+      if bin[i]
         bin[i]--
         {wait} = tenpai = decompTenpai(bins)
         if wait.length
@@ -336,24 +363,25 @@ decompTenpai = (bins) ->
     # cartesian product of decompositions from each bin
     for d1W in d1sW
       waitOne = waitBitmapFromDecomp1(bins[iw], d1W)
-      addRem(rem, d1W, -1)
+      subRem(rem, d1W)
       for d1C0 in d1sC0
-        if addRem(rem, d1C0, -1)
+        if subRem(rem, d1C0)
           for d1C1 in d1sC1
-            if addRem(rem, d1C1, -1)
+            if subRem(rem, d1C1)
               for d1C2 in d1sC2
-                if addRem(rem, d1C2, -1)
+                if subRem(rem, d1C2)
                   decomp = stitch [d1W, d1C0, d1C1, d1C2], [iw, ic0, ic1, ic2]
                   decomp.wait = convert(waitOne, iw)
                   ret.decomps.push decomp
-                  waitSuite |= waitOne
+                  waitSuite .|.= waitOne
                   # NOTE: this cannot be moved to outer loop because we need
                   # to verify that this decomp is valid
-                addRem(rem, d1C2, +1)
-            addRem(rem, d1C1, +1)
-        addRem(rem, d1C0, +1)
-      addRem(rem, d1W, +1)
+                addRem(rem, d1C2)
+            addRem(rem, d1C1)
+        addRem(rem, d1C0)
+      addRem(rem, d1W)
     [].push.apply ret.wait, convert(waitSuite, iw)
+    # ret.wait ++= convert(waitSuite, iw)
     return
   # enumerate which suite is waiting
   f(0, 1, 2, 3)
@@ -375,53 +403,64 @@ decompAgari = (bins) ->
   d1sC3 = CC[3] ; if !d1sC3.length then return ret
   rem = [CAP_MENTSU, CAP_JANTOU]
   for d1C0 in d1sC0
-    addRem(rem, d1C0, -1)
+    subRem(rem, d1C0)
     for d1C1 in d1sC1
-      if addRem(rem, d1C1, -1)
+      if subRem(rem, d1C1)
         for d1C2 in d1sC2
-          if addRem(rem, d1C2, -1)
+          if subRem(rem, d1C2)
             for d1C3 in d1sC3
-              if addRem(rem, d1C3, -1)
+              if subRem(rem, d1C3)
                 decomp = stitch [d1C0, d1C1, d1C2, d1C3], [0, 1, 2, 3]
                 ret.push decomp
-              addRem(rem, d1C3, +1)
-          addRem(rem, d1C2, +1)
-      addRem(rem, d1C1, +1)
-    addRem(rem, d1C0, +1)
+              addRem(rem, d1C3)
+          addRem(rem, d1C2)
+      addRem(rem, d1C1)
+    addRem(rem, d1C0)
   ret
 
 
 # small tests
-do ->
+if require.main == module
   # bins = Pai.binsFromString '5666777788m'
   # bins = Pai.binsFromString '3456789m1234p11s1s'
+  
+  debugger
+  console.time 'precompute'
+  makeDecomp1Lookup!
+  console.timeEnd 'precompute'
 
-  console.time 'decompTenpai'
+  tenpaiBins = <[
+    22234567p44s
+    1112345678999p
+  ]>.map Pai.binsFromString
+  discardTenpaiBins = <[
+    123m067p2366778s6s
+  ]>.map Pai.binsFromString
+  agariBins = <[
+    1112345678999p
+  ]>.map Pai.binsFromString
+  
+  iters = 10
+  clock = process?.hrtime!
+  for i til iters
+    tenpai = tenpaiBins.map decompTenpai
+    discardTenpai = discardTenpaiBins.map decompDiscardTenpai
+    agari = agariBins.map decompAgari
+  clock = process?.hrtime clock
 
-  bins = Pai.binsFromString '22234567p44s'
-  tenpai = decompTenpai(bins)
+  len = tenpaiBins.length + discardTenpaiBins.length + agariBins.length
+  clock = clock[1] / len / iters / 1e6 # in ms
+  console.log clock
 
-  bins = Pai.binsFromString '123m067p2366778s6s'
-  discardTenpai = decompDiscardTenpai(bins)
-
-  bins = Pai.binsFromString '1112345678999p'
-  tenpai9 = decompTenpai(bins)
-
-  bins = Pai.binsFromString '11122345678999p'
-  agari9 = decompAgari(bins)
-
-  console.timeEnd 'decompTenpai'
-
-  print = (x) -> console.log JSON.stringify(x, 0, 2)
+  print = (x) -> null # console.log JSON.stringify(x, 0, 2)
   print tenpai
   print discardTenpai
-  print tenpai9
-  print agari9
+  print agari
 
 
-# exposes
 
 module.exports = {
+  init: makeDecomp1Lookup
   decomp1Lookup
   decompDiscardTenpai
   decompTenpai
