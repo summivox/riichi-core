@@ -9,7 +9,18 @@ function sum arr
   for x in arr => s += x
   s
 
-{N, M, K, CAP_JANTOU, CAP_MENTSU} = require './consts.js'
+
+# magic numbers:
+#   number range: [0, N)
+#   max # of single pai in game: M
+#   max # of pai in juntehai: K
+#   max # of jantou: CAP_JANTOU = 1
+#   max # of mentsu (= shuntsu + koutsu): CAP_MENTSU
+const N = 9, M = 4, K = 14
+const CAP_JANTOU = 1
+const CAP_MENTSU = calcCapMentsu K
+function calcCapMentsu => Math.floor((it - 2)/3)
+
 # derived
 const N_LOG2 = Math.ceil Math.log2 N
 const N_MASK = ``(1<<N_LOG2) - 1``
