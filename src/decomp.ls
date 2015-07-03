@@ -307,26 +307,26 @@ stitch = (decomp1s, suites) ->
 # NOTE: (3*n+1) and (3*n+2) tenpai calculations are relevent in different
 # contexts and therefore have different semantics
 
-# (3*n+2): tenpai after discard
-# return: dict of: paiStr => (3*n+1) tenpai result after discarding paiStr
-decompDiscardTenpai = (bins) ->
+# (3*n+2): tenpai after dahai {discard}
+# return: dict of: discarded pai => (3*n+1) tenpai result
+decompDahaiTenpai = (bins) ->
   ret = {}
 
-  # check which bin/suite cannot be decomposed without discarding:
-  # - 0: discard can come from any suite
-  # - 1: discard can only come from this suite
+  # check which bin/suite cannot be decomposed without dahai:
+  # - 0: dahai can come from any suite
+  # - 1: dahai can only come from this suite
   # - else: no solution
   CC = decomp1sFromBins(bins, 'complete')
   WW = decomp1sFromBins(bins, 'waiting')
-  sDiscard = null
+  sDahai = null
   for s til 4
     if !CC[s].length && !WW[s].length
-      if sDiscard? then return ret
-      sDiscard = s
-  if sDiscard? then enumDiscardIn sDiscard
-  else for s til 4 => enumDiscardIn s
+      if sDahai? then return ret
+      sDahai = s
+  if sDahai? then enumDahaiIn sDahai
+  else for s til 4 => enumDahaiIn s
 
-  function enumDiscardIn s
+  function enumDahaiIn s
     bin = bins[s]
     for i til N
       if bin[i]
@@ -433,7 +433,7 @@ if require.main == module
     22234567p44s
     1112345678999p
   ]>.map Pai.binsFromString
-  discardTenpaiBins = <[
+  dahaiTenpaiBins = <[
     123m067p2366778s6s
   ]>.map Pai.binsFromString
   agariBins = <[
@@ -444,17 +444,17 @@ if require.main == module
   clock = process?.hrtime!
   for i til iters
     tenpai = tenpaiBins.map decompTenpai
-    discardTenpai = discardTenpaiBins.map decompDiscardTenpai
+    dahaiTenpai = dahaiTenpaiBins.map decompDahaiTenpai
     agari = agariBins.map decompAgari
   clock = process?.hrtime clock
 
-  len = tenpaiBins.length + discardTenpaiBins.length + agariBins.length
+  len = tenpaiBins.length + dahaiTenpaiBins.length + agariBins.length
   clock = clock[1] / len / iters / 1e6 # in ms
   console.log clock
 
   print = (x) -> console.log JSON.stringify(x, 0, 2)
   print tenpai
-  print discardTenpai
+  print dahaiTenpai
   print agari
 
 
@@ -463,6 +463,6 @@ export
   init: makeDecomp1Lookup
   # decomp1Lookup
   # printDecomp1Lookup
-  decompDiscardTenpai
+  decompDahaiTenpai
   decompTenpai
   decompAgari
