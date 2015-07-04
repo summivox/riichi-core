@@ -1,20 +1,26 @@
 # kyoku {round}
-# A complete game {chan} consists of a number of mutually independent kyoku's.
-# NOTE: this has inevitably become a God Class, partially due to the complex
-# nature of the game itself.
+# Complete implementation of one kyoku {round} of game.
+#
+# NOTE: This has inevitably become a God Class, partially due to the complexity
+# of the game itself. On top of that, `_agari` is technically a method of this
+# class as well, but has to be put into a separate file, so that this file can
+# at least concentrate on the control flow of the game and leave the equally
+# dazzling "how many points is this hand worth" problem to `_agari` instead.
 
 require! {
   'events': {EventEmitter}
   './decomp.js': {decompDiscardTenpai, decompTenpai, decompAgari}
   './pai.js': Pai
+  './wall.js': splitWall
 }
 
 # stub: emulated enums
 function Enum(names) => o = {} ; for name in names => o[name] = [name] ; o
 
 module.exports = class Kyoku implements EventEmitter::
+  _agari: require './agari.js'
+
   # start a new kyoku
-  # analogous to shuffling and dealing process on an automatic table
   #
   # `init` (immutable):
   #   bakaze: 0/1/2/3 => E/S/W/N
@@ -29,93 +35,56 @@ module.exports = class Kyoku implements EventEmitter::
   # - 1*1000 kyoutaku {riichi bet} on table
   #
   # NOTE:
-  # - tenbou does not take into account of riichi kyoutaku within this round
+  # - tenbou does not take into account of riichi kyoutaku within this round;
   #   actual value is 1000 less if in valid riichi state
-  #
-  # TODO: doc rulevar
+  # - wall defaults to shuffled but can be provided (e.g. for testing)
   (@init, @rulevar, wall = null) ->
     EventEmitter.call @
-    # divide wall:                  136         cumulative sum
-    #   haipai {initial deal}       13*4 = 52   52
-    #   piipai {live wall}          70          122
-    #   dora hyoujihai {indicator}  5*2         132
-    #   rinshan {kan tsumo}         4           136
-    #
-    # NOTE:
-    #
-    # - wall defaults to shuffled (can be given instead e.g. for testing)
-    #
-    # - orders are different from table-top practices as shuffling is i.i.d.
-    #   uniform and unpredictable (of course depending on PRNG quality)
-    #   - both piipai and rinshan are drawn from tail (`.pop()`)
-    #   - when rinshan is drawn, remove one from head of piipai (`.shift()`)
-    #   - even though internal representation is simplified, client may choose
-    #     to visualize in a way analogous to table-top play
-    #
     # - dora handling:
-    #   - @globalHidden.doraHyouji: always the original 5*2 tiles
-    #     [0] => omote {up}, [1] => ura {down}
+    #   - @globalHidden.doraHyouji/uraDoraHyouji: always the original 5 stacks
     #   - @globalPublic.doraHyouji: revealed ones
-    #   - @globalPublic.dora: corresponding actually indicated dora
-    if !wall?
-      wall = Pai.shuffleAll @rulevar.dora.akapai
-    if wall.haipai?
-      {haipai, piipai, doraHyouji, rinshan} = wall
-    else
-      haipai =
-        wall[0  til 13]
-        wall[13 til 26]
-        wall[26 til 39]
-        wall[39 til 52]
-      piipai = wall[52 til 122]
-      doraHyouji =
-        wall[122 til 127]
-        wall[127 til 132]
-      rinshan = wall[132 til 136]
-    #TODO: add back "traditional" order for compatibility with Tenhou logs
+    #   - @globalPublic.dora: indicated dora (i.e. `.succ` of `doraHyouji`)
+    if !wall? then wall = Pai.shuffleAll @rulevar.dora.akapai
+    {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
 
-    # player id:
-    #   chancha {dealer}
-    #   playerSeq: by jikaze {seat wind} order
+    # id of chancha {dealer}
     chancha = init.nKyoku - 1
-    @playerSeq = seq =
-      (chancha + 0)%4 #  ton   east  (chancha)
-      (chancha + 1)%4 #  nan   south
-      (chancha + 2)%4 #  shaa  west
-      (chancha + 3)%4 #  pei   north
+    # jikaze {seat wind} of each player
+    jikaze =
+      (4 - chancha)%4
+      (5 - chancha)%4
+      (6 - chancha)%4
+      (7 - chancha)%4
 
     # all mutable states
-
     @globalHidden =
       piipai
       rinshan
       doraHyouji
-
     @globalPublic =
-      # table states
+      # visible on the table:
       kyoutaku: @init.kyoutaku # increases as riichi succeeds
-      nPiipaiLeft: 70 # decreased even when drawn from rinshan
-      nKan: 0 # increases as player completes kan (up to 4)
+      nPiipaiLeft: 70
+      nKan: 0
       doraHyouji: []
       dora: []
 
-      # game progression states (see below for details)
+      # game progression (see below for details)
       player: chancha
       state: @BEGIN
-      lastAction:
-        type: null
-        player: null
-        details: null
-    @playerHidden = [new PlayerHidden i, haipai[i] for i til 4]
-    @playerPublic = [new PlayerPublic i, seq[i]    for i til 4]
+      actionLog: []
+      lastAction: null # always last item in actionLog
+    @playerHidden = [new PlayerHidden i, haipai[jikaze[i]] for i til 4]
+    @playerPublic = [new PlayerPublic i,        jikaze[i]  for i til 4]
 
     @result = null
 
     # reveal initial dora {motodora}
-    @_revealDoraHyouji\init
+    @_revealDoraHyouji!
 
     # done
 
+  # NOTE: underscore-prefixed methods should not be called from outside
 
   # state machine
   #   BEGIN: player starts turn normally or after kan
@@ -129,25 +98,73 @@ module.exports = class Kyoku implements EventEmitter::
     | @BEGIN  => @_begin!
     | @TURN   => @emit \turn , player
     | @QUERY  => @emit \query, player
-    | @END    => void
+    | @END    => @emit \end  , @result
     | _ => throw new Error "riichi-core: kyoku: advance: bad state (#state)"
+  _goto: -> @globalPublic.state = it
 
-  # actions and associated details object:
-  #   DAHAI: {pai: null/Pai, riichi: true/false}
-  #   CHI/PON/KAN: fuuro object (see PlayerPublic)
-  #
-  # when an action finishes:
-  # - `lastAction` is updated
-  # - event `\action` is emitted
-  import Enum <[ DAHAI CHI PON KAN ]> #
+  # actions: {type, player, details}
+  #   details for each type:
+  #     DAHAI: {pai: Pai, riichi: true/false, tsumokiri: true/false}
+  #     CHI/PON/KAN: fuuro object (see PlayerPublic)
+  import Enum <[ TSUMO DAHAI CHI PON KAN ]> #
+
+  # called after action executed
+  _publishAction: !->
+    with @globalPublic
+      ..actionLog.push it
+      ..lastAction = it
+    @emit \action, it
+
+  # called after @QUERY action *declared* (see below)
+  # NOTE: details of declared action should NOT be published until the action
+  # is executed (when `_publishAction` is then called)
+  _declareAction: ({type, player}:action) !->
+    @playerHidden[player].declaredAction = action
+    @emit \declare, player, type # only type should be published
+
+  # fuuro types
+  import Enum <[ SHUNTSU KOUTSU DAIMINKAN KAKAN ANKAN ]> #
 
 
-  # `_`-prefix method: internal
-  # pair with & without `can`-prefix: user-facing action interface
+  # actions before player's turn
+  _begin: !->
+    {player, lastAction} = @globalPublic
+    if @_checkTochuuRyoukyoku! then return @advance!
+    
+    # tsumo {draw} from either piipai or rinshan
+    # NOTE: rinshan tsumo also removes one piipai from the other end so that
+    # total piipai count always decreases by 1 for each tsumo
+    with @globalHidden
+      if lastAction.type == @KAN
+        pai = ..rinshan.pop()
+        ..piipai.shift()
+      else
+        pai = ..piipai.pop()
+    @globalPublic.nPiipaiLeft--
+
+    @playerHidden[player].addTsumo pai
+    @_publishAction {type: @TSUMO, player, details: null}
+    @_goto @TURN # NOTE: don't advance yet
+    if @playerPublic[player].riichi.accepted
+    and not @canAnkan player
+    and not @canTsumoAgari player
+      # if only option while in riichi is dahai, do it without asking
+      return @dahai player, null
+    @advance!
+
+  # tsumo {draw} from either piipai or rinshan
+  # - when rinshan is drawn, remove one from head of piipai
+  # - therefore # of piipai always decreases on tsumo
+  _tsumo: (rinshan) ->
+    pai
+
+
+  # method pair with & without `can`-prefix: player action interface
+  # NOTE: neither method rely on information hidden from player, i.e. they do
+  # not access `@globalHidden` or `@playerHidden[someOtherPlayer]`
   #
   # - `can`-method judge if the action is valid
   #   return: {valid, reason}
-  #   DOES NOT depend on state hidden to the player
   #
   # - prefix-less method:
   #   - call `can`-method first to determine if the action is valid;
@@ -155,41 +172,13 @@ module.exports = class Kyoku implements EventEmitter::
   #   - perform action & update state
   #   - update `lastAction` and emits event
 
-  # preparation before a player's turn
-  _begin: !->
-    {player, lastAction} = @globalPublic
-    @_tsumo lastAction.type == @KAN
-
-    if @playerPublic[player].riichi\
-    and not @canAnkan player\
-    and not @canTsumohou player
-      # forced tsumokiri during riichi
-      @dahai player, null
-
-    @globalPublic.state = @TURN
-    @advance!
-
-  # tsumo {draw} both from piipai and rinshan
-  _tsumo: (rinshan) !->
-    with @globalHidden
-      if rinshan
-        pai = ..rinshan.pop()
-        ..piipai.shift()
-      else
-        pai = ..piipai.pop()
-    with @globalPublic
-      @playerHidden[..player].addTsumo pai
-      ..state = @TURN
-      ..nPiipaiLeft--
-      ..activeAction = {type: null}
-
-  # common check for `can`-methods: if it's the player's turn
-  function checkTurn(player)
+  # common check for `can`-methods: if player can make any move at all
+  _checkTurn: (player) ->
     with @globalPublic
       if player != ..player or ..state != @TURN
         return valid: false, reason: "not your turn"
     return valid: true
-  function checkQuery(player)
+  _checkQuery: (player) ->
     with @globalPublic
       # NOTE: not typo!
       if player == ..player or ..state != @QUERY
@@ -199,75 +188,352 @@ module.exports = class Kyoku implements EventEmitter::
   # player actions available in normal turn:
   # - dahai (including riichi declaration)
   # - kakan/ankan
-  # - tsumoho
-  # - kyuushuukyuuhai (the only *optional* ryoukyoku)
+  # - tsumoAgari
+  # - kyuushuukyuuhai (the only way of ryoukyoku as a direct player choice)
 
   # dahai {discard}
   # - pai: null => tsumokiri
   # - riichi: true => declare riichi before discard
-  canDahai: (player, pai, riichi = false) ->
-    with checkTurn player => if not ..valid then return ..
-    with @playerPrivate
-      if pai? then ..canTsumokiri! else ..canDahai pai
-  dahai: (player, pai, riichi = false) !->
+  #
+  # NOTE: when publishing event, `null` for tsumokiri is replaced with actual
+  # pai as it becomes revealed; `tsumokiri` flag is set instead
+  canDahai: (player, pai, !!riichi) ->
+    with @_checkTurn player => if not ..valid then return ..
+    if not pai?.paiStr
+      return valid: false, reason: "invalid pai"
+    with @playerHidden[player]
+      with (if pai? then ..canTsumokiri! else ..canDahai pai)
+        if not ..valid then return ..
+      if riichi
+        decomp = ..decompTenpaiWithout pai
+        if decomp.wait.length == 0
+          return valid: false, reason: "not tenpai if dahai is [#pai]"
+    with @globalPublic.lastAction
+      if ..type in [@CHI, @PON] and ..player == player
+      and @isKuikae ..details, pai
+        return valid: false, reason: "kuikae"
+    return valid:true
+
+  dahai: (player, pai, !!riichi) !->
     {valid, reason} = @canTsumokiri player, pai
     if not valid
       throw new Error "riichi-core: kyoku: dahai: #reason"
-    if pai?
-      @playerPublic.dahai @playerPrivate.dahai pai
-      @emit \action, player, type: \dahai, 
+
+    if riichi then with @playerPublic.riichi
+      ..declared = true
+      if @isTrueFirstTsumo player .valid then ..double = true
+    if (tsumokiri = !pai?)
+      @playerPublic[player].tsumokiri pai = @playerHidden[player].tsumokiri!
     else
-      @playerPublic.tsumokiri pai = @playerPrivate.tsumokiri!
-    @_revealDoraHyouji\dahai
-    @_updateFuriten player
-    @_checkRyoukyoku!
-    with @globalPublic
-      ..state = switch ..state
-      | @NORMAL_START, @CHI_PON_DAHAI => @NORMAL_QUERY
-      | @RIICHI_DAHAI                 => @RIICHI_QUERY
+      @playerPublic[player].dahai @playerHidden[player].dahai pai
+
+    @_publishAction {
+      type: @DAHAI, player
+      details: {pai, riichi, tsumokiri}
+    }
+    @_revealDoraHyouji!
+    @_updateFuriten
+    @_goto @QUERY
+    @advance!
 
   # ankan
-  # see rule variations: `.yaku.kokushiAnkan`
+  # rule variations:
+  #   `.yaku.kokushiAnkan`: ankan can be chankan'd by kokushi musou
   canAnkan: (player, pai) ->
-    with checkTurn player => if not ..valid then return ..
-    if n = @playerHidden.juntehaiBins[pai.equivNumber-1][pai.suiteNumber] < 4
+    with @_checkTurn player => if not ..valid then return ..
+    if not pai?.paiStr
+      return valid: false, reason: "invalid pai"
+    with @globalPublic
+      if ..nPiipaiLeft <= 0
+        return valid: false, reason: "cannot kan when no piipai left"
+      if (type = ..lastAction.type) in [@CHI, @PON]
+        return valid: false, reason: "cannot ankan after #type"
+    pai .= equivPai
+    if (n = @playerHidden[player].countEquiv pai) < 4
       return valid: false, reason: "not enough [#pai] (you have #n, need 4)"
-    #TODO:
-    if @playerPublic.riichi then
+    #TODO: riichi ankan condition
+    if @playerPublic[player].riichi
+      ...
     return valid: true
+
   ankan: (player, pai) !->
     {valid, reason} = @canAnkan player, pai
     if not valid
       throw new Error "riichi-core: kyoku: ankan: #reason"
-    if @rulevar.yaku.kokushiAnkan
-      # ankan chankan possible
-      @globalPublic.state = @KAN_QUERY
-    else
-      @globalPublic.state = @KAN_SUCCESS
-    @_advance!
+
+    pai .= equivPai
+    with @playerHidden[player]
+      ownPai = ..removeEquiv pai, 4
+      ..cleanup!
+    @playerPublic[player].fuuro.push fuuro = {
+      type: @ANKAN, pai, ownPai, otherPai: null
+    }
+
+    @_publishAction {type: @KAN, player, details: fuuro}
+    @_revealDoraHyouji @ANKAN
+    @_clearIppatsu!
+    if @rulevar.yaku.kokushiAnkan then @_goto @QUERY else @_goto @BEGIN
+    @advance!
 
   # kakan
-  @KAKAN_VALID_STATES = [@NORMAL_START]
+  # NOTE: code mostly parallel with ankan
   canKakan: (player, pai) ->
-    with checkTurn player, @KAKAN_VALID_STATES
-      if not ..valid then return ..
-    if n = @playerHidden.juntehaiBins[pai.equivNumber-1][pai.suiteNumber] != 1
-      return valid: false, reason:
-        "must have exactly one [#pai] in juntehai (you have #n)"
-    # TODO: relies on fuuro handling
+    with @_checkTurn player => if not ..valid then return ..
+    if not pai?.paiStr
+      return valid: false, reason: "invalid pai"
+    with @globalPublic
+      if ..nPiipaiLeft <= 0
+        return valid: false, reason: "cannot kan when no piipai left"
+      if (type = ..lastAction.type) in [@CHI, @PON]
+        return valid: false, reason: "cannot ankan after #type"
+    equivPai = pai.equivPai
+    found = false
+    for fuuro in @playerPublic[player].fuuro
+      if fuuro.type == @KOUTSU and fuuro.pai == equivPai
+        found = true
+        break
+    if not found
+      return valid: false, reason: "must have minko of 3*[#pai]"
+    if (n = @playerHidden[player].count pai) != 1
+      return valid: false, reason: "must have one [#pai] in juntehai"
+    return valid: true, fuuro: fuuro
 
-  # state updating routines indirectly associated with player action
+  kakan: (player, pai) !->
+    {valid, reason, fuuro} = @canKakan player, pai
+    if not valid
+      throw new Error "riichi-core: kyoku: kakan: #reason"
 
-  # update player's furiten {sacred discard} status flags
-  # return: true if player is suffering from any kind of furiten
-  _updateFuriten: (player) -> ...
+    pai .= equivPai
+    with @playerHidden[player]
+      [kakanPai] = ..removeEquiv pai, 1
+      ..cleanup!
+    with fuuro
+      ..type = @KAKAN
+      ..kakanPai = kakanPai
+
+    @_publishAction {type: @KAN, player, details: minko}
+    @_revealDoraHyouji @KAKAN
+    @_clearIppatsu!
+    @_goto @QUERY
+    @advance!
+
+  # tsumoAgari
+  canTsumoAgari: (player) ->
+    with @_checkTurn player => if not ..valid then return ..
+    if (agari = @_agari!)
+      return valid: true, agari: agari
+    else return valid: false, reason: "agari says no"
+  tsumoAgari: (player) ->
+    {valid, reason, agari} = @canTsumoAgari player, pai
+    if not valid
+      throw new Error "riichi-core: kyoku: tsumoAgari: #reason"
+    with @globalPublic
+      ..state = @END
+      ..result = agari
+
+  # kyuushuukyuuhai (often abbreviated as 9-9 in this project)
+  #   - available at player's true first tsumo
+  #   - player must have at least 9 **KINDS** of yaochuupai
+  # rule variations:
+  #   `.ryoukyoku.kyuushuukyuuhai`
+  canKyuushuukyuuhai: (player) ->
+    with @_checkTurn player => if not ..valid then return ..
+    switch @rulevar.ryoukyoku.kyuushuukyuuhai
+    | false => return valid: false, reason: "not allowed by rulevar"
+    | true  => renchan = true
+    | _     => renchan = false
+    with @isTrueFirstTsumo player => if not ..valid then return ..
+    # 19m19s19p1234567z 
+    nYaochuu = with @playerHidden[player].juntehaiBins
+      !!..0.0+!!..0.8+!!..1.0+!!..1.8+!!..2.0+!!..2.8+
+      !!..3.0+!!..3.1+!!..3.2+!!..3.3+!!..3.4+!!..3.5+!!..3.6
+    if nYaochuu < 9
+      return valid: false, reason: "only #nYaochuu*yaochuu (>= 9 needed)"
+    return valid: true, renchan: renchan
+
+  kyuushuukyuuhai: (player) !->
+    {valid, reason, renchan} = @canKyuushuukyuuhai player
+    if not valid
+      throw new Error "riichi-core: kyoku: kyuushuukyuuhai: #reason"
+
+    with @globalPublic
+      ..state = @END
+      ..result =
+        agari: false
+        type: \kyuushuukyuuhai
+        player: ..player
+        delta: [0 0 0 0]
+        renchan
+
+
+  # actions available to other players after current player's dahai/kan:
+  # - chi/pon/kan (not after kan)
+  # - ron (including chankan)
+  #
+  # `player` (in argument): the player who declares
+  # `otherPlayer`: `@globalPublic.player` == `@globalPublic.lastAction.player`
+  #
+  # NOTE: Calling one of these methods only *declares* the action (analogous to
+  # verbal declaration in table-top play). During one query, only the call with
+  # highest priority (ron > kan > pon > chi) is selected (except in the case of
+  # multi-ron) and consequently executed (by internally calling corresponding
+  # underscore-prefixed method).
+  #
+  # Convention: `can`-methods are responsible for building the action object.
+  # As a result, prefix-less methods are simply wrappers around `can`-methods.
+  # Rationale: if you know if you can chi/pon/kan you already have the info to
+  # actually do it
+
+  # chi: specify 2 pai from juntehai
+  # NOTE: Akapai {red 5} considered *different* from regular 5!
+  canChi: (player, pai0, pai1) ->
+    with @_checkQuery player => if not ..valid then return ..
+    if not pai0?.paiStr or not pai1?.paiStr
+      return valid: false, reason: "invalid pai"
+    with @globalPublic.lastAction
+      otherPlayer = ..player
+      if ..type != @DAHAI or (otherPlayer+1)%4 != player
+        return valid: false, reason: "can only chi after kamicha dahai"
+      otherPai = ..details.pai
+    if not @isShuntsu [pai0, pai1, otherPai]
+      return valid: false, reason: "[#pai0#pai1]+[#otherPai] not shuntsu"
+    with @playerHidden[player]
+      if not (..count(pai0) and ..count(pai1))
+        return valid: false, reason: "[#pai0] or [#pai1] not in juntehai"
+    if Pai.compare(pai0, pai1) > 0
+      [pai0, pai1] = [pai1, pai0]
+    return valid: true, action: {
+      type: @CHI, player
+      details: {
+        type: @SHUNTSU
+        pai: pai0 <? otherPai
+        ownPai: [pai0, pai1]
+        otherPai
+        otherPlayer
+      }
+    }
+  chi: (player, pai0, pai1) !->
+    {valid, reason, action} = @canChi player, pai0, pai1
+    if not valid
+      throw new Error "riichi-core: kyoku: chi: #reason"
+    @_declareAction action
+
+  _chi: !function _chiPon(player, fuuro) # see `_pon`
+    {ownPai, otherPlayer} = fuuro
+    @globalPublic.player = player
+    with @playerHidden[player]
+      ..remove pai0, 1
+      ..remove pai1, 1
+      ..cleanup!
+    with @playerPublic[player]
+      ..fuuro.push fuuro
+      ..menzen = false
+    @playerPublic[otherPlayer].lastSutehai.fuuroPlayer = player
+    @_publishAction action
+    @_clearIppatsu!
+    @_goto @TURN
+    @advance!
+
+  # pon: specify max # of akapai {red 5} from juntehai
+  # (defaults to 2 which means "use as many as you have")
+  canPon: (player, maxAkapai = 2) ->
+    with @_checkQuery player => if not ..valid then return ..
+    if not (0 <= maxAkapai <= 2)
+      return valid: false, reason: "maxAkapai should be 0/1/2"
+    with @globalPublic.lastAction
+      if ..type != @DAHAI
+        return valid: false, reason: "can only pon after dahai"
+      otherPai = ..details.pai
+      otherPlayer = ..player
+    pai = otherPai.equivPai
+    with @playerHidden[player]
+      nAll = ..countEquiv pai
+      if nAll < 2
+        return valid: false, reason: "not enough [#pai] (you have #n, need 2)" 
+      if pai.number == 5
+        # could have akapai
+        paiRed = Pai[0][pai.suiteNumber]
+        nRed = ..count paiRed
+        nRed <?= maxAkapai
+      else
+        nRed = 0
+    ownPai = switch nRed
+    | 0 => [pai, pai]
+    | 1 => [paiRed, pai]
+    | 2 => [paiRed, paiRed]
+    return valid: true, action: {
+      type: @PON, player
+      details: {
+        type: @KOUTSU
+        pai, ownPai, otherPai, otherPlayer
+      }
+    }
+  pon: (player, maxAkapai = 2) !->
+    {valid, reason, action} = @canPon player, maxAkapai
+    if not valid
+      throw new Error "riichi-core: kyoku: pon: #reason"
+    @_declareAction action
+
+  _pon: _chiPon # <--- http://bit.ly/1HDdOal
+  # reason why this works: action object in same format (both have 2 ownPai)
+
+  # daiminkan
+  # no need to specify which one to use at all
+  # NOTE: much code comes from ankan/kakan and pon even though daiminkan is not
+  # declared during player's own turn
+  canDaiminkan: (player) ->
+    with @_checkQuery player => if not ..valid then return ..
+    if @globalPublic.nPiipaiLeft <= 0
+      return valid: false, reason: "cannot kan when no piipai left"
+    with @globalPublic.lastAction
+      if ..type != @DAHAI
+        return valid: false, reason: "can only daiminkan after dahai"
+      otherPai = ..details.pai
+      otherPlayer = ..player
+    pai = otherPai.equivPai
+    # NOTE: need to get ownPai without removing them
+    # fortunately, player doesn't have tsumo now
+    ownPai = @playerHidden[player].juntehai.filter (.equivPai == pai)
+    if (n = ownPai.length) < 3
+      return valid: false, reason: "not enough [#pai] (you have #n, need 3)"
+    return valid:true, action: {
+      type: @KAN, player
+      details: {
+        type: @DAIMINKAN
+        pai, ownPai, otherPai, otherPlayer
+      }
+    }
+  daiminkan: (player) !->
+    {valid, reason, action} = @canPon player
+    if not valid
+      throw new Error "riichi-core: kyoku: daiminkan: #reason"
+    @_declareAction action
+  
+  _daiminkan: (player) !->
+    {pai, otherPlayer} = fuuro
+    @globalPublic.player = player
+    with @playerHidden[player]
+      ..removeEquiv pai, 3
+      ..cleanup!
+    with @playerPublic[player]
+      ..fuuro.push fuuro
+      ..menzen = false
+    @playerPublic[otherPlayer].lastSutehai.fuuroPlayer = player
+    @_publishAction action
+    @_clearIppatsu!
+    @_goto @TURN
+    @advance!
+
+
+  # state updates after player action
 
   # reveal dora hyoujihai(s)
   # previously delayed kan-dora will always be revealed
-  # kanType: \daiminkan, \kakan, \ankan
+  # kanType: @DAIMINKAN, @KAKAN, @ANKAN
   #   anything else: treat as not delayed
   #
-  # see rule variations: `.dora.kan`
+  # rule variations:
+  #   `.dora.kan`
   _revealDoraHyouji: (type) !->
     # shorthands (too messy using `with`)
     ghdh = @globalHidden.doraHyouji[0]
@@ -276,109 +542,86 @@ module.exports = class Kyoku implements EventEmitter::
     rule = @rulevar.dora.kan
 
     begin = gpdh.length
-    end = if rule then @globalPublic.nKan - (rule[type] ? 0) else 0
+    end = if rule then @globalPublic.nKan - (rule["#type"] ? 0) else 0
     for i from begin to end
       gpdh.push dh = ghdh[i]
       gpd.push dh.succ
 
+  # update **ALL** players' furiten {sacred discard} status flags
+  # TODO
+  _updateFuriten: !-> ...
+
+  # state updates when riichi is accepted (i.e. not ron'd)
+  _riichiAccepted: (player) !->
+    with @playerPublic[player].riichi
+      ..accepted = true
+      ..ippatsu = true
+    # yes, this short
+ 
+  # clear ippatsu flag across the field (after any fuuro)
+  _clearIppatsu: !-> @playerPublic.forEach (.riichi.ippatsu = false)
 
 
-  _finish: -> ...
+  # predicates
+  
+  # if given 3 pai (in array) can form a shuntsu
+  # NOTE: arr is modified
+  isShuntsu: (arr) ->
+    [p, q, r] = arr.sort Pai.compare
+    p.suite == q.suite == r.suite and
+      p.equivNumber + 1 == q.equivNumber and
+      q.equivNumber + 1 == r.equivNumber
 
+  # kuikae {swap call}: refers to the situation where a player declares chi
+  # with two pai in juntehai and then dahai {discards} one, but these three pai
+  # alone can be considered as a shuntsu; this is usually forbidden. Depending
+  # on rule variations, it could also be forbidden to pon then dahai the same
+  # pai. Akapai {red 5} is treated the same as regular 5.
+  # 
+  # Examples: (also included in rule variations)
+  # - moro: has 34m , chi 0m => cannot dahai 5m
+  # - suji: has 34m , chi 0m => cannot dahai 2m
+  # - pon : has 555m, pon 0m => cannot dahai 5m
+  #
+  # return: true if given situation is kuikae forbidden by rule
+  #
+  # rule variations:
+  #   `.banKuikae`
+  isKuikae: (fuuro, dahai) ->
+    {type, ownPai, otherPai} = fuuro
+    if type in [@DAIMINKAN, @KAKAN, @ANKAN] then return false
+    {moro, suji, pon} = @rulevar.banKuikae
 
+    # NOTE: fuuro object is NOT modified
+    # shorthands: (pq) chi (o) dahai (d)
+    d = dahai.equivPai
+    o = otherPai.equivPai
+    if moro and type == @SHUNTSU and d == o or
+       pon  and type == @KOUTSU  and d == o then return true
 
-  #############################################################################
-  # GARBAGE BELOW
-  #############################################################################
+    if suji and type == @SHUNTSU and d.suite == o.suite
+      [p, q] = ownPai.map (.= equivPai) .sort Pai.compare
+      D = d.number ; O = o.number ; P = p.number ; Q = q.number
+      return P+1 == Q and (
+        (O+1 == P and Q+1 == D) or # OPQD: PQ chi O => cannot dahai D
+        (D+1 == P and Q+1 == O)    # DPQO: PQ chi O => cannot dahai D
+      )
 
-  # declare 9-9 ryoukyoku
-  # see rule variations: `.ryoukyoku.kyuushuukyuuhai`
-  @KYUUSHUUKYUUHAI_VALID_STATES = [@NORMAL_START]
-  canKyuushuukyuuhai: (player) ->
-    with checkTurn player, @KYUUSHUUKYUUHAI_VALID_STATES
-      if not ..valid then return ..
-    if !@rulevar.ryoukyoku.kyuushuukyuuhai
-      return valid: false, reason: "not allowed by rulevar"
+    return false
+
+  # if everyone has not made fuuro and `player` has not discarded
+  # i.e. `player` has taken his first tsumo without disruption
+  isTrueFirstTsumo: (player) ->
     with @playerPublic
-      menzen = ..0.menzen && ..1.menzen && ..2.menzen && ..3.menzen
-      if not menzen
-        return valid: false, reason: "not menzen"
+      if not ..every (.fuuro.length == 0)
+        return valid: false, reason: "at least 1 player has fuuro"
       if ..[player].sutehai.length > 0
-        return valid: false, reason: "already discarded"
-    nYaochuu = 0
-    for pai in @playerHidden[player].juntehai
-      if pai.isYaochuu then nYaochuu++
-    if nYaochuu < 9
-      return valid: false, reason: "only #nYaochuu*yaochuu (>= 9 needed)"
+        return valid: false, reason: "you already discarded"
     return valid: true
-  kyuushuukyuuhai: (player) !->
-    {valid, reason} = @canKyuushuukyuuhai player
-    if not valid
-      throw new Error "riichi-core: kyoku: kyuushuukyuuhai: #reason"
-    with @globalPublic
-      ..state = @END
-      ..result =
-        type: \ryoukyoku
-        player: ..player
-        renchan
 
-  # tsumohou
-  @TSUMOHOU_VALID_STATES = [@NORMAL_START]
-  canTsumohou: (player) ->
-    with checkTurn player, @TSUMOHOU_VALID_STATES
-      if not ..valid then return ..
-    #TODO: relies on `agari`
-    ...
-    return valid: true
-  tsumohou: (player) !->
-    {valid, reason} = @canTsumohou player
-    if not valid
-      throw new Error "riichi-core: kyoku: tsumohou: #reason"
-    ...
-    with @globalPublic
-      ..state = @END
-      ..result =
-        type: \tsumohou
-        player: ..player
 
-  # declare riichi
-  # see rule variations: `.riichi`
-  @RIICHI_VALID_STATES = [@NORMAL_START]
-  canRiichi: (player) ->
-    with checkTurn player, @RIICHI_VALID_STATES
-      if not ..valid then return ..
-    if not @playerPublic[player].menzen
-      return valid: false, reason: "not menzen"
-    if (tenbou = @init.tenbou[player]) < 1000
-      return valid: false, reason: "bankrupt (you have #tenbou, need 1000)"
-    decomps = decompDiscardTenpai @playerHidden[player].juntehaiBins
-    #TODO
-    ...
-  riichi: (player) !->
-    {valid, reason} = @canRiichi player
-    if not valid
-      throw new Error "riichi-core: kyoku: riichi: #reason"
-    @globalPublic.state = @RIICHI_DAHAI
-    @_advance!
-
-    ...
-  kakan: !->
-    {valid, reason} = @canKakan player, pai
-    if not valid
-      throw new Error "riichi-core: kyoku: kakan: #reason"
-    ...
-
-  # dahai/tsumokiri (differences handled in player state objs)
-  # pai: null => tsumokiri
-  @DAHAI_VALID_STATES = [@NORMAL_START, @RIICHI_DAHAI, @CHI_PON_DAHAI]
-
-  @END_QUERY_VALID_STATES = [@NORMAL_QUERY, @KAN_QUERY, @RIICHI_QUERY]
-  endQuery: !->
-    with @globalPublic
-      switch ..state
-      | @QUERY => ..state = @NORMAL_END
-      | @QUERY_CHANKAN => ..state = @KAN
-    @_advance!
+  # special case: tochuu ryoukyoku {aborative draw}
+  checkTochuuRyoukyoku: !->
 
 
 class PlayerHidden
@@ -390,6 +633,7 @@ class PlayerHidden
     # - (3*n+2) tiles (w/ tsumo)
     #   - action: `tsumokiri`/`dahai`
     #   - decomp: discardTenpai
+    #   - SPECIAL: `decompTenpaiWithout`
     @juntehai = haipai
     @juntehaiBins = bins = Pai.binsFromArray haipai
     @tsumo = null
@@ -398,16 +642,20 @@ class PlayerHidden
     @decompTenpai = decompTenpai bins
     @decompDiscardTenpai = null
 
-    # furiten (updated externally)
+    # furiten (managed externally)
     @furiten = false
     @sutehaiFuriten = false
     @doujunFuriten = false
     @riichiFuriten = false
 
+    # stores declared but yet to be resolved action (chi/pon/kan/ron)
+    @declaredAction = null
+
   # NOTE: this is only used internally so no "can"-prefix method
   addTsumo: (pai) !->
-    if @tsumo? then throw new Error "riichi-core: kyoku: PlayerHidden: "+
-      "already has tsumo (#{@tsumo})"
+    if @tsumo?
+      throw new Error "riichi-core: kyoku: PlayerHidden: "+
+        "already has tsumo (#{@tsumo})"
     @juntehaiBins[pai.equivNumber-1][pai.suiteNumber]++
     @tsumo = pai
     # update decomp
@@ -450,41 +698,95 @@ class PlayerHidden
     @decompDiscardTenpai = null
     return pai
 
+  # decompose (3*n+2) hand excluding given pai
+  decompTenpaiWithout: (pai) ->
+    if !@tsumo then return null
+    e = pai.equivNumber - 1
+    s = pai.suiteNumber
+    bins = @juntehaiBins
+    if bins[e][s] <= 0 then return null
+    bins[e][s]--
+    decomp = decompTenpai bins
+    bins[e][s]++
+    return decomp
+
+
+  # helper functions for fuuro (chi/pon/kan):
+  # NOTE: ALWAYS COUNT BEFORE REMOVE! (no sanity check)
+
+  # count given in juntehai & tsumo
+  count: (pai) ->
+    s = +(@tsumo == pai)
+    for p in @juntehai => if p == pai then s++
+    s
+  # count given pai in juntehai & tsumo, treating 0m/0p/0s as 5m/5p/5s
+  countEquiv: (pai) ->
+    @juntehaiBins[pai.equivNumber - 1][pai.suiteNumber]
+  # remove n * given pai in juntehai & tsumo
+  remove: (pai, n = 1) !->
+    @juntehaiBins[pai.equivNumber - 1][pai.suiteNumber] -= n
+    @juntehai = @juntehai.filter -> !(it == pai && --n >= 0)
+    if @tsumo == pai && --n >= 0 then @tsumo = null
+  # remove n * given pai in juntehai & tsumo, treating 0m/0p/0s as 5m/5p/5s
+  # return all removed pai
+  removeEquiv: (pai, n = 1) ->
+    ret = []
+    @juntehaiBins[pai.equivNumber - 1][pai.suiteNumber] -= n
+    @juntehai = @juntehai.filter ->
+      if it.equivPai == pai && --n >= 0
+        ret.push it
+        return false
+      return true
+    if @tsumo.equivPai == pai && --n >= 0
+      ret.push @tsumo
+      @tsumo = null
+    ret
+  # cleanup after removing
+  cleanup: !->
+    if @tsumo
+      @juntehai.push @tsumo
+      @tsumo = null
+    @juntehai.sort Pai.compare
+
+
 class PlayerPublic
   (@id, @jikaze) ->
-    # sutehai {discarded tile}:
-    #   fuuroPlayer:
+    # sutehai {discarded tile}: (updated through methods)
+    #   fuuroPlayer: (only property that can be set externally)
     #     claimed by a player through chi/pon/kan => id of this player
     #     otherwise => null
-    #   sutehaiBitmap: for fast check of `sutehaiFuriten` condition
+    #   riichi: if used to *declare* riichi
+    # sutehaiBitmap: for fast check of `sutehaiFuriten` condition
     #     same convention as `Pai.binFromBitmap`
-    #   lastSutehai == sutehai[*-1]
+    # lastSutehai == sutehai[*-1]
     @sutehai = []
     @sutehaiBitmaps = [0 0 0 0]
     @lastSutehai = null
 
-    # fuuro {melds}:
-    #   type: \shuntsu \koutsu \daiminkan \kakan \ankan
-    #   pai: "representative" Pai (see below examples)
+    # fuuro {melds}: (managed externally)
+    #   type: Enum <[ SHUNTSU KOUTSU DAIMINKAN ANKAN KAKAN ]>
+    #   pai: equiv. Pai with smallest number (e.g. 67m chi 0m => 5m)
     #   ownPai: array of Pai from this player's juntehai
+    #   kakanPai: last Pai that makes the kakan
     #   otherPai: Pai taken from other player
-    #   kakanPai: Pai from this player's juntehai that completed the kakan
+    #   otherPlayer: (as advertised)
     @fuuro = []
     @menzen = true # NOTE: menzen != no fuuro (due to ankan {concealed kan})
-    @riichi = false
-    @doubleRiichi = false
-    @ippatsu = false
-    @kan = null # valid: null, \daiminkan, \kakan, \ankan
+
+    # riichi flags
+    @riichi =
+      declared: false # goes true immediately after player declares
+      accepted: false # goes true when the dahai did not cause ron
+      double: false   # goes true if declared during "true first tsumo"
+      ippatsu: false  # true only during ippatsu period
 
   tsumokiri: (pai) -> @dahai pai, true
-  dahai: (pai, tsumokiri = false) ->
+  dahai: (pai, !!tsumokiri) ->
     @sutehaiBitmaps[pai.suiteNumber] .|.= 1 .<<. (pai.equivNumber-1)
-    with {pai, tsumokiri, fuuroPlayer: null}
-      @sutehai.push ..
-      @lastSutehai = ..
-      return ..
-
-# determine if a player has indeed tsumohou'd or ron'd, and if yes, determine
-# the hand decomposition that maximizes tokuten {score/points gain}
-function agari(kyoku, player)
-  ...
+    sutehai =
+      pai
+      riichi: @riichi.declared
+      tsumokiri
+      fuuroPlayer: null
+    @sutehai.push sutehai
+    return @lastSutehai = sutehai

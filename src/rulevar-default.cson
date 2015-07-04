@@ -2,40 +2,43 @@ VERSION: '0.1.0'
 
 dora:
   akapai: [1, 1, 1] # m/p/s
-  ura: true
+  ura: yes
 
   # kan:
-  #   false => no kan-dora
+  #   no => no kan-dora
   #   {daiminkan:, kakan:, ankan:} => kan-dora revealed:
-  #     0 => immediately (sokunori)
+  #     0 => immediately
   #     1 => after dahai {discard} / more kan
   kan:
     daiminkan: 1
     kakan: 1
     ankan: 0
-  kanUra: true
+  kanUra: yes
 keishikiTenpai:
-  sutehai: true
-  fuuro: true
-  dora: true
+  sutehai: yes
+  fuuro: yes
+  dora: yes
 yaku:
-  atotsuke: true
-  kuitan: true # if tanyao is valid even when not menzen
-  kokushiAnkan: false # if ankan can be chankan'd for kokushi-musou
-ron:
-  atamahane: false
+  atotsuke: yes
+  kuitan: yes # if tanyao is valid when not menzen
+  kokushiAnkan: no # if ankan can be chankan'd for kokushi-musou
 riichi:
-  doubleRiichi: true
-  minogashi: true
+  doubleRiichi: yes
+  minogashi: yes # NOTE: not implemented
+
+banKuikae:
+  moro: yes # e.g. has 34m , chi 0m => cannot dahai 5m
+  suji: yes # e.g. has 34m , chi 0m => cannot dahai 2m
+  pon : no  # e.g. has 333m, pon 3m => cannot dahai 3m
 
 # valid values:
-#   false: rule disabled
-#   'oyanagare': rule enabled, renchan disabled
-#   true: rule enabled, renchan enabled
+#   no: cannot ryoukyoku
+#   'oyanagare': can ryoukyoku but no renchan
+#   yes: can ryoukyoku and renchan
 ryoukyoku:
-  kyuushuukyuuhai: true
-  siifonrenta: true
-  siikaikan: true
-  siichariichi: true
-  doubleRon: false
-  tripleRon: true
+  kyuushuukyuuhai: yes
+  suufonrenta: yes
+  suukaikan: yes
+  suuchariichi: yes
+  doubleRon: no
+  tripleRon: yes

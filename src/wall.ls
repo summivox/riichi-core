@@ -1,0 +1,63 @@
+# wall splitting and dealing
+#
+#                          _______________      ______________
+#                          (tail) CCW <---|    /---> CW (head)
+#      piipai |  dora hyoujihai   |rinshan|   |            haipai {deal}            | piipai
+#      118 120|122 124 126 128 130|132 134|   | 0   2   4   6   8  10        48  50 |52  54
+# ... +---+---*---+---+---+---+###*---+---+   +---+---+---+---+---+---+ ... +---+---*---+---+ ...
+#     |#66|#68| D4| D3| D2| D1| D0|RS2|RS0|   |0.0|0.2|1.0|1.2|2.0|2.2|     |0.C|2.C|#00|#02|      TOP
+# ... +===+===*===+===+===+===+===*===+===+   +===+===+===+===+===+===+ ... +===+===*===+===+ ...
+#     |#67|#69|UD4|UD3|UD2|UD1|UD0|RS3|RS1|   |0.1|0.3|1.1|1.3|2.1|2.3|     |1.C|3.C|#01|#03|      BOTTOM
+# ... +---+---*---+---+---+---+---*---+---+   +---+---+---+---+---+---+ ... +---+---*---+---+ ...
+#      119 121|123 125 127 129 131|133 135|   | 1   3   5   7   9  11        49  51 |53  55
+#      piipai | uradora-hyoujihai |rinshan|   |            haipai {deal}            | piipai
+#
+#
+# table-top common practice:
+# 1.  Shuffle: 136 pai {tiles} => 4 sides * 17 stacks * 2 pai per stack
+# 2.  Throw dice to decide spliting point on the wall (rule varies on this).
+# 3.  From splitting point: clockwise => head, counterclockwise => tail
+# 4.  Flip top of 3rd stack from tail => dora hyoujihai {indicator}
+#     (figure: `###`)
+# 5.  Deal: starting from chancha {dealer}: take turns to take 2 stacks (4*pai)
+#     from head until everyone has 12; then each player draws a single pai.
+#     (figure: "2.3" => west player's 4th pai, "1.C" => south's 13th pai, etc.)
+# 6.  Chancha takes his tsumopai and game starts
+#     (figure: "#00" => 1st piipai)
+# 7.  Rinshan-tsumo after kan is taken from the tail, counterclockwise
+#     (figure: RS0, RS1, RS2, RS3)
+# 8.  Kan-dora hyoujihai(s) are flipped counterclockwise from the original dora
+#     hyoujihai (i.e. D1, D2, D3, D4)
+#
+# implementation in this project:
+# 1.  Assuming wall is split: label the pai top-down then clockwise from head
+#     -   wall[  0] => top    of 1st stack from head
+#     -   wall[  1] => bottom of 1st stack from head
+#     -   wall[  2] => top    of 2nd stack from head
+#     -   wall[  3] => bottom of 2nd stack from head
+#     -   ...
+#     -   wall[134] => top    of 1st stack from tail
+#     -   wall[135] => bottom of 1st stack from tail
+# 2.  haipai: first 16*4 tiles from wall
+# 3.  piipai/rinshan: Since `.pop()` is used to "draw" a tile (for efficiency),
+#     both arrays are reversed. Using annotation in the figure this means:
+#     -   piipai: [#69, #68, ..., #01, #00]
+#     -   rinshan: [RS3, RS2, RS1, RS0]
+# 4.  doraHyouji/uraDoraHyouji:
+#     [0] => original (ura-)dora hyoujihai {motodora}
+#     [1] => 1st (ura-)kan-dora hyoujihai
+#     [2] => 2nd ...
+
+module.exports = (wall) ->
+  haipai =
+    wall[0x00 0x01 0x02 0x03, 0x10 0x11 0x12 0x13, 0x20 0x21 0x22 0x23, 0x30]
+    wall[0x04 0x05 0x06 0x07, 0x14 0x15 0x16 0x17, 0x24 0x25 0x26 0x27, 0x31]
+    wall[0x08 0x09 0x0A 0x0B, 0x18 0x19 0x1A 0x1B, 0x28 0x29 0x2A 0x2B, 0x32]
+    wall[0x0C 0x0D 0x0E 0x0F, 0x1C 0x1D 0x1E 0x1F, 0x2C 0x2D 0x2E 0x2F, 0x33]
+  piipai = wall[122-1 to 52]
+
+  rinshan = wall[133 132 135 134]
+  doraHyouji    = wall[130 to 122 by -2]
+  uraDoraHyouji = wall[131 to 123 by -2]
+
+  {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji}
