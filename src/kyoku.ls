@@ -9,7 +9,7 @@
 
 require! {
   'events': {EventEmitter}
-  './decomp.js': {decompDiscardTenpai, decompTenpai, decompAgari}
+  './decomp.js': {decompDahaiTenpai, decompTenpai, decompAgari}
   './pai.js': Pai
   './wall.js': splitWall
   './agari.js': _agari
@@ -69,8 +69,8 @@ module.exports = class Kyoku implements EventEmitter::
       doraHyouji: []
       dora: []
       # riichi-related:
-      kyoutaku: @init.kyoutaku
-      nRiichi: 0
+      kyoutaku: @init.kyoutaku # +1000 when riichi accepted
+      nRiichi: 0 # +1 when riichi accepted
 
       # game progression (see below for details)
       player: chancha
@@ -83,6 +83,16 @@ module.exports = class Kyoku implements EventEmitter::
     @playerHidden = [new PlayerHidden i, haipai[jikaze[i]] for i til 4]
     @playerPublic = [new PlayerPublic i,        jikaze[i]  for i til 4]
 
+    # result: null when still playing
+    # common fields:
+    #   type: \TSUMO_AGARI \RON \RYOUKYOKU
+    #   delta: array of tenbou {score} increment of each player
+    #   kyoutaku: how much kyoutaku {riichi bet} should remain on field
+    #   renchan: true/false
+    # details:
+    #   TSUMO_AGARI: agari object
+    #   RON: array of agari objects by natural turn order
+    #   RYOUKYOKU: reason
     @result = null
 
     # reveal initial dora {motodora}
@@ -114,7 +124,8 @@ module.exports = class Kyoku implements EventEmitter::
   #     DAHAI: {pai: Pai, riichi: true/false, tsumokiri: true/false}
   #     CHI/PON/KAN: fuuro object (see PlayerPublic)
   #     TSUMO_AGARI/RON: agari object
-  import Enum <[ TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON ]> #
+  #     RYOUKYOKU: reason (= \kyuushuukyuuhai)
+  import Enum <[ TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON RYOUKYOKU ]> #
 
   # priority of declarations
 
@@ -251,6 +262,7 @@ module.exports = class Kyoku implements EventEmitter::
   # ankan
   # rule variations:
   #   `.yaku.kokushiAnkan`: ankan can be chankan'd by kokushi musou
+  #   `.riichi.ankan/okurikan`
   canAnkan: (player, pai) ->
     with @_checkTurn player => if not ..valid then return ..
     if not pai?.paiStr
@@ -258,20 +270,34 @@ module.exports = class Kyoku implements EventEmitter::
     with @globalPublic
       if ..nPiipaiLeft <= 0
         return valid: false, reason: "cannot kan when no piipai left"
+      if ..nKan >= 4 and not @suukantsuCandidate!?
+        return valid: false, reason: "cannot kan when no rinshan left"
       if (type = ..lastAction.type) in [@CHI, @PON]
         return valid: false, reason: "cannot ankan after #type"
     pai .= equivPai
-    if (n = @playerHidden[player].countEquiv pai) < 4
+    ph = @playerHidden[player]
+    if (n = ph.countEquiv pai) < 4
       return valid: false, reason: "not enough [#pai] (you have #n, need 4)"
-    #TODO: riichi ankan condition
     if @playerPublic[player].riichi
-      ...
+      if not @rulevar.riichi.ankan
+        return valid: false, reason: "riichi ankan: not allowed by rule"
+      # riichi ankan condition (simplified)
+      #   basic: all tenpai decomps must have `pai` as koutsu
+      #   okurikan: can only use tsumo for ankan
+      d = ph.decompTenpai
+      allKoutsu = d.decomps.every -> it.mentsu.some ->
+        it.type == \koutsu and it.pai == pai
+      if not allKoutsu
+        return valid: false, reason: "riichi ankan: change of form"
+      if @rulevar.riichi.okurikan and ph.tsumo.equivPai != pai
+        return valid: false, reason: "riichi ankan: okurikan"
     return valid: true
 
   ankan: (player, pai) !->
     {valid, reason} = @canAnkan player, pai
     if not valid
       throw new Error "riichi-core: kyoku: ankan: #reason"
+    if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
 
     pai .= equivPai
     with @playerHidden[player]
@@ -296,6 +322,8 @@ module.exports = class Kyoku implements EventEmitter::
     with @globalPublic
       if ..nPiipaiLeft <= 0
         return valid: false, reason: "cannot kan when no piipai left"
+      if ..nKan >= 4 and not @suukantsuCandidate!?
+        return valid: false, reason: "cannot kan when no rinshan left"
       if (type = ..lastAction.type) in [@CHI, @PON]
         return valid: false, reason: "cannot ankan after #type"
     equivPai = pai.equivPai
@@ -314,6 +342,7 @@ module.exports = class Kyoku implements EventEmitter::
     {valid, reason, fuuro} = @canKakan player, pai
     if not valid
       throw new Error "riichi-core: kyoku: kakan: #reason"
+    if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
 
     pai .= equivPai
     with @playerHidden[player]
@@ -339,9 +368,17 @@ module.exports = class Kyoku implements EventEmitter::
     {valid, reason, agari} = @canTsumoAgari player, pai
     if not valid
       throw new Error "riichi-core: kyoku: tsumoAgari: #reason"
+    delta = agari.delta
+    delta[player] += @globalPublic.kyoutaku
     with @globalPublic
       ..state = @END
-      ..result = agari
+      ..result = {
+        type: \TSUMO_AGARI
+        delta
+        kyoutaku: 0 # taken
+        renchan: @chancha == player
+        details: agari
+      }
     @advance!
 
   # kyuushuukyuuhai (often abbreviated as 9-9 in this project)
@@ -352,7 +389,7 @@ module.exports = class Kyoku implements EventEmitter::
   canKyuushuukyuuhai: (player) ->
     with @_checkTurn player => if not ..valid then return ..
     switch @rulevar.ryoukyoku.kyuushuukyuuhai
-    | false => return valid: false, reason: "not allowed by rulevar"
+    | false => return valid: false, reason: "not allowed by rule"
     | true  => renchan = true
     | _     => renchan = false
     with @isTrueFirstTsumo player => if not ..valid then return ..
@@ -368,15 +405,17 @@ module.exports = class Kyoku implements EventEmitter::
     {valid, reason, renchan} = @canKyuushuukyuuhai player
     if not valid
       throw new Error "riichi-core: kyoku: kyuushuukyuuhai: #reason"
-
+    @_publishAction {type: @RYOUKYOKU, player, details: \kyuushuukyuuhai}
     with @globalPublic
       ..state = @END
-      ..result =
-        agari: false
-        type: \kyuushuukyuuhai
-        player: ..player
+      ..result = {
+        type: \RYOUKYOKU
         delta: [0 0 0 0]
+        kyoutaku: ..kyoutaku # remains on table
         renchan
+        details: \kyuushuukyuuhai
+      }
+    @advance!
 
 
   # actions available to other players after current player's dahai/kan:
@@ -436,6 +475,7 @@ module.exports = class Kyoku implements EventEmitter::
   _chi: !function _chiPon({player, details: fuuro}:action) # see `_pon`
     {ownPai, otherPlayer} = fuuro
     @globalPublic.player = player
+
     with @playerHidden[player]
       ..remove pai0, 1
       ..remove pai1, 1
@@ -444,6 +484,7 @@ module.exports = class Kyoku implements EventEmitter::
       ..fuuro.push fuuro
       ..menzen = false
     @playerPublic[otherPlayer].lastSutehai.fuuroPlayer = player
+
     @_publishAction action
     @_clearIppatsu!
     @_goto @TURN
@@ -498,13 +539,16 @@ module.exports = class Kyoku implements EventEmitter::
   # declared during player's own turn
   canDaiminkan: (player) ->
     with @_checkQuery player => if not ..valid then return ..
-    if @globalPublic.nPiipaiLeft <= 0
-      return valid: false, reason: "cannot kan when no piipai left"
-    with @globalPublic.lastAction
-      if ..type != @DAHAI
-        return valid: false, reason: "can only daiminkan after dahai"
-      otherPai = ..details.pai
-      otherPlayer = ..player
+    with @globalPublic
+      if ..nPiipaiLeft <= 0
+        return valid: false, reason: "cannot kan when no piipai left"
+      if ..nKan >= 4 and not @suukantsuCandidate!?
+        return valid: false, reason: "cannot kan when no rinshan left"
+      with ..lastAction
+        if ..type != @DAHAI
+          return valid: false, reason: "can only daiminkan after dahai"
+        otherPai = ..details.pai
+        otherPlayer = ..player
     pai = otherPai.equivPai
     # NOTE: need to get ownPai without removing them
     # fortunately, player doesn't have tsumo now
@@ -527,6 +571,8 @@ module.exports = class Kyoku implements EventEmitter::
   _daiminkan: !function _daiminkan({player, details: fuuro}:action)
     {pai, otherPlayer} = fuuro
     @globalPublic.player = player
+    if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
+
     with @playerHidden[player]
       ..removeEquiv pai, 3
       ..cleanup!
@@ -534,6 +580,7 @@ module.exports = class Kyoku implements EventEmitter::
       ..fuuro.push fuuro
       ..menzen = false
     @playerPublic[otherPlayer].lastSutehai.fuuroPlayer = player
+
     @_publishAction action
     @_revealDoraHyouji @DAIMINKAN
     @_clearIppatsu!
@@ -551,6 +598,7 @@ module.exports = class Kyoku implements EventEmitter::
       "#pai not in your tenpai set #{Pai.stringFromArray[wait]}"
     if not (agari = @_agari player, pai)
       return valid: false, reason: "no yaku"
+    agari.houjuuPlayer = @globalPublic.player # NOTE: NOT included in agari
     return valid: true, action: {
       type: @RON, player
       details: agari
@@ -572,27 +620,70 @@ module.exports = class Kyoku implements EventEmitter::
   # this is called e.g. after query times out
   resolveQuery: !->
     with @globalPublic.lastDeclared
-      if ..RON? then @_resolveRon! # <-- complex (with multi-ron)
+      if ..RON? then @_resolveRon! # <-- see below
       else if (action = ..KAN)? then @_daiminkan action
       else if (action = ..PON)? then @_pon       action
       else if (action = ..CHI)? then @_chi       action
     @globalPublic.lastDeclared.clear!
+
+  # (multi-)ron resolution
+  # priority of players are decided by natural turn order after houjuu player:
+  #   shimocha{next/right} > toimen{opposite} > kamicha{prev/left}
+  # kyoutaku: all taken by highest priority
+  # double/triple ron:
+  #   atamahane: true => highest priority only
+  #   double/triple: false => double/triple ron results in ryoukyoku instead
+  #
+  # rule variations:
+  #  `.ron`
   _resolveRon: !->
-    # iterate over OTHER players in natural turn order:
-    # shimocha{next/right} -> toimen{opposite} -> kamicha{prev/left}
+    {atamahane, double, triple} = @rulevar.ron
+    nRon = 0
+    agariList = []
+    delta = [0 0 0 0]
+    renchan = false
+    {kyoutaku, player: houjuuPlayer} = @globalPublic
     for i in [1 2 3]
       player = (currPlayer + i) % 4
       with @playerHidden[player]
         if ..declaredAction?.type == @RON
-          ...
-          # TODO: process ron
+          agari = ..declaredAction.details
+          agari.houjuuPlayer = houjuuPlayer
+          agariList.push agari
+          for i til 4 => delta[i] += agari.delta[i]
+          delta[player] += kyoutaku
+          kyoutaku = 0
+          if player == @chancha then renchan = true
+          if atamahane then break
         else if @_ronPai!equivPai in ..decompTenpai.wait
           ..furiten = true
           ..doujunFuriten = true
-          ..riichiFuriten = @PlayerPublic[player].riichi.accepted
-
-
-
+          ..riichiFuriten = @playerPublic[player].riichi.accepted
+          if player == @chancha then renchan = true
+    with @globalPublic
+      ..state = @END
+      if (nRon == 2 and not double) or (nRon == 3 and not triple)
+        ..result = {
+          type: \RYOUKYOKU
+          delta: [0 0 0 0]
+          kyoutaku # remains on table
+          renchan
+          details: if nRon == 2 then "double ron" else "triple ron"
+        }
+      else
+        for agari in agariList => @_publishAction {
+          type: @RON
+          player: agari.player
+          details: agari
+        }
+        ..result = {
+          type: \RON
+          delta
+          kyoutaku: 0 # taken
+          renchan
+          details: agariList
+        }
+    @advance!
 
 
   # state updates after player action
@@ -647,10 +738,69 @@ module.exports = class Kyoku implements EventEmitter::
   _clearIppatsu: !-> @playerPublic.forEach (.riichi.ippatsu = false)
 
   # enforce ryoukyoku {(aborative) draw} rules
-  _checkRyoukyoku: !-> #TODO
+  # see `_isRyoukyokuValid` below
+  # rule variations:
+  #   `.ryoukyoku`
+  _checkRyoukyoku: !->
+    r = @rulevar.ryoukyoku
+    for name, isValid of @_isRyoukyokuValid
+      switch r[name]
+      | false => continue
+      | true  => renchan = true
+      | _     => renchan = false
+      if not isValid! then continue
+      with @globalPublic
+        ..state = @END
+        ..result = {
+          type: \RYOUKYOKU
+          delta: [0 0 0 0]
+          kyoutaku # remains on table
+          renchan
+          details: name
+        }
+      return @advance!
+    # normal ryoukyoku: piipai exhausted
+    if @globalPublic.nPiipaiLeft == 0
+      ten = []
+      noTen = []
+      for i til 4
+        if @playerHidden[i].decompTenpai.wait.length then ten.push i
+        else noTen.push i
+      delta = [0 0 0 0]
+      if ten.length && noTen.length
+        sTen = 3000 / ten.length
+        sNoTen = 3000 / noTen.length
+        for i in ten => delta[i] += sTen
+        for i in noTen => delta[i] -= sTen
+      with @globalPublic
+        ..state = @END
+        ..result = {
+          type: \RYOUKYOKU
+          delta
+          kyoutaku # remains on table
+          renchan: delta[@chancha] >= 0
+          # NOTE: this is not a typo: all-no-ten & all-ten => renchan
+        }
+      return @advance!
 
 
   # predicates
+
+  # different flavors of ryoukyoku
+  _isRyoukyokuValid:
+    suufonrenta: ~>
+      pai = new Array 4
+      for i til 4 => with @playerPublic[i]
+        if ..fuuro.length == 0 and ..sutehai.length == 1
+          pai[i] = ..sutehai[0]
+        else return false
+      return pai.isFonpai and pai.0 == pai.1 == pai.2 == pai.3
+    suukaikan: ~>
+      switch @globalPublic.nKan
+      | 0, 1, 2, 3 => return false
+      | 4 => return @suukantsuCandidate!?
+      | _ => return true
+    suuchariichi: ~> @playerPublic.every (.riichi.accepted)
 
   # if given 3 pai (in array) can form a shuntsu
   # NOTE: arr is modified
@@ -707,7 +857,14 @@ module.exports = class Kyoku implements EventEmitter::
         return valid: false, reason: "you already discarded"
     return valid: true
 
-
+  # check if one player alone has made 4 kan's (suukantsu candidate)
+  suukantsuCandidate: ->
+    if @globalPublic.nKan < 4 then return null
+    for player til 4
+      with @playerPublic[player].fuuro
+        if ..length == 4 and ..every (.type == @KAN)
+          return player
+    return null
 
 
 class PlayerHidden
@@ -726,7 +883,7 @@ class PlayerHidden
 
     # tenpai decompositions (updated through methods)
     @decompTenpai = decompTenpai bins
-    @decompDiscardTenpai = null
+    @decompDahaiTenpai = null
 
     # furiten (managed externally)
     @furiten = false
@@ -746,7 +903,7 @@ class PlayerHidden
     @tsumo = pai
     # update decomp
     @decompTenpai = null
-    @decompDiscardTenpai = decompDiscardTenpai @juntehaiBins
+    @decompDahaiTenpai = decompDahaiTenpai @juntehaiBins
 
   canTsumokiri: ->
     if !@tsumo? then return valid: false, reason: "no tsumo"
@@ -760,7 +917,7 @@ class PlayerHidden
     @tsumo = null
     # update decomp
     @decompTenpai = decompTenpai @juntehaiBins
-    @decompDiscardTenpai = null
+    @decompDahaiTenpai = null
     return pai
 
   canDahai: (pai) ->
@@ -781,7 +938,7 @@ class PlayerHidden
       ..sort Pai.compare
     # update decomp
     @decompTenpai = decompTenpai @juntehaiBins
-    @decompDiscardTenpai = null
+    @decompDahaiTenpai = null
     return pai
 
   # decompose (3*n+2) hand excluding given pai

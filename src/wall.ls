@@ -27,7 +27,7 @@
 # 7.  Rinshan-tsumo after kan is taken from the tail, counterclockwise
 #     (figure: RS0, RS1, RS2, RS3)
 # 8.  Kan-dora hyoujihai(s) are flipped counterclockwise from the original dora
-#     hyoujihai (i.e. D1, D2, D3, D4)
+#     hyoujihai (figure: D1, D2, D3, D4)
 #
 # implementation in this project:
 # 1.  Assuming wall is split: label the pai top-down then clockwise from head

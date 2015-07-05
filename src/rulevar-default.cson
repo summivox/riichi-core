@@ -14,18 +14,28 @@ dora:
     kakan: 1
     ankan: 0
   kanUra: yes
+
 keishikiTenpai: # NOTE: not implemented
   sutehai: yes
   fuuro: yes
   dora: yes
+
 yaku:
   atotsuke: yes
   kuitan: yes # if tanyao is valid when not menzen
   kokushiAnkan: no # if ankan can be chankan'd for kokushi-musou
+
 riichi:
   minPiipaiLeft: 4
   doubleRiichi: yes
   minogashi: yes # NOTE: not implemented
+  ankan: yes
+  okurikan: no # NOTE: implementation might not be complete
+
+ron:
+  atamahane: no # only first player in natural turn order valid
+  double: no
+  triple: yes
 
 banKuikae:
   moro: yes # e.g. has 34m , chi 0m => cannot dahai 5m
@@ -41,5 +51,3 @@ ryoukyoku:
   suufonrenta: yes
   suukaikan: yes
   suuchariichi: yes
-  doubleRon: no
-  tripleRon: yes
