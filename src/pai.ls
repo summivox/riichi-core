@@ -2,8 +2,8 @@
 # represents a tile with tenhou-compatible shorthand string
 #
 # NOTE:
-# * Pai objects (e.g. `Pai('5m')`) provide definition of rules.
-# * Pai literals (e.g. `Pai['5m']`) are generated from all distinct Pai objects
+# - Pai objects (e.g. `Pai('5m')`) provide definition of rules.
+# - Pai literals (e.g. `Pai['5m']`) are generated from all distinct Pai objects
 #   They are different from Pai objects in that all predicate functions are
 #   converted to actual values.
 
@@ -140,22 +140,22 @@ Pai.compare = (a, b) ->
 
 # representations for a set of pai's:
 #
-# * contracted multi-pai string (tenhou-compatible)
+# - contracted multi-pai string (tenhou-compatible)
 #   e.g. 3347m40p11237s26z5m
 #
-# * sorted array of Pai literals
+# - sorted array of Pai literals
 #
-# * "bins" for simplified calculations
+# - "bins" for simplified calculations
 #   bins[0][i] => # of pai (i+1)-m  ;  0 <= i < 9
 #   bins[1][i] => # of pai (i+1)-p  ;  0 <= i < 9
 #   bins[2][i] => # of pai (i+1)-s  ;  0 <= i < 9
 #   bins[3][i] => # of pai (i+1)-z  ;  0 <= i < 7
 #
 #   NOTE:
-#   * bins format treats 0m/0p/0s as 5m/5p/5s
-#   * for convenience, bins[3][7] = bins[3][8] = 0
+#   - bins format treats 0m/0p/0s as 5m/5p/5s
+#   - for convenience, bins[3][7] = bins[3][8] = 0
 #
-# * bitmap, lsbit-first (for unique set of pai in single suite)
+# - bitmap, lsbit-first (for unique set of pai in single suite)
 #   e.g. 0b000100100 => 36m/36p/...
 
 Pai.arrayFromString = (s) ->

@@ -15,7 +15,7 @@ dora:
     ankan: 0
   kanUra: yes
 
-keishikiTenpai: # NOTE: not implemented
+keishikiTenpai: # TODO
   sutehai: yes
   fuuro: yes
   dora: yes
@@ -28,9 +28,12 @@ yaku:
 riichi:
   minPiipaiLeft: 4
   doubleRiichi: yes
-  minogashi: yes # NOTE: not implemented
+  minogashi: yes # TODO
+
+  # ankan while riichi: extra rules even when allowed
+  # see `Kyoku::canAnkan`
   ankan: yes
-  okurikan: no # NOTE: implementation might not be complete
+  okurikan: no
 
 ron:
   atamahane: no # only first player in natural turn order valid
@@ -51,3 +54,4 @@ ryoukyoku:
   suufonrenta: yes
   suukaikan: yes
   suuchariichi: yes
+  nagashimankan: yes # TODO
