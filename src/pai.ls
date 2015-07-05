@@ -1,134 +1,111 @@
 # Pai {tile}
 # represents a tile with tenhou-compatible shorthand string
 #
-# NOTE:
-# - Pai objects (e.g. `Pai('5m')`) provide definition of rules.
-# - Pai literals (e.g. `Pai['5m']`) are generated from all distinct Pai objects
-#   They are different from Pai objects in that all predicate functions are
-#   converted to actual values.
+# e.g. Pai['7z']
 
 SUUPAI = /([0-9])([mps])/
 TSUUPAI = /([1-7])z/
 TSUUPAI_ALT = /([ESWNBGRPFCZ])/
 TSUUPAI_ALT_MAP =
-  E: 1, S: 2, W: 3, N: 4 # Fonpai {wind}
-  B: 5, G: 6, R: 7 # Sangenpai {honor}
-  P: 5, F: 6, C: 7
-  Z: 7
+  E: \1z, S: \2z, W: \3z, N: \4z # Fonpai {wind}
+  B: \5z, G: \6z, R: \7z # Sangenpai {honor}
+  P: \5z, F: \6z, C: \7z
+  Z: \7z
 SUITES = <[m p s z]>
 SUITE_NUMBER = m: 0, p: 1, s: 2, z: 3
 
-module.exports = class Pai
+# template for extracting properties of a pai
+# NOTE: this is NOT directly used -- use Pai[..] literals instead
+class PaiClass
+  (@paiStr) ->
+    unless SUUPAI.test paiStr or
+           TSUUPAI.test paiStr or
+           TSUUPAI_ALT.test paiStr
+      throw 0
 
-  (paiStr) ->
-    # works without new
-    if this not instanceof Pai then return new Pai paiStr
-    # check for null
-    if !paiStr? then throw new Error 'riichi-core: Pai: ctor: null input'
-    # check for cloning
-    if paiStr instanceof Pai then paiStr = paiStr.toString()
-
-    # canonicalize representation
-    if m = paiStr.match SUUPAI
-      # canonical suupai
-      @paiStr = paiStr
-    else if m = paiStr.match TSUUPAI
-      # canonical tsuupai
-      @paiStr = paiStr
-    else if m = paiStr.match TSUUPAI_ALT
-      # valid shorthand for tsuupai
-      @paiStr = TSUUPAI_ALT_MAP[m[1]] + 'z'
-    else throw new Error 'riichi-core: Pai: ctor: invalid shorthand: ' + paiStr
-
-    # make immutable
-    Object.freeze this
-
-  toString: -> @paiStr
-  isEqualTo: ({paiStr}) -> @paiStr == paiStr
-
-  # extract parts of tile
   number: -> Number @paiStr[0]
   suite: -> @paiStr[1]
-  suiteNumber: -> SUITE_NUMBER[@suite()]
+  suiteNumber: -> SUITE_NUMBER[@suite!]
+
+  # shorthand for bin format (see below)
+  S: -> @suiteNumber!
+  N: -> @equivNumber! - 1
 
   # test if tile belongs to a category
-  isSuupai: -> @suite() != 'z'
-  isManzu: -> @suite() == 'm'
-  isPinzu: -> @suite() == 'p'
-  isSouzu: -> @suite() == 's'
-  isAkahai: -> @isSuupai() && @number() == 0
-  isRaotoupai: -> @isSuupai() && (@number() == 1 || @number() == 9)
-  isChunchanpai: -> @isSuupai() && @number() != 1 && @number() != 9
-  isTsuupai: -> @suite() == 'z'
-  isFonpai: -> @isTsuupai() && 1 <= @number() <= 4
-  isSangenpai: -> @isTsuupai() && 5 <= @number() <= 7
-  isYaochuupai: -> @isRaotoupai() || @isTsuupai()
-
-
-  # hardcoded rules for dora
+  isSuupai: -> @suite! != 'z'
+  isManzu: -> @suite! == 'm'
+  isPinzu: -> @suite! == 'p'
+  isSouzu: -> @suite! == 's'
+  isAkahai: -> @isSuupai! && @number! == 0
+  isRaotoupai: -> @isSuupai! && @number! in [1 9]
+  isChunchanpai: -> @isSuupai! && @number! not in [1 9]
+  isTsuupai: -> @suite! == 'z'
+  isFonpai: -> @isTsuupai! && @number! in [1 2 3 4]
+  isSangenpai: -> @isTsuupai! && @number! in [5 6 7]
+  isYaochuupai: -> @isRaotoupai! || @isTsuupai!
 
   # handle akahai {red tile} (denoted `/0[mps]/` but acts as red `/5[mps]/`)
   equivNumber: ->
-    n = @number()
-    if @isAkahai() then 5 else n
+    n = @number!
+    if @isAkahai! then 5 else n
   equivPai: ->
-    Pai(@equivNumber() + @suite())
-  isEquivTo: (other) -> @equivPai().isEqualTo(other.equivPai())
+    new PaiClass(@equivNumber! + @suite!)
 
-  # handle indicator of dora
+  # suupai successor (not wrapping)
   succ: ->
-    n = @equivNumber()
-    if @isSuupai()
+    n = @equivNumber!
+    if @isTsuupai! or n == 9 then return null
+    new PaiClass((n+1) + @suite!)
+
+  # dora hyouji -> dora (wrapping)
+  succDora: ->
+    n = @equivNumber!
+    if @isSuupai!
       if n == 9 then n = 1
       else ++n
     else
-      if @isFonpai()
+      if @isFonpai!
         if n == 4 then n = 1
         else ++n
       else
         if n == 7 then n = 5
         else ++n
-    Pai(n + @suite())
-  isSuccOf: (pred) -> @equivPai().isEqualTo(pred.succ())
+    new PaiClass(n + @suite!)
 
-# Build dictionary of pai literals
-do ->
-  blacklist =
-    toString: true
-  f = -> return @paiStr
-  prototype = {toString: f, toJSON: f}
-  for m from 0 to 3
-    for n from 0 to 9
-      paiStr = n + SUITES[m]
-      try Pai paiStr catch e then continue
-      Pai[paiStr] = Object.create(prototype)
-  for own paiStr, paiLit of Pai
-    paiObj = Pai paiStr
-    for k, v of paiObj
-      if blacklist[k] then continue
-      # convert predicate functions to values
-      if v instanceof Function
-        if v.length > 0 then continue
-        v = paiObj[k]()
-      # link pai literals
-      if v instanceof Pai then v = Pai[v.paiStr]
-      paiLit[k] = v
+# Build pai literals
+module.exports = Pai = {}
+f = -> @paiStr
+proto = {toString: f, toJSON: f}
+for m from 0 to 3
+  for n from 0 to 9
+    paiStr = n + SUITES[m]
+    try new PaiClass paiStr catch e then continue
+    Pai[paiStr] = ^^proto
+for own paiStr, paiLit of Pai
+  paiObj = new PaiClass paiStr
+  for k, v of paiObj
+    # convert predicate functions to values
+    if v instanceof Function
+      if v.length > 0 then continue
+      v = paiObj[k]!
+    # link pai literals
+    if v instanceof PaiClass then v = Pai[v.paiStr]
+    paiLit[k] = v
 
 # link alternative shorthands
-do ->
-  for alt, n of TSUUPAI_ALT_MAP
-    Pai[alt] = Pai[n + 'z']
-  for n from 0 to 9
-    a = Pai[n] = new Array 4
-    for m from 0 to 3
-      a[m] = Pai[n + SUITES[m]]
+for alt, n of TSUUPAI_ALT_MAP
+  Pai[alt] = Pai[n]
+for n from 0 to 9
+  a = Pai[n] = new Array 4
+  for m from 0 to 3
+    a[m] = Pai[n + SUITES[m]]
 
 # export constants
 Pai.SUITES = SUITES
 Pai.SUITE_NUMBER = SUITE_NUMBER
 
 
-# comparison functions for sorting
+# comparison function for sorting
 #   m < p < s < z
 #   m, p, s : 1 < 2 < 3 < 4 < 0 < 5 < 6 < 7 < 8 < 9
 Pai.compare = (a, b) ->
@@ -156,7 +133,7 @@ Pai.compare = (a, b) ->
 #   - for convenience, bins[3][7] = bins[3][8] = 0
 #
 # - bitmap, lsbit-first (for unique set of pai in single suite)
-#   e.g. 0b000100100 => 36m/36p/...
+#   e.g. 0b000100100 => 36m/p/s/z
 
 Pai.arrayFromString = (s) ->
   ret = []
@@ -180,7 +157,7 @@ Pai.stringFromArray = (paiArray) ->
   if l == 0 then return ''
 
   # make a sorted copy
-  paiArray = paiArray.slice().sort Pai.compare
+  paiArray = paiArray.slice!.sort Pai.compare
   ret = ''
   run = [paiArray[0].number]
   suite = paiArray[0].suite
@@ -191,10 +168,10 @@ Pai.stringFromArray = (paiArray) ->
     if pai.suite == suite
       run.push pai.number
     else
-      flush()
+      flush!
       run = [pai.number]
       suite = pai.suite
-  flush()
+  flush!
   return ret
 
 Pai.binsFromString = (s) ->
@@ -208,7 +185,7 @@ Pai.binsFromString = (s) ->
     if l <= 2
       # not contracted
       pai = Pai[run]
-      ret[pai.suiteNumber][pai.number-1]++
+      ret[pai.S][pai.N]++
     else
       # contracted
       suiteNumber = SUITE_NUMBER[run[l-1]]
@@ -225,7 +202,7 @@ Pai.binsFromArray = (paiArray) ->
     [0 0 0 0 0 0 0 0 0]
     [0 0 0 0 0 0 0 0 0]
   for pai in paiArray
-    ret[pai.suiteNumber][pai.equivNumber-1]++
+    ret[pai.S][pai.N]++
   ret
 
 Pai.binFromBitmap = (bitmap) ->
@@ -248,9 +225,9 @@ Pai.arrayFromBitmapSuite = (bitmap, suite) ->
   ret
 
 # generate array of all 136 pai in uniform random order
-# nAkapai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]
-Pai.shuffleAll = (nAkapai = [1 1 1]) ->
-  [m0, p0, s0] = nAkapai
+# nAkahai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]
+Pai.shuffleAll = (nAkahai = [1 1 1]) ->
+  [m0, p0, s0] = nAkahai
   m5 = 4 - m0
   p5 = 4 - p0
   s5 = 4 - s0
@@ -264,6 +241,6 @@ Pai.shuffleAll = (nAkapai = [1 1 1]) ->
 
   # shuffle
   for i from 136-1 til 0 by -1
-    j = ~~(Math.random() * (i + 1))
+    j = ~~(Math.random! * (i + 1))
     t = a[j] ; a[j] = a[i] ; a[i] = t
   a
