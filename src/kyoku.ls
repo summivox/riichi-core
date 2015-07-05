@@ -860,13 +860,14 @@ module.exports = class Kyoku implements EventEmitter::
 class PlayerHidden
   (@id, haipai) ->
     # juntehai (updated through methods)
-    # - (3*n+1) tiles (no tsumo)
+    # - (3*n+1) tiles
     #   - action: `addTsumo`
-    #   - decomp: tenpai
-    # - (3*n+2) tiles (w/ tsumo)
+    #   - decomp: decompTenpai
+    # - (3*n+2) tiles
     #   - action: `tsumokiri`/`dahai`
-    #   - decomp: discardTenpai
-    #   - SPECIAL: `decompTenpaiWithout`
+    #   - decomp:
+    #     - decompDahaiTenpai (deprecated, see below)
+    #     - decompTenpaiWithout
     @juntehai = haipai # Pai array format
     @juntehaiBins = bins = Pai.binsFromArray haipai # bins format
     @tsumo = null # null or Pai
@@ -889,12 +890,12 @@ class PlayerHidden
     if @tsumo?
       throw new Error "riichi-core: kyoku: PlayerHidden: "+
         "already has tsumo (#{@tsumo})"
-    @juntehaiBins[pai.equivNumber-1][pai.suiteNumber]++
+    @juntehaiBins[pai.suiteNumber][pai.equivNumber-1]++
     @tsumo = pai
     # update decomp
     @decompTenpai = null
     # @decompDahaiTenpai = decompDahaiTenpai @juntehaiBins
-    # NOTE: do in client instead
+    # NOTE: deprecated; do in client instead
 
   canTsumokiri: ->
     if !@tsumo? then return valid: false, reason: "no tsumo"
@@ -904,7 +905,7 @@ class PlayerHidden
     if not valid
       throw new Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
     pai = @tsumo
-    @juntehaiBins[pai.equivNumber-1][pai.suiteNumber]--
+    @juntehaiBins[pai.suiteNumber][pai.equivNumber-1]--
     @tsumo = null
     # update decomp
     @decompTenpai = decompTenpai @juntehaiBins
@@ -912,20 +913,17 @@ class PlayerHidden
     return pai
 
   canDahai: (pai) ->
-    if !@tsumo? then return valid: false, reason: "no tsumo"
-    for p, i in @juntehai
-      if p == pai then break
-    if p != pai
-      return valid: false, reason:
-        "[#pai] not in juntehai [#{Pai.stringFromArray a}]"
+    i = @juntehai.indexOf pai
+    if i == -1 then return valid: false, reason:
+      "[#pai] not in juntehai [#{Pai.stringFromArray a}]"
     return valid: true, i: i
   dahai: (pai) ->
     {valid, reason, i} = @canDahai pai
     if not valid
       throw new Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
-    @juntehaiBins[pai.equivNumber-1][pai.suiteNumber]--
-    @juntehai
-      ..[i] = @tsumo
+    @juntehaiBins[pai.suiteNumber][pai.equivNumber-1]--
+    with @juntehai
+      if @tsumo then ..[i] = @tsumo else ..splice(i, 1)
       ..sort Pai.compare
     # update decomp
     @decompTenpai = decompTenpai @juntehaiBins
@@ -938,14 +936,15 @@ class PlayerHidden
     e = pai.equivNumber - 1
     s = pai.suiteNumber
     bins = @juntehaiBins
-    if bins[e][s] <= 0 then return null
-    bins[e][s]--
+    if bins[s][e] <= 0 then return null
+    bins[s][e]--
     decomp = decompTenpai bins
-    bins[e][s]++
+    bins[s][e]++
     return decomp
 
 
-  # helper functions for fuuro (chi/pon/kan):
+  # helper functions
+  # mostly for fuuro (chi/pon/kan)
   # NOTE: ALWAYS COUNT BEFORE REMOVE! (no sanity check)
 
   # count given in juntehai & tsumo
@@ -955,17 +954,17 @@ class PlayerHidden
     s
   # count given pai in juntehai & tsumo, treating 0m/0p/0s as 5m/5p/5s
   countEquiv: (pai) ->
-    @juntehaiBins[pai.equivNumber - 1][pai.suiteNumber]
+    @juntehaiBins[pai.suiteNumber][pai.equivNumber - 1]
   # remove n * given pai in juntehai & tsumo
   remove: (pai, n = 1) !->
-    @juntehaiBins[pai.equivNumber - 1][pai.suiteNumber] -= n
+    @juntehaiBins[pai.suiteNumber][pai.equivNumber - 1] -= n
     @juntehai = @juntehai.filter -> !(it == pai && --n >= 0)
     if @tsumo == pai && --n >= 0 then @tsumo = null
   # remove n * given pai in juntehai & tsumo, treating 0m/0p/0s as 5m/5p/5s
   # return all removed pai
   removeEquiv: (pai, n = 1) ->
     ret = []
-    @juntehaiBins[pai.equivNumber - 1][pai.suiteNumber] -= n
+    @juntehaiBins[pai.suiteNumber][pai.equivNumber - 1] -= n
     @juntehai = @juntehai.filter ->
       if it.equivPai == pai && --n >= 0
         ret.push it
@@ -981,6 +980,12 @@ class PlayerHidden
       @juntehai.push @tsumo
       @tsumo = null
     @juntehai.sort Pai.compare
+
+  # return flattened count of yaochuupai (for 9-9/kokushi)
+  yaochuu: ->
+    with @juntehaiBins
+      [..0.0, ..0.8, ..1.0, ..1.8, ..2.0, ..2.8
+       ..3.0, ..3.1, ..3.2, ..3.3, ..3.4, ..3.5, ..3.6]
 
 
 class PlayerPublic
