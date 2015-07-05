@@ -24,7 +24,7 @@ module.exports = class Kyoku implements EventEmitter::
   # start a new kyoku
   #
   # `init` (immutable):
-  #   bakaze: 0/1/2/3 => E/S/W/N
+  #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
   #   nKyoku: 1/2/3/4
   #   honba: >= 0
   #   kyoutaku: >= 0
@@ -41,10 +41,13 @@ module.exports = class Kyoku implements EventEmitter::
   # - wall defaults to shuffled but can be provided (e.g. for testing)
   (@init, @rulevar, wall = null) ->
     EventEmitter.call @
-    # - dora handling:
-    #   - @globalHidden.doraHyouji/uraDoraHyouji: always the original 5 stacks
-    #   - @globalPublic.doraHyouji: revealed ones
-    #   - @globalPublic.dora: indicated dora (i.e. `.succ` of `doraHyouji`)
+    # dora handling:
+    # - @globalHidden.doraHyouji/uraDoraHyouji: always the original 5 stacks
+    # - @globalPublic.doraHyouji: revealed ones
+    # - @globalPublic.dora: indicated dora (i.e. `.succ` of `doraHyouji`)
+    #
+    # rule variations:
+    #   `.dora.akapai`
     if !wall? then wall = Pai.shuffleAll @rulevar.dora.akapai
     {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
 
@@ -127,14 +130,12 @@ module.exports = class Kyoku implements EventEmitter::
   #     RYOUKYOKU: reason (= \kyuushuukyuuhai)
   import Enum <[ TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON RYOUKYOKU ]> #
 
-  # priority of declarations
-
   # called after action executed
   _publishAction: !->
     with @globalPublic
       ..actionLog.push it
       ..lastAction = it
-    @emit \action, it
+    @emit \action, it.player, it
 
   # called after @QUERY action *declared* (see below)
   # NOTE: details of declared action should NOT be published until the action
@@ -254,6 +255,7 @@ module.exports = class Kyoku implements EventEmitter::
       type: @DAHAI, player
       details: {pai, riichi, tsumokiri}
     }
+    @playerPublic.riichi.ippatsu = false
     @_updateFuritenDahai player
     @_revealDoraHyouji!
     @_goto @QUERY
@@ -737,13 +739,14 @@ module.exports = class Kyoku implements EventEmitter::
   # clear ippatsu flag across the field (after any fuuro)
   _clearIppatsu: !-> @playerPublic.forEach (.riichi.ippatsu = false)
 
-  # enforce ryoukyoku {(aborative) draw} rules
+  # enforce ryoukyoku {abortive/exhaustive draw} rules
   # see `_isRyoukyokuValid` below
   # rule variations:
   #   `.ryoukyoku`
   _checkRyoukyoku: !->
+    # tochuu ryoukyoku {abortive draw}
     r = @rulevar.ryoukyoku
-    for name, isValid of @_isRyoukyokuValid
+    for name, isValid of @_isTochuuRyoukyokuValid
       switch r[name]
       | false => continue
       | true  => renchan = true
@@ -759,14 +762,16 @@ module.exports = class Kyoku implements EventEmitter::
           details: name
         }
       return @advance!
-    # normal ryoukyoku: piipai exhausted
+    # howanpai ryoukyoku {draw due to piipai exhausted}
+    # (*normal* case of ryoukyoku)
     if @globalPublic.nPiipaiLeft == 0
       ten = []
       noTen = []
+      delta = [0 0 0 0]
       for i til 4
         if @playerHidden[i].decompTenpai.wait.length then ten.push i
         else noTen.push i
-      delta = [0 0 0 0]
+      # TODO: nagashi mankan
       if ten.length && noTen.length
         sTen = 3000 / ten.length
         sNoTen = 3000 / noTen.length
@@ -778,16 +783,17 @@ module.exports = class Kyoku implements EventEmitter::
           type: \RYOUKYOKU
           delta
           kyoutaku # remains on table
-          renchan: delta[@chancha] >= 0
-          # NOTE: this is not a typo: all-no-ten & all-ten => renchan
+          renchan: @chancha in ten # all-no-ten & all-ten => also renchan
+          details: \howanpai
         }
       return @advance!
 
 
   # predicates
 
-  # different flavors of ryoukyoku
-  _isRyoukyokuValid:
+  # tochuu ryoukyoku {aborative draw} conditions
+  # NOTE: should be called before tsumo
+  _isTochuuRyoukyokuValid:
     suufonrenta: ~>
       pai = new Array 4
       for i til 4 => with @playerPublic[i]
@@ -1000,7 +1006,7 @@ class PlayerPublic
     #     otherwise => null
     #   riichi: if used to *declare* riichi
     # sutehaiBitmap: for fast check of `sutehaiFuriten` condition
-    #     same convention as `Pai.binFromBitmap`
+    #   same convention as `Pai.binFromBitmap`
     # lastSutehai == sutehai[*-1]
     @sutehai = []
     @sutehaiBitmaps = [0 0 0 0]
@@ -1032,7 +1038,7 @@ class PlayerPublic
       tsumokiri
       fuuroPlayer: null
     @sutehai.push sutehai
-    return @lastSutehai = sutehai
+    @lastSutehai = sutehai
 
   # check if pai has been discarded before
   sutehaiContains: (pai) ->
