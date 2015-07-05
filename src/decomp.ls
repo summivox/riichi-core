@@ -165,7 +165,7 @@ makeDecomp1Lookup = ->
     state.nTarget[targetId] -= n
     for x, rel in kernel
       state.bin[offset + rel] -= x*n
-    state.placements.splice(-n, n) # equivalent to `.pop!` n times
+    state.placements.splice(-n) # equivalent to `.pop!` n times
 
   # check for invalid case of pure void wait (juntehai karaten)
   isKaraten = (pattern, offset) ->
