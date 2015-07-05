@@ -16,7 +16,10 @@ require! {
 }
 
 # stub: emulated enums
-function Enum(names) => o = {} ; for name in names => o[name] = [name] ; o
+function Enum(names)
+  o = {}
+  for name in names => o[name] = [name]
+  o
 
 module.exports = class Kyoku implements EventEmitter::
   _agari: _agari
@@ -44,7 +47,6 @@ module.exports = class Kyoku implements EventEmitter::
     # dora handling:
     # - @globalHidden.doraHyouji/uraDoraHyouji: always the original 5 stacks
     # - @globalPublic.doraHyouji: revealed ones
-    # - @globalPublic.dora: indicated dora (i.e. `.succ` of `doraHyouji`)
     #
     # rule variations:
     #   `.dora.akahai`
@@ -70,7 +72,6 @@ module.exports = class Kyoku implements EventEmitter::
       nPiipaiLeft: 70
       nKan: 0
       doraHyouji: [doraHyouji[0]]
-      dora: [doraHyouji[0].succ]
       # riichi-related:
       kyoutaku: @init.kyoutaku # +1000 when riichi accepted
       nRiichi: 0 # +1 when riichi accepted
@@ -464,7 +465,7 @@ module.exports = class Kyoku implements EventEmitter::
       throw new Error "riichi-core: kyoku: chi: #reason"
     @_declareAction action
 
-  _chi: !function _chiPon({player, details: fuuro}:action) # see `_pon`
+  _chi: ({player, details: fuuro}:action) -> # see `_pon`
     {ownPai, otherPlayer} = fuuro
     @globalPublic.player = player
 
@@ -499,7 +500,7 @@ module.exports = class Kyoku implements EventEmitter::
         return valid: false, reason: "not enough [#pai] (you have #n, need 2)"
       if pai.number == 5
         # could have akahai
-        paiRed = Pai[0][pai.suiteNumber]
+        paiRed = Pai[0][pai.S]
         nRed = ..count paiRed
         nRed <?= maxAkahai
       else
@@ -521,7 +522,7 @@ module.exports = class Kyoku implements EventEmitter::
       throw new Error "riichi-core: kyoku: pon: #reason"
     @_declareAction action
 
-  _pon: _chiPon # <--- http://bit.ly/1HDdOal
+  _pon: @_chi # <--- http://bit.ly/1HDdOal
   # reason why this works: action object in same format (both have 2 ownPai)
 
   # daiminkan
@@ -559,7 +560,7 @@ module.exports = class Kyoku implements EventEmitter::
       throw new Error "riichi-core: kyoku: daiminkan: #reason"
     @_declareAction action
 
-  _daiminkan: !function _daiminkan({player, details: fuuro}:action)
+  _daiminkan: ({player, details: fuuro}:action) !->
     {pai, otherPlayer} = fuuro
     @globalPublic.player = player
     if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
@@ -683,16 +684,11 @@ module.exports = class Kyoku implements EventEmitter::
   #   `.dora.kan`
   _revealDoraHyouji: (type) !->
     if not (rule = @rulevar.dora.kan) then return
-    # shorthands (too messy using `with`)
-    ghdh = @globalHidden.doraHyouji
-    gpdh = @globalPublic.doraHyouji
-    gpd  = @globalPublic.dora
-
-    begin = gpdh.length
-    end = @globalPublic.nKan - (rule["#type"] ? 0)
-    for i from begin to end
-      gpdh.push dh = ghdh[i]
-      gpd.push dh.succ
+    with @globalPublic.doraHyouji
+      begin = ..length
+      end = @globalPublic.nKan - (rule["#type"] ? 0)
+      for i from begin to end
+        ..push @globalHidden.doraHyouji[i]
 
   # update player's own furiten {sacred discard} status flags after dahai
   _updateFuritenDahai: (player) !->
@@ -786,9 +782,7 @@ module.exports = class Kyoku implements EventEmitter::
   # NOTE: arr is modified
   isShuntsu: (arr) ->
     [p, q, r] = arr.sort Pai.compare
-    p.suite == q.suite == r.suite and
-      p.equivNumber + 1 == q.equivNumber and
-      q.equivNumber + 1 == r.equivNumber
+    p.succ == q.equivPai and q.succ == r.equivPai
 
   # kuikae {swap call}: refers to the situation where a player declares chi
   # with two pai in juntehai and then dahai {discards} one, but these three pai
@@ -880,7 +874,7 @@ class PlayerHidden
     if @tsumo?
       throw new Error "riichi-core: kyoku: PlayerHidden: "+
         "already has tsumo (#{@tsumo})"
-    @juntehaiBins[pai.suiteNumber][pai.equivNumber-1]++
+    @juntehaiBins[pai.S][pai.N]++
     @tsumo = pai
 
   canTsumokiri: ->
@@ -892,7 +886,7 @@ class PlayerHidden
       throw new Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
 
     pai = @tsumo
-    @juntehaiBins[pai.suiteNumber][pai.equivNumber-1]--
+    @juntehaiBins[pai.S][pai.N]--
     @tsumo = null
 
     @decompTenpai = decompTenpai @juntehaiBins
@@ -908,7 +902,7 @@ class PlayerHidden
     if not valid
       throw new Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
 
-    @juntehaiBins[pai.suiteNumber][pai.equivNumber-1]--
+    @juntehaiBins[pai.S][pai.N]--
     with @juntehai
       if @tsumo then ..[i] = @tsumo else ..splice(i, 1)
       ..sort Pai.compare
@@ -919,13 +913,11 @@ class PlayerHidden
   # decompose (3*n+2) hand excluding given pai
   decompTenpaiWithout: (pai) ->
     if !@tsumo then return null
-    e = pai.equivNumber - 1
-    s = pai.suiteNumber
     bins = @juntehaiBins
-    if bins[s][e] <= 0 then return null
-    bins[s][e]--
+    if bins[pai.S][pai.N] <= 0 then return null
+    bins[pai.S][pai.N]--
     decomp = decompTenpai bins
-    bins[s][e]++
+    bins[pai.S][pai.N]++
     return decomp
 
 
@@ -940,17 +932,17 @@ class PlayerHidden
     s
   # count given pai in juntehai & tsumo, treating 0m/0p/0s as 5m/5p/5s
   countEquiv: (pai) ->
-    @juntehaiBins[pai.suiteNumber][pai.equivNumber - 1]
+    @juntehaiBins[pai.S][pai.N]
   # remove n * given pai in juntehai & tsumo
   remove: (pai, n = 1) !->
-    @juntehaiBins[pai.suiteNumber][pai.equivNumber - 1] -= n
+    @juntehaiBins[pai.S][pai.N] -= n
     @juntehai = @juntehai.filter -> !(it == pai && --n >= 0)
     if @tsumo == pai && --n >= 0 then @tsumo = null
   # remove n * given pai in juntehai & tsumo, treating 0m/0p/0s as 5m/5p/5s
   # return all removed pai
   removeEquiv: (pai, n = 1) ->
     ret = []
-    @juntehaiBins[pai.suiteNumber][pai.equivNumber - 1] -= n
+    @juntehaiBins[pai.S][pai.N] -= n
     @juntehai = @juntehai.filter ->
       if it.equivPai == pai && --n >= 0
         ret.push it
@@ -1008,7 +1000,7 @@ class PlayerPublic
 
   tsumokiri: (pai) -> @dahai pai, true
   dahai: (pai, !!tsumokiri) ->
-    @sutehaiBitmaps[pai.suiteNumber] .|.= 1 .<<. (pai.equivNumber-1)
+    @sutehaiBitmaps[pai.suiteNumber] .|.= 1 .<<. pai.N
     sutehai =
       pai
       riichi: @riichi.declared
@@ -1019,4 +1011,4 @@ class PlayerPublic
 
   # check if pai has been discarded before
   sutehaiContains: (pai) ->
-    !!(@sutehaiBitmaps[pai.suiteNumber] .&. (1 .<<. (pai.equivNumber-1)))
+    !!(@sutehaiBitmaps[pai.suiteNumber] .&. (1 .<<. pai.N))

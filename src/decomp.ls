@@ -333,7 +333,7 @@ decompDahaiTenpai = (bins) ->
         bin[i]--
         {wait} = tenpai = decompTenpai(bins)
         if wait.length
-          ret[i + Pai.SUITES[s]] = tenpai
+          ret[(i+1) + Pai.SUITES[s]] = tenpai
         bin[i]++
   return ret
 
