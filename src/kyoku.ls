@@ -47,8 +47,8 @@ module.exports = class Kyoku implements EventEmitter::
     # - @globalPublic.dora: indicated dora (i.e. `.succ` of `doraHyouji`)
     #
     # rule variations:
-    #   `.dora.akapai`
-    if !wall? then wall = Pai.shuffleAll @rulevar.dora.akapai
+    #   `.dora.akahai`
+    if !wall? then wall = Pai.shuffleAll @rulevar.dora.akahai
     {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
 
     # id of chancha {dealer}
@@ -69,8 +69,8 @@ module.exports = class Kyoku implements EventEmitter::
       # visible on the table:
       nPiipaiLeft: 70
       nKan: 0
-      doraHyouji: []
-      dora: []
+      doraHyouji: [doraHyouji[0]]
+      dora: [doraHyouji[0].succ]
       # riichi-related:
       kyoutaku: @init.kyoutaku # +1000 when riichi accepted
       nRiichi: 0 # +1 when riichi accepted
@@ -97,9 +97,6 @@ module.exports = class Kyoku implements EventEmitter::
     #   RON: array of agari objects by natural turn order
     #   RYOUKYOKU: reason
     @result = null
-
-    # reveal initial dora {motodora}
-    @_revealDoraHyouji!
 
     # done
 
@@ -434,7 +431,7 @@ module.exports = class Kyoku implements EventEmitter::
   # TODO: fix doc
 
   # chi: specify 2 pai from juntehai
-  # NOTE: Akapai {red 5} considered *different* from regular 5!
+  # NOTE: Akahai {red 5} considered *different* from regular 5!
   canChi: (player, pai0, pai1) ->
     with @_checkQuery player => if not ..valid then return ..
     if not pai0?.paiStr or not pai1?.paiStr
@@ -484,12 +481,12 @@ module.exports = class Kyoku implements EventEmitter::
     @_clearIppatsu!
     @_goto @TURN ; @advance!
 
-  # pon: specify max # of akapai {red 5} from juntehai
+  # pon: specify max # of akahai {red 5} from juntehai
   # (defaults to 2 which means "use as many as you have")
-  canPon: (player, maxAkapai = 2) ->
+  canPon: (player, maxAkahai = 2) ->
     with @_checkQuery player => if not ..valid then return ..
-    if not (0 <= maxAkapai <= 2)
-      return valid: false, reason: "maxAkapai should be 0/1/2"
+    if not (0 <= maxAkahai <= 2)
+      return valid: false, reason: "maxAkahai should be 0/1/2"
     with @globalPublic.lastAction
       if ..type != @DAHAI
         return valid: false, reason: "can only pon after dahai"
@@ -501,10 +498,10 @@ module.exports = class Kyoku implements EventEmitter::
       if nAll < 2
         return valid: false, reason: "not enough [#pai] (you have #n, need 2)"
       if pai.number == 5
-        # could have akapai
+        # could have akahai
         paiRed = Pai[0][pai.suiteNumber]
         nRed = ..count paiRed
-        nRed <?= maxAkapai
+        nRed <?= maxAkahai
       else
         nRed = 0
     ownPai = switch nRed
@@ -518,8 +515,8 @@ module.exports = class Kyoku implements EventEmitter::
         pai, ownPai, otherPai, otherPlayer
       }
     }
-  pon: (player, maxAkapai = 2) !->
-    {valid, reason, action} = @canPon player, maxAkapai
+  pon: (player, maxAkahai = 2) !->
+    {valid, reason, action} = @canPon player, maxAkahai
     if not valid
       throw new Error "riichi-core: kyoku: pon: #reason"
     @_declareAction action
@@ -685,14 +682,14 @@ module.exports = class Kyoku implements EventEmitter::
   # rule variations:
   #   `.dora.kan`
   _revealDoraHyouji: (type) !->
+    if not (rule = @rulevar.dora.kan) then return
     # shorthands (too messy using `with`)
     ghdh = @globalHidden.doraHyouji
     gpdh = @globalPublic.doraHyouji
     gpd  = @globalPublic.dora
-    rule = @rulevar.dora.kan
 
     begin = gpdh.length
-    end = if rule then @globalPublic.nKan - (rule["#type"] ? 0) else 0
+    end = @globalPublic.nKan - (rule["#type"] ? 0)
     for i from begin to end
       gpdh.push dh = ghdh[i]
       gpd.push dh.succ
@@ -797,7 +794,7 @@ module.exports = class Kyoku implements EventEmitter::
   # with two pai in juntehai and then dahai {discards} one, but these three pai
   # alone can be considered as a shuntsu; this is usually forbidden. Depending
   # on rule variations, it could also be forbidden to pon then dahai the same
-  # pai. Akapai {red 5} is treated the same as regular 5.
+  # pai. Akahai {red 5} is treated the same as regular 5.
   #
   # Examples: (also included in rule variations)
   # - moro: has 34m , chi 0m => cannot dahai 5m

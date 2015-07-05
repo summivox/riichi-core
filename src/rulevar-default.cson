@@ -1,8 +1,7 @@
 VERSION: '0.1.0'
 
 dora:
-  akapai: [1, 1, 1] # m/p/s
-  ura: yes
+  akahai: [1, 1, 1] # number of 0m/p/s to replace 5m/p/s
 
   # kan:
   #   no => no kan-dora
@@ -13,6 +12,8 @@ dora:
     daiminkan: 1
     kakan: 1
     ankan: 0
+
+  ura: yes
   kanUra: yes
 
 keishikiTenpai: # TODO
@@ -51,7 +52,8 @@ banKuikae:
 #   yes: can ryoukyoku and renchan
 ryoukyoku:
   kyuushuukyuuhai: yes
-  suufonrenta: yes
-  suukaikan: yes
-  suuchariichi: yes
   nagashimankan: yes # TODO
+  tochuu:
+    suufonrenta: yes
+    suukaikan: yes
+    suuchariichi: yes
