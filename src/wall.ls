@@ -31,13 +31,13 @@
 #
 # implementation in this project:
 # 1.  Assuming wall is split: label the pai top-down then clockwise from head
-#     -   wall[  0] => top    of 1st stack from head
-#     -   wall[  1] => bottom of 1st stack from head
-#     -   wall[  2] => top    of 2nd stack from head
-#     -   wall[  3] => bottom of 2nd stack from head
+#     -   w[  0] => top    of 1st stack from head
+#     -   w[  1] => bottom of 1st stack from head
+#     -   w[  2] => top    of 2nd stack from head
+#     -   w[  3] => bottom of 2nd stack from head
 #     -   ...
-#     -   wall[134] => top    of 1st stack from tail
-#     -   wall[135] => bottom of 1st stack from tail
+#     -   w[134] => top    of 1st stack from tail
+#     -   w[135] => bottom of 1st stack from tail
 # 2.  haipai: first 16*4 tiles from wall
 # 3.  piipai/rinshan: Since `.pop()` is used to "draw" a tile (for efficiency),
 #     both arrays are reversed. Using annotation in the figure this means:
@@ -48,16 +48,16 @@
 #     [1] => 1st (ura-)kan-dora hyoujihai
 #     [2] => 2nd ...
 
-module.exports = (wall) ->
+module.exports = (w) ->
   haipai =
-    wall[0x00 0x01 0x02 0x03, 0x10 0x11 0x12 0x13, 0x20 0x21 0x22 0x23, 0x30]
-    wall[0x04 0x05 0x06 0x07, 0x14 0x15 0x16 0x17, 0x24 0x25 0x26 0x27, 0x31]
-    wall[0x08 0x09 0x0A 0x0B, 0x18 0x19 0x1A 0x1B, 0x28 0x29 0x2A 0x2B, 0x32]
-    wall[0x0C 0x0D 0x0E 0x0F, 0x1C 0x1D 0x1E 0x1F, 0x2C 0x2D 0x2E 0x2F, 0x33]
-  piipai = wall[122-1 to 52]
+    w[0x00 0x01 0x02 0x03, 0x10 0x11 0x12 0x13, 0x20 0x21 0x22 0x23, 0x30]
+    w[0x04 0x05 0x06 0x07, 0x14 0x15 0x16 0x17, 0x24 0x25 0x26 0x27, 0x31]
+    w[0x08 0x09 0x0A 0x0B, 0x18 0x19 0x1A 0x1B, 0x28 0x29 0x2A 0x2B, 0x32]
+    w[0x0C 0x0D 0x0E 0x0F, 0x1C 0x1D 0x1E 0x1F, 0x2C 0x2D 0x2E 0x2F, 0x33]
+  piipai = w[121 to 52 by -1]
 
-  rinshan = wall[133 132 135 134]
-  doraHyouji    = wall[130 to 122 by -2]
-  uraDoraHyouji = wall[131 to 123 by -2]
+  rinshan = w[133 132 135 134]
+  doraHyouji    = w[130 to 122 by -2]
+  uraDoraHyouji = w[131 to 123 by -2]
 
   {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji}
