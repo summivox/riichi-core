@@ -32,7 +32,7 @@
 # implementation in this project:
 # 1.  Assuming wall is split: label the pai top-bottom then clockwise from head
 #     (figure: 0, 1, 2, ..., 133, 134, 135 on top/bottom)
-# 2.  haipai: first 16*4 tiles from wall
+# 2.  haipai: first 13*4 tiles from wall
 # 3.  piipai/rinshan: Since `.pop()` is used to "draw" a tile (for efficiency),
 #     both arrays are reversed. In figure:
 #     -   piipai: [#69, #68, ..., #01, #00]

@@ -35,7 +35,7 @@ module.exports =
     # ankan while riichi: extra rules even when allowed
     # see `Kyoku::canAnkan`
     ankan: yes
-    okurikan: no
+    okurikan: no # TODO
 
   ron:
     atamahane: no # only first player in natural turn order valid

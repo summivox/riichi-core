@@ -1,5 +1,5 @@
 # tenpai/agari standard form decomposition
-# NOTE: bin(s) format is expected (see `./pai.coffee`)
+# NOTE: bin(s) format is expected (see `./pai`)
 
 Pai = require './pai.js'
 
@@ -23,9 +23,9 @@ function calcCapMentsu => Math.floor((it - 2)/3)
 
 # derived
 const N_LOG2 = Math.ceil Math.log2 N
-const N_MASK = ``(1<<N_LOG2) - 1``
-const M_LOG2 = Math.ceil Math.log2 M
-const M_MASK = ``(1<<M_LOG2) - 1``
+const N_MASK = (1 .<<. N_LOG2) - 1
+const MP_LOG2 = Math.ceil Math.log2 (M + 1)
+const MP_MASK = (1 .<<. MP_LOG2) - 1
 
 
 # -------------------------
@@ -87,7 +87,7 @@ decomp1Lookup = []
 compactBin = ->
   s = 0
   for x til N
-    s = (s .<<. M_LOG2) .|. it[x]
+    s = (s .<<. MP_LOG2) .|. it[x]
   s
 # NOTE: the following can be used to produce a more human-readable key
 # compactBin = -> Number it.join ''
