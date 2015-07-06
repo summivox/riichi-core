@@ -422,7 +422,7 @@ module.exports = class Kyoku implements EventEmitter::
 
 
   # actions available to other players after current player's dahai/kan:
-  # - chi/pon/kan (not after kan)
+  # - chi/pon/daiminkan (not after kan)
   # - ron (including chankan)
   #
   # `player` (in argument): the player who declares
@@ -438,8 +438,6 @@ module.exports = class Kyoku implements EventEmitter::
   # As a result, prefix-less methods are simply wrappers around `can`-methods.
   # Rationale: if you know if you can chi/pon/kan you already have the info to
   # actually do it
-  #
-  # TODO: fix doc
 
   # chi: specify 2 pai from juntehai
   # NOTE: Akahai {red 5} considered *different* from regular 5!
@@ -967,6 +965,7 @@ class PlayerHidden
   # return all removed pai
   removeEquiv: (pai, n = 1) ->
     ret = []
+    pai .= equivPai
     @juntehaiBins[pai.S][pai.N] -= n
     @juntehai = @juntehai.filter ->
       if it.equivPai == pai && --n >= 0
