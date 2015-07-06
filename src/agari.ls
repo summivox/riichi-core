@@ -11,5 +11,9 @@ module.exports = (player, ronPai) ->
     if ronPai then ..addTsumo ronPai
     bins = ..juntehaiBins
     decomps = decompAgari bins
-    if ronPai then ..removeTsumo ronPai
-    if decomps.length then return decomps[0] else return null
+    if ronPai then ..tsumokiri
+    if decomps.length == 0 then return null
+    return {
+      player: player
+      delta: [1, 1, 1, 1]
+    }

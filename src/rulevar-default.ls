@@ -31,6 +31,7 @@ module.exports =
     minPiipaiLeft: 4
     doubleRiichi: yes
     minogashi: yes # TODO
+    autoTsumokiri: yes # DEBUG
 
     # ankan while riichi: extra rules even when allowed
     # see `Kyoku::canAnkan`

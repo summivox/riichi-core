@@ -76,6 +76,7 @@ module.exports = class Kyoku implements EventEmitter::
       doraHyouji: [doraHyouji[0]]
       # riichi-related:
       kyoutaku: @init.kyoutaku # +1000 when riichi accepted
+      delta: [0 0 0 0] # -1000 when riichi accepted (for each player)
       nRiichi: 0 # +1 when riichi accepted
 
       # game progression (see below for details)
@@ -152,7 +153,7 @@ module.exports = class Kyoku implements EventEmitter::
   # actions before player's turn
   _begin: !->
     {player, lastAction} = @globalPublic
-    if @_checkRyoukyoku! then return @advance!
+    if @_checkRyoukyoku! then return
 
     # tsumo {draw} from either piipai or rinshan
     # NOTE: rinshan tsumo also removes one piipai from the other end so that
@@ -174,12 +175,14 @@ module.exports = class Kyoku implements EventEmitter::
     if @playerPublic[player].riichi.accepted
     and not @canAnkan player, pai .valid
     and not @canTsumoAgari player .valid
-      return @dahai player, null
+      if @rulevar.riichi.autoTsumokiri # DEBUG
+        return @dahai player, null
     @advance!
 
-  _end: (result) !->
+  _end: (result) ->
     @result = result
     @_goto @END ; @advance!
+    true
 
 
 
@@ -372,10 +375,11 @@ module.exports = class Kyoku implements EventEmitter::
       return valid: false, reason: "no yaku"
     return valid: true, agari: agari
   tsumoAgari: (player) !->
-    {valid, reason, agari} = @canTsumoAgari player, pai
+    {valid, reason, agari} = @canTsumoAgari player
     if not valid
       throw new Error "riichi-core: kyoku: tsumoAgari: #reason"
-    delta = agari.delta
+    delta = @globalPublic.delta.slice!
+    for i til 4 => delta[i] += agari.delta[i]
     delta[player] += @globalPublic.kyoutaku
     @_end {
       type: \TSUMO_AGARI
@@ -410,7 +414,7 @@ module.exports = class Kyoku implements EventEmitter::
     @_publishAction {type: @RYOUKYOKU, player, details: \kyuushuukyuuhai}
     @_end {
       type: \RYOUKYOKU
-      delta: [0 0 0 0]
+      delta: @globalPublic.delta.slice!
       kyoutaku: @globalPublic.kyoutaku # remains on table
       renchan
       details: \kyuushuukyuuhai
@@ -589,6 +593,7 @@ module.exports = class Kyoku implements EventEmitter::
     if @playerHidden[player].furiten
       return valid: false, reason: "furiten"
     pai = @_ronPai!
+    equivPai = pai.equivPai
     {wait} = @playerHidden[player].decompTenpai
     if equivPai not in wait then return valid: false, reason:
       "#pai not in your tenpai set #{Pai.stringFromArray[wait]}"
@@ -609,8 +614,8 @@ module.exports = class Kyoku implements EventEmitter::
   _ronPai: ->
     with @globalPublic.lastAction
       switch ..type
-      | @KAKAN => ..details.kakanPai # <-- NOTE: this is why (chankan)
-      | _ => ..details.pai
+      | @KAKAN => return ..details.kakanPai # <-- NOTE: this is why (chankan)
+      | _ => return ..details.pai
 
   # resolution of declarations during query
   # called e.g. after query times out
@@ -649,11 +654,11 @@ module.exports = class Kyoku implements EventEmitter::
     {atamahane, double, triple} = @rulevar.ron
     nRon = 0
     agariList = []
-    delta = [0 0 0 0]
+    delta = @globalPublic.delta.slice!
     renchan = false
     {kyoutaku, player: houjuuPlayer} = @globalPublic
     for i in [1 2 3]
-      player = (currPlayer + i) % 4
+      player = (houjuuPlayer + i) % 4
       with @playerHidden[player]
         if ..declaredAction?.type == @RON
           agari = ..declaredAction.details
@@ -672,7 +677,7 @@ module.exports = class Kyoku implements EventEmitter::
     if (nRon == 2 and not double) or (nRon == 3 and not triple)
       @_end {
         type: \RYOUKYOKU
-        delta: [0 0 0 0]
+        delta: @globalPublic.delta.slice!
         kyoutaku: @globalPublic.kyoutaku # remains on table
         renchan
         details: if nRon == 2 then "double ron" else "triple ron"
@@ -724,11 +729,13 @@ module.exports = class Kyoku implements EventEmitter::
   _checkAcceptedRiichi: !->
     with @globalPublic.lastAction
       if ..type == @DAHAI and ..details.riichi
-        with @playerPublic[..player].riichi
+        player = ..player
+        with @playerPublic[player].riichi
           ..accepted = true
           ..ippatsu = true
         with @globalPublic
           ..kyoutaku += 1000
+          ..delta[player] -= 1000
           ..nRiichi++
 
   # clear ippatsu flag across the field (after any fuuro)
@@ -736,9 +743,10 @@ module.exports = class Kyoku implements EventEmitter::
 
   # enforce ryoukyoku {abortive/exhaustive draw} rules
   # see `suufonrenta` and friends below
+  # return: true/false: if ryoukyoku takes place 
   # rule variations:
   #   `.ryoukyoku`
-  _checkRyoukyoku: !->
+  _checkRyoukyoku: ->
     # tochuu ryoukyoku {abortive draw}
     for type, allowed of @rulevar.ryoukyoku.tochuu
       switch allowed
@@ -746,9 +754,9 @@ module.exports = class Kyoku implements EventEmitter::
       | true  => renchan = true
       | _     => renchan = false
       # perform check if this rule is implemented
-      if @[type]?! then @_end {
+      if @[type]?! then return @_end {
         type: \RYOUKYOKU
-        delta: [0 0 0 0]
+        delta: @globalPublic.delta.slice!
         kyoutaku: @globalPublic.kyoutaku # remains on table
         renchan
         details: type
@@ -758,7 +766,7 @@ module.exports = class Kyoku implements EventEmitter::
     if @globalPublic.nPiipaiLeft == 0
       ten = []
       noTen = []
-      delta = [0 0 0 0]
+      delta = @globalPublic.delta.slice!
       for i til 4
         if @playerHidden[i].decompTenpai.wait.length then ten.push i
         else noTen.push i
@@ -768,13 +776,14 @@ module.exports = class Kyoku implements EventEmitter::
         sNoTen = 3000 / noTen.length
         for i in ten => delta[i] += sTen
         for i in noTen => delta[i] -= sNoTen
-      @_end {
+      return @_end {
         type: \RYOUKYOKU
         delta
         kyoutaku: @globalPublic.kyoutaku # remains on table
         renchan: @chancha in ten # all-no-ten & all-ten => also renchan
         details: \howanpai
       }
+    return false
 
 
   # predicates
@@ -787,9 +796,9 @@ module.exports = class Kyoku implements EventEmitter::
     pai = new Array 4
     for i til 4 => with @playerPublic[i]
       if ..fuuro.length == 0 and ..sutehai.length == 1
-        pai[i] = ..sutehai[0]
+        pai[i] = ..sutehai[0].pai
       else return false
-    return pai.isFonpai and pai.0 == pai.1 == pai.2 == pai.3
+    return pai.0.isFonpai and pai.0 == pai.1 == pai.2 == pai.3
   suukaikan: ->
     switch @globalPublic.nKan
     | 0, 1, 2, 3 => return false
