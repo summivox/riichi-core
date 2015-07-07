@@ -95,6 +95,7 @@ for own paiStr, paiLit of Pai
 # link alternative shorthands
 for alt, n of TSUUPAI_ALT_MAP
   Pai[alt] = Pai[n]
+# link Pai[number][suiteNumber]
 for n from 0 to 9
   a = Pai[n] = new Array 4
   for m from 0 to 3
@@ -227,6 +228,9 @@ Pai.arrayFromBitmapSuite = (bitmap, suite) ->
     bitmap .>>.= 1
   ret
 
+Pai.YAOCHUU = [
+  \1m \9m \1p \9p \1s \9s
+  \1z \2z \3z \4z \5z \6z \7z].map (Pai.)
 Pai.yaochuuFromBins = -> with it => return [
   ..0.0, ..0.8, ..1.0, ..1.8, ..2.0, ..2.8
   ..3.0, ..3.1, ..3.2, ..3.3, ..3.4, ..3.5, ..3.6

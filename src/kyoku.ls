@@ -9,7 +9,7 @@
 
 require! {
   'events': {EventEmitter}
-  './decomp.js': {decompDahaiTenpai, decompTenpai, decompAgari}
+  './decomp.js': {decompTenpai}
   './pai.js': Pai
   './wall.js': splitWall
   './agari.js': _agari

@@ -1,4 +1,4 @@
-# tenpai/agari standard form decomposition
+# tenpai/agari decomposition
 # NOTE: bin(s) format is expected (see `./pai`)
 
 Pai = require './pai.js'
@@ -30,11 +30,11 @@ const MP_MASK = (1 .<<. MP_LOG2) - 1
 
 # -------------------------
 # pattern:
-# * kernel[i] placed at bin[offset+i], nPai = sum(kernel)
-# * either:
-#   * complete (wait == null, `target == name`)
-#   * waits for valid pai `offset+wait[i]` to become `target`
-# * waitAbs[offset]: precomputed array of all valid `offset+wait[i]`
+# - kernel[i] placed at bin[offset+i], nPai = sum(kernel)
+# - either:
+#   - complete (wait == null, `target == name`)
+#   - waits for valid pai `offset+wait[i]` to become `target`
+# - waitAbs[offset]: precomputed array of all valid `offset+wait[i]`
 patterns =
   # complete mentsu/jantou : no wait
   * name: 'shuntsu' target: 'shuntsu' kernel: [1 1 1] wait: null
@@ -76,9 +76,9 @@ for pattern, id in patterns
 #   placements: array of compacted placements `{patternId, offset}`
 #
 # NOTE:
-# * `1` in `decomp1` stands for "1-suite"
-# * placements are sorted by patternId then offset (compacted: numerical order)
-# * as a result, incomplete patterns (if any) must be at the end of `placements`
+# - `1` in `decomp1` stands for "1-suite"
+# - placements are sorted by patternId then offset (compacted: numerical order)
+# - as a result, incomplete patterns (if any) must be at the end of `placements`
 decomp1Lookup = []
 
 
@@ -103,8 +103,8 @@ restorePlacement = ->
 # key: 'complete'/'waiting'
 #
 # NOTE:
-# * cannot be trivially written even in livescript
-# * whitespaces are significant
+# - cannot be trivially written even in livescript
+# - whitespaces are significant
 decomp1LookupEntry = (bin, key) ->
   decomp1Lookup[compactBin bin]?[key] ? []
 ensureDecomp1LookupEntry = (bin, key) ->
@@ -234,10 +234,13 @@ printDecomp1Lookup = !->
 #   wait: null or array of Pai
 #
 # NOTE:
-# * `decomp` refers to the whole hand
+# - `decomp` refers to the whole hand
 #   `decomp1` only refers to one suite
 #
-# * `mentsu.type` => `pattern.name` instead of `pattern.target` so that
+# - `decomp` handles standard form decomposition only
+#   kokushi/chiitoi see below
+#
+# - `mentsu.type` => `pattern.name` instead of `pattern.target` so that
 #   incomplete patterns can be identified
 
 
@@ -331,17 +334,25 @@ decompDahaiTenpai = (bins) ->
     for i til N
       if bin[i]
         bin[i]--
-        {wait} = tenpai = decompTenpai(bins)
-        if wait.length
-          ret[(i+1) + Pai.SUITES[s]] = tenpai
+        dt = decompTenpai(bins)
+        if dt.wait.length
+          ret[(i+1) + Pai.SUITES[s]] = dt
         bin[i]++
   return ret
 
 # (3*n+1): tenpai
-# return:
+# standard form:
 #   decomps: array of decomp
 #   wait: array of Pai (= union of decomps[i].wait)
+# kokushi/chiitoi:
+#   k7: \kokushi or \chiitoi
+#   wait: array of Pai
 decompTenpai = (bins) ->
+  # kokushi/chiitoi checks are cheaper -- do first
+  if (w = tenpaiK bins) then return k7: \kokushi, wait: w
+  if (w = tenpai7 bins) then return k7: \chiitoi, wait: w
+
+  # standard form
   ret = {
     decomps: []
     wait: []
@@ -350,7 +361,7 @@ decompTenpai = (bins) ->
   WW = decomp1sFromBins(bins, 'waiting')
 
   # 1 suite waiting + 3 suites complete
-  f = (iw, ic0, ic1, ic2) ->
+  f = (iw, ic0, ic1, ic2) !->
     d1sW  = WW[iw]  ; if !d1sW.length  then return
     d1sC0 = CC[ic0] ; if !d1sC0.length then return
     d1sC1 = CC[ic1] ; if !d1sC1.length then return
@@ -381,20 +392,24 @@ decompTenpai = (bins) ->
         addRem(rem, d1C0)
       addRem(rem, d1W)
     [].push.apply ret.wait, convert(waitSuite, iw)
-    # ret.wait ++= convert(waitSuite, iw)
-    return
   # enumerate which suite is waiting
   f(0, 1, 2, 3)
   f(1, 0, 2, 3)
   f(2, 0, 1, 3)
   f(3, 0, 1, 2)
+
   ret
 
 # (3*n+2): agari
-# return: array of decomp
-# NOTE: mostly parallel code of `decompTenpai` (3*n+1) as we don't have to
-# enumerate the waiting suite
+# standard form: array of decomp
+# kokushi/chiitoi: [\kokushi] or [\chiitoi]
+# NOTE: mostly parallel code of `decompTenpai` (3*n+1) but even simpler as we
+# don't have to enumerate the waiting suite
 decompAgari = (bins) ->
+  # kokushi/chiitoi checks are cheaper -- do first
+  if agariK bins then return [\kokushi]
+  if agari7 bins then return [\chiitoi]
+
   ret = []
   CC = decomp1sFromBins(bins, 'complete')
   d1sC0 = CC[0] ; if !d1sC0.length then return ret
@@ -418,6 +433,64 @@ decompAgari = (bins) ->
     addRem(rem, d1C0)
   ret
 
+
+# kokushi-musou {13 orphans} and chiitoitsu {7 pairs} details
+# shorthand: `k`, `7`, `k7` (in contrast with `std` for standard form)
+
+# kokushi tenpai: either
+# - [19m19p19s1234567z] => 13-wait
+# - replacing one from above with another => 1-wait (the replaced)
+tenpaiK = (bins) ->
+  yaochuu = Pai.yaochuuFromBins bins
+  c0 = c1 = c2 = 0
+  i0 = -1
+  for x, i in yaochuu => switch x
+  | 0 => 
+    if ++c0 > 1 then return null
+    i0 = i
+  | 1 => ++c1
+  | 2 =>
+    if ++c2 > 1 then return null
+  | 3, 4 => return null
+  if c1 == 13
+    return Pai.YAOCHUU
+  if c0 == 1 and c1 == 11 and c2 == 1
+    return [Pai.YAOCHUU[i0]]
+  return null
+
+# kokushi agari: [19m19p19s1234567z] + one more
+agariK = (bins) ->
+  yaochuu = Pai.yaochuuFromBins bins
+  c1 = c2 = 0
+  for x, i in yaochuu => switch x
+  | 1 => ++c1
+  | 2 =>
+    if ++c2 > 1 then return null
+  | 3, 4 => return null
+  return c1 == 12 and c2 == 1
+
+# chiitoi tenpai: 6 toitsu + 1 tanki
+tenpai7 = (bins) ->
+  c1 = c2 = 0
+  p1 = -1
+  for s til 3 => for n til 9 => switch bins[s][n]
+  | 0 => void
+  | 1 =>
+    if ++c1 > 1 then return null
+    p1 = Pai[n+1][s]
+  | 2 => ++c2
+  | _ => return null
+  if c1 == 1 and c2 == 6 then return [p1]
+  return null
+
+# chiitoi agari: 7 toitsu (duh)
+agari7 = (bins) ->
+  c2 = 0
+  for s til 3 => for n til 9 => switch bins[s][n]
+  | 0 => void
+  | 2 => ++c2
+  | _ => return false
+  return c2 == 7
 
 # small tests
 if require.main == module
@@ -452,7 +525,8 @@ if require.main == module
   clock = clock[1] / len / iters / 1e6 # in ms
   console.log clock
 
-  print = (x) -> console.log JSON.stringify(x, 0, 2)
+  #print = (x) -> console.log JSON.stringify(x, 0, 2)
+  print = -> console.log JSON.stringify it
   print tenpai
   print dahaiTenpai
   print agari
