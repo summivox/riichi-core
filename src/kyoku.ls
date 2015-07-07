@@ -1,11 +1,9 @@
 # kyoku {round}
 # Complete implementation of one kyoku {round} of game.
 #
-# NOTE: This has inevitably become a God Class, partially due to the complexity
-# of the game itself. On top of that, `_agari` is technically a method of this
-# class as well, but has to be put into a separate file, so that this file can
-# at least concentrate on the control flow of the game and leave the equally
-# dazzling "how many points is this hand worth" problem to `_agari` instead.
+# NOTE: This has inevitably become a God Class, due to the tightly-coupled
+# nature of core game rules. Nevertheless, this implementation strives to be as
+# clear and modularized as possible.
 
 require! {
   'events': {EventEmitter}
@@ -22,8 +20,6 @@ function Enum(names)
   o
 
 module.exports = class Kyoku implements EventEmitter::
-  _agari: _agari
-
   # start a new kyoku
   #
   # `init` (immutable):
@@ -389,7 +385,7 @@ module.exports = class Kyoku implements EventEmitter::
       details: agari
     }
 
-  # kyuushuukyuuhai (often abbreviated as 9-9 in this project)
+  # kyuushuukyuuhai ryoukyoku
   #   - available at player's true first tsumo
   #   - player must have at least 9 **KINDS** of yaochuupai
   # rule variations:
@@ -601,7 +597,6 @@ module.exports = class Kyoku implements EventEmitter::
       "#pai not in your tenpai set #{Pai.stringFromArray[wait]}"
     if not (agari = @_agari player, pai)
       return valid: false, reason: "no yaku"
-    agari.houjuuPlayer = @globalPublic.player # NOTE: NOT included in agari
     return valid: true, action: {
       type: @RON, player
       details: agari
@@ -664,12 +659,11 @@ module.exports = class Kyoku implements EventEmitter::
     renchan = false
     {kyoutaku, player: houjuuPlayer} = @globalPublic
     for i in [1 2 3]
-      player = (houjuuPlayer + i) % 4
+      player = (houjuuPlayer + i)%4
       with @playerHidden[player]
         if ..declaredAction?.type == @RON
           nRon++
           agari = ..declaredAction.details
-          agari.houjuuPlayer = houjuuPlayer
           agariList.push agari
           for i til 4 => delta[i] += agari.delta[i]
           delta[player] += kyoutaku
@@ -731,7 +725,7 @@ module.exports = class Kyoku implements EventEmitter::
   # of a player who didn't/couldn't ron
   _updateFuritenResolve: (player) !->
     for i in [1 2 3]
-      player = (houjuuPlayer + i) % 4
+      player = (@globalPublic.player + i)%4
       with @playerHidden[player]
         if @_ronPai!equivPai in ..decompTenpai.wait
           ..furiten = true
@@ -876,6 +870,15 @@ module.exports = class Kyoku implements EventEmitter::
         if ..length == 4 and ..every (.type == @KAN)
           return player
     return null
+  
+
+  # assemble information to determine whether a player has a valid win and how
+  # many points is it worth
+  _agari: (player, ronPai = null) ->
+    isTsumo = ronPai?
+    isRon = not isTsumo
+
+
 
 
 class PlayerHidden
