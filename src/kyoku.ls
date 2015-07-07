@@ -983,13 +983,8 @@ class PlayerHidden
       @tsumo = null
     @juntehai.sort Pai.compare
 
-  # return flattened count of yaochuupai (for 9-9/kokushi)
-  # 19m19s19p1234567z
-  yaochuu: ->
-    with @juntehaiBins => return [
-      ..0.0, ..0.8, ..1.0, ..1.8, ..2.0, ..2.8
-      ..3.0, ..3.1, ..3.2, ..3.3, ..3.4, ..3.5, ..3.6
-    ]
+  # wrapper for `Pai.yaochuuFromBins`
+  yaochuu: -> Pai.yaochuuFromBins @juntehaiBins
 
 
 class PlayerPublic

@@ -132,6 +132,9 @@ Pai.compare = (a, b) ->
 #   - bins format treats 0m/0p/0s as 5m/5p/5s
 #   - for convenience, bins[3][7] = bins[3][8] = 0
 #
+# - yaochuu: flattened yaochuupai-only bins
+#   order: 19m19s19p1234567z
+#
 # - bitmap, lsbit-first (for unique set of pai in single suite)
 #   e.g. 0b000100100 => 36m/p/s/z
 
@@ -223,6 +226,11 @@ Pai.arrayFromBitmapSuite = (bitmap, suite) ->
     n++
     bitmap .>>.= 1
   ret
+
+Pai.yaochuuFromBins = -> with it => return [
+  ..0.0, ..0.8, ..1.0, ..1.8, ..2.0, ..2.8
+  ..3.0, ..3.1, ..3.2, ..3.3, ..3.4, ..3.5, ..3.6
+]
 
 # generate array of all 136 pai in uniform random order
 # nAkahai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]
