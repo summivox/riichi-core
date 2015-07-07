@@ -620,7 +620,9 @@ module.exports = class Kyoku implements EventEmitter::
       | _ => return ..details.pai
 
   # resolution of declarations during query
-  # called e.g. after query times out
+  # called e.g. after query times out or all responses have been received
+  #
+  # NOTE: cleanup between `@_goto` and `@advance`
   resolveQuery: !->
     with @globalPublic.lastDeclared
       switch
@@ -635,12 +637,14 @@ module.exports = class Kyoku implements EventEmitter::
           if ..lastAction.type == @DAHAI
             ..player = (..player + 1)%4
         @_goto @BEGIN
-      # if riichi was declared, it now becomes accepted (not ron'd)
-      @_checkAcceptedRiichi!
       # clear all declarations now that they're resolved
       ..clear!
       for i til 4 => @playerHidden[i].declaredAction = null
-      @advance!
+    # if riichi was declared, it now becomes accepted (not ron'd)
+    @_checkAcceptedRiichi!
+    # check for doujun/riichi furiten (in tenpai but didn't ron)
+    @_updateFuritenResolve!
+    @advance!
 
   # (multi-)ron resolution
   # priority of players are decided by natural turn order after houjuu player:
@@ -663,6 +667,7 @@ module.exports = class Kyoku implements EventEmitter::
       player = (houjuuPlayer + i) % 4
       with @playerHidden[player]
         if ..declaredAction?.type == @RON
+          nRon++
           agari = ..declaredAction.details
           agari.houjuuPlayer = houjuuPlayer
           agariList.push agari
@@ -671,11 +676,6 @@ module.exports = class Kyoku implements EventEmitter::
           kyoutaku = 0
           if player == @chancha then renchan = true
           if atamahane then break
-        else if @_ronPai!equivPai in ..decompTenpai.wait
-          ..furiten = true
-          ..doujunFuriten = true
-          ..riichiFuriten = @playerPublic[player].riichi.accepted
-          if player == @chancha then renchan = true
     if (nRon == 2 and not double) or (nRon == 3 and not triple)
       @_end {
         type: \RYOUKYOKU
@@ -724,8 +724,19 @@ module.exports = class Kyoku implements EventEmitter::
       ..sutehaiFuriten = ..decompTenpai.wait.some -> pp.sutehaiContains it
       # doujun~: effective until dahai
       ..doujunFuriten = false
-      # sum it up
-      ..furiten = ..sutehaiFuriten or ..doujunFuriten or ..riichiFuriten
+      # sum it up (NOTE: we've just set doujunFuriten to false)
+      ..furiten = ..sutehaiFuriten or ..riichiFuriten # or ..doujunFuriten
+
+  # set doujun/riichi furiten flags if dahai {discard} matches the tenpai set
+  # of a player who didn't/couldn't ron
+  _updateFuritenResolve: (player) !->
+    for i in [1 2 3]
+      player = (houjuuPlayer + i) % 4
+      with @playerHidden[player]
+        if @_ronPai!equivPai in ..decompTenpai.wait
+          ..furiten = true
+          ..doujunFuriten = true
+          ..riichiFuriten = @playerPublic[player].riichi.accepted
 
   # if riichi dahai not ron'd, it becomes accepted
   _checkAcceptedRiichi: !->
@@ -1017,10 +1028,10 @@ class PlayerPublic
 
     # riichi flags
     @riichi =
-      declared: false # goes true immediately after player declares
-      accepted: false # goes true when the dahai did not cause ron
-      double: false   # goes true if declared during "true first tsumo"
-      ippatsu: false  # true only during ippatsu period
+      declared: false # goes and stays true immediately after player declares
+      accepted: false # goes and stays true when the dahai did not cause ron
+      double: false   # goes and stays true if declared during true first tsumo
+      ippatsu: false  # true only during ippatsu period, then false
 
   tsumokiri: (pai) -> @dahai pai, true
   dahai: (pai, !!tsumokiri) ->
