@@ -445,6 +445,8 @@ module.exports = class Kyoku implements EventEmitter::
     with @_checkQuery player => if not ..valid then return ..
     if not pai0?.paiStr or not pai1?.paiStr
       return valid: false, reason: "invalid pai"
+    if @globalPublic.nPiipaiLeft <= 0
+      return valid: false, reason: "cannot chi when no piipai left"
     with @globalPublic.lastAction
       otherPlayer = ..player
       if ..type != @DAHAI or (otherPlayer+1)%4 != player
@@ -496,6 +498,8 @@ module.exports = class Kyoku implements EventEmitter::
     with @_checkQuery player => if not ..valid then return ..
     if not (0 <= maxAkahai <= 2)
       return valid: false, reason: "maxAkahai should be 0/1/2"
+    if @globalPublic.nPiipaiLeft <= 0
+      return valid: false, reason: "cannot pon when no piipai left"
     with @globalPublic.lastAction
       if ..type != @DAHAI
         return valid: false, reason: "can only pon after dahai"
