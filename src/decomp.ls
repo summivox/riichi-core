@@ -227,20 +227,22 @@ printDecomp1Lookup = !->
 # decompose complete juntehai (4 bins, all suites) for tenpai/agari
 #
 # decomp:
-#   mentsu: array of:
-#     type: (see pattern.name)
-#     pai: Pai (pattern origin)
-#   jantou: null or Pai
+#   standard form: 
+#     mentsu: array of:
+#       type: (see pattern.name)
+#       pai: Pai (pattern origin)
+#     jantou: null or Pai
+#     k7: null
+#   kokushi/chiitoi form:
+#     mentsu: []
+#     jantou: null
+#     k7: \kokushi or \chiitoi
 #   wait: null or array of Pai
 #
 # NOTE:
-# - `decomp` refers to the whole hand
-#   `decomp1` only refers to one suite
+# - `decomp` refers to the whole hand while `decomp1` only refers to one suite
 #
-# - `decomp` handles standard form decomposition only
-#   kokushi/chiitoi see below
-#
-# - `mentsu.type` => `pattern.name` instead of `pattern.target` so that
+# - `mentsu.type` taken from `pattern.name` instead of `pattern.target` so that
 #   incomplete patterns can be identified
 
 
@@ -290,6 +292,7 @@ stitch = (decomp1s, suites) ->
     mentsu: []
     jantou: null
     wait: null
+    k7: null
   for {placements}, i in decomp1s
     suite = suites[i]
     for placement in placements
@@ -341,16 +344,17 @@ decompDahaiTenpai = (bins) ->
   return ret
 
 # (3*n+1): tenpai
-# standard form:
 #   decomps: array of decomp
 #   wait: array of Pai (= union of decomps[i].wait)
-# kokushi/chiitoi:
-#   k7: \kokushi or \chiitoi
-#   wait: array of Pai
+#
+# NOTE: 
 decompTenpai = (bins) ->
-  # kokushi/chiitoi checks are cheaper -- do first
-  if (w = tenpaiK bins) then return k7: \kokushi, wait: w
-  if (w = tenpai7 bins) then return k7: \chiitoi, wait: w
+  # kokushi: exclusive
+  if (w = tenpaiK bins)
+    return {
+      decomps: [{mentsu: [], jantou: null, k7: \kokushi, wait: w}]
+      wait: w
+    }
 
   # standard form
   ret = {
@@ -398,17 +402,22 @@ decompTenpai = (bins) ->
   f(2, 0, 1, 3)
   f(3, 0, 1, 2)
 
+  # chiitoi: might also be ryanpeikou
+  # NOTE: 1 wait (tanki) by definition (see `tenpai7`)
+  if (w = tenpai7 bins)
+    ret.decomps.push {mentsu: [], jantou: null, k7: \chiitoi, wait: w}
+    if -1 == ret.wait.indexOf w.0 then ret.wait.push w.0
+
   ret
 
 # (3*n+2): agari
 # standard form: array of decomp
-# kokushi/chiitoi: [\kokushi] or [\chiitoi]
 # NOTE: mostly parallel code of `decompTenpai` (3*n+1) but even simpler as we
 # don't have to enumerate the waiting suite
 decompAgari = (bins) ->
-  # kokushi/chiitoi checks are cheaper -- do first
-  if agariK bins then return [\kokushi]
-  if agari7 bins then return [\chiitoi]
+  # kokushi: exclusive
+  if agariK bins
+    return [{mentsu: [], jantou: null, k7: \kokushi, wait: null}]
 
   ret = []
   CC = decomp1sFromBins(bins, 'complete')
@@ -431,6 +440,11 @@ decompAgari = (bins) ->
           addRem(rem, d1C2)
       addRem(rem, d1C1)
     addRem(rem, d1C0)
+
+  # chiitoi
+  if agari7 bins
+    ret.push {mentsu: [], jantou: null, k7: \chiitoi, wait: null}
+
   ret
 
 
@@ -473,7 +487,7 @@ agariK = (bins) ->
 tenpai7 = (bins) ->
   c1 = c2 = 0
   p1 = -1
-  for s til 3 => for n til 9 => switch bins[s][n]
+  for s til 4 => for n til 9 => switch bins[s][n]
   | 0 => void
   | 1 =>
     if ++c1 > 1 then return null
@@ -486,11 +500,12 @@ tenpai7 = (bins) ->
 # chiitoi agari: 7 toitsu (duh)
 agari7 = (bins) ->
   c2 = 0
-  for s til 3 => for n til 9 => switch bins[s][n]
+  for s til 4 => for n til 9 => switch bins[s][n]
   | 0 => void
   | 2 => ++c2
   | _ => return false
   return c2 == 7
+
 
 # small tests
 if require.main == module
@@ -505,6 +520,11 @@ if require.main == module
   tenpaiBins = <[
     22234567p44s
     1112345678999p
+    1122334455667s
+    113355m224466p1z
+    19m19p19s1234567z
+    19m19p19s1234457z
+    19m19p19s1234466z
   ]>.map Pai.binsFromString
   dahaiTenpaiBins = <[
     123m067p2366778s6s
@@ -514,6 +534,7 @@ if require.main == module
   ]>.map Pai.binsFromString
   
   iters = 10
+  #iters = 1
   clock = process?.hrtime!
   for i til iters
     tenpai = tenpaiBins.map decompTenpai
@@ -525,8 +546,8 @@ if require.main == module
   clock = clock[1] / len / iters / 1e6 # in ms
   console.log clock
 
-  #print = (x) -> console.log JSON.stringify(x, 0, 2)
-  print = -> console.log JSON.stringify it
+  print = -> console.log JSON.stringify(it, 0, 2)
+  #print = -> console.log JSON.stringify it
   print tenpai
   print dahaiTenpai
   print agari
