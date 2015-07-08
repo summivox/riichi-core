@@ -836,10 +836,9 @@ module.exports = class Kyoku implements EventEmitter::
 
     if suji and type == @SHUNTSU and d.suite == o.suite
       [p, q] = ownPai.map (.= equivPai) .sort Pai.compare
-      D = d.number ; O = o.number ; P = p.number ; Q = q.number
-      return P+1 == Q and (
-        (O+1 == P and Q+1 == D) or # OPQD: PQ chi O => cannot dahai D
-        (D+1 == P and Q+1 == O)    # DPQO: PQ chi O => cannot dahai D
+      return p.succ == q and (
+        (o.succ == p and q.succ == d) or # OPQD: PQ chi O => cannot dahai D
+        (d.succ == p and q.succ == o)    # DPQO: PQ chi O => cannot dahai D
       )
 
     return false
