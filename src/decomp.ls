@@ -1,7 +1,7 @@
 # tenpai/agari decomposition
 # NOTE: bin(s) format is expected (see `./pai`)
 
-Pai = require './pai.js'
+Pai = require './pai'
 
 # because I don't want to require lodash
 function sum arr

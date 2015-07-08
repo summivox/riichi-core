@@ -7,10 +7,10 @@
 
 require! {
   'events': {EventEmitter}
-  './decomp.js': {decompTenpai}
-  './pai.js': Pai
-  './wall.js': splitWall
-  './agari.js': _agari
+  './decomp': {decompTenpai}
+  './pai': Pai
+  './wall': splitWall
+  './agari': _agari
 }
 
 # stub: emulated enums
