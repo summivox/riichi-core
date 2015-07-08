@@ -40,8 +40,8 @@ module.exports =
 
   ron:
     atamahane: no # only first player in natural turn order valid
-    double: no
-    triple: yes
+    double: yes
+    triple: no
 
   banKuikae:
     moro: yes # e.g. has 34m , chi 0m => cannot dahai 5m

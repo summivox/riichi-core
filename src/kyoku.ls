@@ -233,7 +233,10 @@ module.exports = class Kyoku implements EventEmitter::
       if riichi
         if (n = @globalPublic.nPiipaiLeft) < (m = @rulevar.riichi.minPiipaiLeft)
           return valid: false, reason: "not enough piipai (#n left, need #m)"
-        decomp = ..decompTenpaiWithout pai
+        if pai?
+          decomp = ..decompTenpaiWithout pai
+        else
+          decomp = ..decompTenpai
         if !decomp? or decomp.wait.length == 0
           return valid: false, reason: "not tenpai if dahai is [#pai]"
     with @globalPublic.lastAction
@@ -606,8 +609,13 @@ module.exports = class Kyoku implements EventEmitter::
   # NOTE: cleanup between `@_goto` and `@advance`
   resolveQuery: !->
     with @globalPublic.lastDeclared
+      if ..RON then return @_resolveRon!
+      # check for doujun/riichi furiten
+      @_updateFuritenResolve!
+      # if declared riichi isn't ron'd, it becomes accepted
+      @_checkAcceptedRiichi!
+
       switch
-      | (action = ..RON)? => @_resolveRon! ; return # kyoku ends after ron
       | (action = ..KAN)? => @_daiminkan action
       | (action = ..PON)? => @_pon       action
       | (action = ..CHI)? => @_chi       action
@@ -621,10 +629,6 @@ module.exports = class Kyoku implements EventEmitter::
       # clear all declarations now that they're resolved
       ..clear!
       for i til 4 => @playerHidden[i].declaredAction = null
-    # if riichi was declared, it now becomes accepted (not ron'd)
-    @_checkAcceptedRiichi!
-    # check for doujun/riichi furiten (in tenpai but didn't ron)
-    @_updateFuritenResolve!
     @advance!
 
   # (multi-)ron resolution
@@ -861,6 +865,18 @@ module.exports = class Kyoku implements EventEmitter::
   _agari: (player, ronPai = null) ->
     isTsumo = ronPai?
     isRon = not isTsumo
+
+    # FIXME: same old dummy
+    {decompAgari} = require './decomp'
+    with @playerHidden[player]
+      if ronPai then ..tsumo ronPai
+      decomps = decompAgari ..bins
+      if ronPai then ..tsumokiri
+      if decomps.length == 0 then return null
+      return {
+        player: player
+        delta: [1, 1, 1, 1]
+      }
 
 
 
