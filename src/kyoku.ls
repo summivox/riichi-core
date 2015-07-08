@@ -7,17 +7,14 @@
 
 require! {
   'events': {EventEmitter}
-  './decomp': {decompTenpai}
   './pai': Pai
   './wall': splitWall
+  './decomp': {decompTenpai}
   './agari': _agari
+  './util': {Enum, OTHER_PLAYERS}
 }
 
 # stub: emulated enums
-function Enum(names)
-  o = {}
-  for name in names => o[name] = [name]
-  o
 
 module.exports = class Kyoku implements EventEmitter::
   # start a new kyoku
@@ -27,7 +24,7 @@ module.exports = class Kyoku implements EventEmitter::
   #   nKyoku: 1/2/3/4
   #   honba: >= 0
   #   kyoutaku: >= 0
-  #   tenbou: array of score/points/sticks of each player
+  #   points: array of each player's points **at the start of kyoku**
   # e.g. {1 3 2 1} =>
   # - Nan {South} 3 Kyoku {Round}
   # - current dealer = player 2
@@ -35,8 +32,8 @@ module.exports = class Kyoku implements EventEmitter::
   # - 1*1000 kyoutaku {riichi bet} on table
   #
   # NOTE:
-  # - tenbou does not take into account of riichi kyoutaku within this round;
-  #   actual value is 1000 less if in valid riichi state
+  # - kyoutaku (deduction of player's points due to riichi) is not reflected in
+  #   `init.points` as `init` is immutable; see `@globalPublic.delta`
   # - wall defaults to shuffled but can be provided (e.g. for testing)
   (@init, @rulevar, wall = null) ->
     EventEmitter.call @
@@ -89,7 +86,7 @@ module.exports = class Kyoku implements EventEmitter::
     # result: null when still playing
     # common fields:
     #   type: \TSUMO_AGARI \RON \RYOUKYOKU
-    #   delta: array of tenbou {score} increment of each player
+    #   delta: array of points increment for each player
     #   kyoutaku: how much kyoutaku {riichi bet} should remain on field
     #   renchan: true/false
     # details:
@@ -318,7 +315,8 @@ module.exports = class Kyoku implements EventEmitter::
     @_publishAction {type: @KAN, player, details: fuuro}
     @_revealDoraHyouji @ANKAN
     @_clearIppatsu!
-    if @rulevar.yaku.kokushiAnkan then @_goto @QUERY else @_goto @BEGIN ; @advance!
+    if @rulevar.yaku.kokushiAnkan then @_goto @QUERY else @_goto @BEGIN
+    @advance!
 
   # kakan
   # NOTE: code mostly parallel with ankan
@@ -658,8 +656,7 @@ module.exports = class Kyoku implements EventEmitter::
     delta = @globalPublic.delta.slice!
     renchan = false
     {kyoutaku, player: houjuuPlayer} = @globalPublic
-    for i in [1 2 3]
-      player = (houjuuPlayer + i)%4
+    for player in OTHER_PLAYERS[houjuuPlayer]
       with @playerHidden[player]
         if ..declaredAction?.type == @RON
           nRon++
@@ -724,8 +721,7 @@ module.exports = class Kyoku implements EventEmitter::
   # set doujun/riichi furiten flags if dahai {discard} matches the tenpai set
   # of a player who didn't/couldn't ron
   _updateFuritenResolve: (player) !->
-    for i in [1 2 3]
-      player = (@globalPublic.player + i)%4
+    for player in OTHER_PLAYERS[@globalPublic.player]
       with @playerHidden[player]
         if @_ronPai!equivPai in ..decompTenpai.wait
           ..furiten = true
@@ -890,14 +886,13 @@ class PlayerHidden
     # - (3*n+2) tiles
     #   - action: `tsumokiri`/`dahai`
     #   - decomp:
-    #     - decompTenpai: excluding tsumo
+    #     - decompTenpai: excluding tsumo (i.e. not changed)
     #     - decompTenpaiWithout(pai): excluding specified pai
     @juntehai = haipai.sort Pai.compare # Pai array format
     @juntehaiBins = bins = Pai.binsFromArray haipai # bins format
     @tsumo = null # null or Pai
 
     # tenpai decomposition (updated through methods)
-    # when 
     @decompTenpai = decompTenpai bins
 
     # furiten (managed externally)
@@ -929,7 +924,8 @@ class PlayerHidden
     @juntehaiBins[pai.S][pai.N]--
     @tsumo = null
 
-    @decompTenpai = decompTenpai @juntehaiBins
+    # NOTE: has not changed!
+    # @decompTenpai = decompTenpai @juntehaiBins 
     return pai
 
   canDahai: (pai) ->
