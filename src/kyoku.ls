@@ -798,7 +798,7 @@ module.exports = class Kyoku implements EventEmitter::
   # tochuu ryoukyoku {aborative draw} conditions
   # NOTE:
   # - should be called before tsumo
-  # - `is` prefix omitted to simplify usage (see `_checkRyoukyoku`)
+  # - `is` prefix omitted to simplify calling (see `_checkRyoukyoku`)
   suufonrenta: ->
     pai = new Array 4
     for i til 4 => with @playerPublic[i]
