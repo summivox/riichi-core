@@ -1,7 +1,10 @@
 # tenpai/agari decomposition
 # NOTE: bin(s) format is expected (see `./pai`)
 
-Pai = require './pai'
+require! {
+  './pai': Pai
+  clone
+}
 
 # because I don't want to require lodash
 function sum arr
@@ -35,17 +38,22 @@ const MP_MASK = (1 .<<. MP_LOG2) - 1
 #   - complete (wait == null, `target == name`)
 #   - waits for valid pai `offset+wait[i]` to become `target`
 # - waitAbs[offset]: precomputed array of all valid `offset+wait[i]`
+#
+# NOTE:
+# - \toitsu + \jantou => shanpon
+# - \ryanmen includes both ryanmen and penchan
+# see also `decompAgariFromTenpai`
 patterns =
   # complete mentsu/jantou : no wait
-  * name: 'shuntsu' target: 'shuntsu' kernel: [1 1 1] wait: null
-  * name: 'koutsu'  target: 'koutsu'  kernel: [3]     wait: null
-  * name: 'jantou'  target: 'jantou'  kernel: [2]     wait: null
+  * name: \shuntsu target: \shuntsu kernel: [1 1 1] wait: null
+  * name: \koutsu  target: \koutsu  kernel: [3]     wait: null
+  * name: \jantou  target: \jantou  kernel: [2]     wait: null
   # incomplete mentsu/jantou : 1/2 wait(s)
-  # NOTE: 'ryanmen' could actually become 'penchan' depending on position
-  * name: 'tanki'   target: 'jantou'  kernel: [1]     wait: [0]
-  * name: 'toitsu'  target: 'koutsu'  kernel: [2]     wait: [0]
-  * name: 'kanchan' target: 'shuntsu' kernel: [1 0 1] wait: [1]
-  * name: 'ryanmen' target: 'shuntsu' kernel: [1 1]   wait: [-1 2]
+  # NOTE: \ryanmen could actually become \penchan depending on position
+  * name: \tanki   target: \jantou  kernel: [1]     wait: [0]
+  * name: \toitsu  target: \koutsu  kernel: [2]     wait: [0]
+  * name: \kanchan target: \shuntsu kernel: [1 0 1] wait: [1]
+  * name: \ryanmen target: \shuntsu kernel: [1 1]   wait: [-1 2]
 const nPatterns = patterns.length
 
 # index for `pattern.target` & `decomp1.nTarget`
@@ -84,7 +92,7 @@ decomp1Lookup = []
 
 # compact bins and placements into integers (packed bitfields)
 
-compactBin = ->
+function compactBin
   s = 0
   for x til N
     s = (s .<<. MP_LOG2) .|. it[x]
@@ -92,26 +100,26 @@ compactBin = ->
 # NOTE: the following can be used to produce a more human-readable key
 # compactBin = -> Number it.join ''
 
-compactPlacement = (patternId, offset) ->
+function compactPlacement(patternId, offset)
   (patternId .<<. N_LOG2) + offset
-restorePlacement = ->
+function restorePlacement
   patternId: it .>>. N_LOG2
   offset:    it .&.  N_MASK
 
 
 # get entry / create empty entry in decomp1Lookup
-# key: 'complete'/'waiting'
+# key: \complete/\waiting
 #
 # NOTE:
 # - cannot be trivially written even in livescript
 # - whitespaces are significant
-decomp1LookupEntry = (bin, key) ->
+function decomp1LookupEntry(bin, key)
   decomp1Lookup[compactBin bin]?[key] ? []
-ensureDecomp1LookupEntry = (bin, key) ->
+function ensureDecomp1LookupEntry(bin, key)
   (decomp1Lookup[compactBin bin] ||= {})[key] ||= []
 
 # precompute the lookup table by searching
-makeDecomp1Lookup = ->
+export init = function makeDecomp1Lookup
   if decomp1Lookup.length then return decomp1Lookup
 
   # state: current search node
@@ -123,7 +131,7 @@ makeDecomp1Lookup = ->
     placements: []
 
     remaining: (pattern) ->
-      if pattern.target == 'jantou'
+      if pattern.target == \jantou
         CAP_JANTOU - @nTarget[2]
       else
         CAP_MENTSU - @nTarget[0] - @nTarget[1]
@@ -135,7 +143,7 @@ makeDecomp1Lookup = ->
 
   # try place given pattern at offset
   # return: if successfully placed
-  tryPlace = (pattern, offset) ->
+  function tryPlace(pattern, offset)
     {id, targetId, kernel, nPai} = pattern
 
     # check if out of boundary
@@ -157,7 +165,7 @@ makeDecomp1Lookup = ->
     return true
 
   # undo most recent placement (repeated n times)
-  unPlace = (pattern, offset, n) !->
+  !function unPlace(pattern, offset, n)
     if !n then return
     {targetId, kernel, nPai} = pattern
 
@@ -168,7 +176,7 @@ makeDecomp1Lookup = ->
     state.placements.splice(-n) # equivalent to `.pop!` n times
 
   # check for invalid case of pure void wait (juntehai karaten)
-  isKaraten = (pattern, offset) ->
+  function isKaraten(pattern, offset)
     {machiAbs} = pattern
     if !machiAbs? then return false
     for m in machiAbs[offset]
@@ -177,14 +185,14 @@ makeDecomp1Lookup = ->
     return true
 
   # nested DFS: avoid searching the same configuration twice
-  dfsPattern = (minPatternId) !->
+  !function dfsPattern(minPatternId)
     if state.nPai >= K then return
     for patternId from minPatternId til nPatterns
       pattern = patterns[patternId]
       remaining = state.remaining(pattern)
       if remaining
         dfsOffset(patternId, 0, remaining)
-  dfsOffset = (patternId, minOffset, remaining) !->
+  !function dfsOffset(patternId, minOffset, remaining)
     if minOffset >= N then return
     {wait} = pattern = patterns[patternId]
     for offset from minOffset til N
@@ -194,24 +202,24 @@ makeDecomp1Lookup = ->
         decomp1 = state.toDecomp1!
         if wait
           if !isKaraten(pattern, offset)
-            ensureDecomp1LookupEntry(state.bin, 'waiting').push(decomp1)
+            ensureDecomp1LookupEntry(state.bin, \waiting).push(decomp1)
             break # only 1 waiting pattern can be placed in total
         else
-          ensureDecomp1LookupEntry(state.bin, 'complete').push(decomp1)
+          ensureDecomp1LookupEntry(state.bin, \complete).push(decomp1)
           if remaining - n > 0
             dfsOffset(patternId, offset+1, remaining - n)
           dfsPattern(patternId+1)
       unPlace(pattern, offset, n)
 
   # "zero" decomposition
-  ensureDecomp1LookupEntry(state.bin, 'complete').push(state.toDecomp1!)
+  ensureDecomp1LookupEntry(state.bin, \complete).push(state.toDecomp1!)
   # launch search
   dfsPattern(0)
   return decomp1Lookup
 
 # prints decomp1Lookup
 # NOTE: very large output; try redirect stdout to file
-printDecomp1Lookup = !->
+export !function printDecomp1Lookup
   for bin, {complete, waiting} of decomp1Lookup
     if complete?.length
       cs = ' C' + JSON.stringify complete
@@ -227,7 +235,7 @@ printDecomp1Lookup = !->
 # decompose complete juntehai (4 bins, all suites) for tenpai/agari
 #
 # decomp:
-#   standard form: 
+#   standard form:
 #     mentsu: array of:
 #       type: (see pattern.name)
 #       pai: Pai (pattern origin)
@@ -250,7 +258,7 @@ printDecomp1Lookup = !->
 
 # find wait in one particular decomp1 of a bin (bitmap format)
 # NOTE: wait can only be at the end of placements, see above
-waitBitmapFromDecomp1 = (bin, decomp1) ->
+function waitBitmapFromDecomp1(bin, decomp1)
   ret = 0
   placements = decomp1.placements
   placement = placements[placements.length-1]
@@ -264,21 +272,21 @@ waitBitmapFromDecomp1 = (bin, decomp1) ->
 
 # subtract mentsu/jantou count of decomp1 from remaining
 # return false if cap goes negative
-subRem = (rem, decomp1) ->
+function subRem(rem, decomp1)
   if !decomp1.placements.length then return true
   {nTarget: [shuntsu, koutsu, jantou]} = decomp1
   rem[0] -= shuntsu + koutsu
   rem[1] -= jantou
   return rem[0] >= 0 && rem[1] >= 0
 # same as above, but add it back
-addRem = (rem, decomp1) !->
+!function addRem(rem, decomp1)
   if !decomp1.placements.length then return true
   {nTarget: [shuntsu, koutsu, jantou]} = decomp1
   rem[0] += shuntsu + koutsu
   rem[1] += jantou
 
 # decomp1 for each bin
-decomp1sFromBins = (bins, key) -> [
+function decomp1sFromBins(bins, key) => [
   decomp1LookupEntry(bins[0], key)
   decomp1LookupEntry(bins[1], key)
   decomp1LookupEntry(bins[2], key)
@@ -287,7 +295,7 @@ decomp1sFromBins = (bins, key) -> [
 
 # produce decomp from 4*decomp1 (which in turn come from each bin/suite)
 # NOTE: need to provide corresponding suite numbers (see `decompTenpai`)
-stitch = (decomp1s, suites) ->
+function stitch(decomp1s, suites)
   ret =
     mentsu: []
     jantou: null
@@ -299,12 +307,12 @@ stitch = (decomp1s, suites) ->
       {patternId, offset} = restorePlacement placement
       {name, target} = patterns[patternId]
       switch target
-        when 'shuntsu', 'koutsu'
+        when \shuntsu, \koutsu
           ret.mentsu.push {
             type: name # NOTE: see above
             pai: Pai[offset+1][suite]
           }
-        when 'jantou'
+        when \jantou
           ret.jantou = Pai[offset+1][suite]
   ret
 
@@ -315,15 +323,15 @@ stitch = (decomp1s, suites) ->
 
 # (3*n+2): tenpai after dahai {discard}
 # return: dict of: discarded pai => (3*n+1) tenpai result
-decompDahaiTenpai = (bins) ->
+export function decompDahaiTenpai(bins)
   ret = {}
 
   # check which bin/suite cannot be decomposed without dahai:
   # - 0: dahai can come from any suite
   # - 1: dahai can only come from this suite
   # - else: no solution
-  CC = decomp1sFromBins(bins, 'complete')
-  WW = decomp1sFromBins(bins, 'waiting')
+  CC = decomp1sFromBins(bins, \complete)
+  WW = decomp1sFromBins(bins, \waiting)
   sDahai = null
   for s til 4
     if !CC[s].length && !WW[s].length
@@ -346,9 +354,7 @@ decompDahaiTenpai = (bins) ->
 # (3*n+1): tenpai
 #   decomps: array of decomp
 #   wait: array of Pai (= union of decomps[i].wait)
-#
-# NOTE: 
-decompTenpai = (bins) ->
+export function decompTenpai(bins)
   # kokushi: exclusive
   if (w = tenpaiK bins)
     return {
@@ -361,11 +367,15 @@ decompTenpai = (bins) ->
     decomps: []
     wait: []
   }
-  CC = decomp1sFromBins(bins, 'complete')
-  WW = decomp1sFromBins(bins, 'waiting')
+  CC = decomp1sFromBins(bins, \complete)
+  WW = decomp1sFromBins(bins, \waiting)
 
-  # 1 suite waiting + 3 suites complete
-  f = (iw, ic0, ic1, ic2) !->
+  # 1 suite waiting + 3 suites complete: enumerate which suite is waiting
+  f(0, 1, 2, 3)
+  f(1, 0, 2, 3)
+  f(2, 0, 1, 3)
+  f(3, 0, 1, 2)
+  !function f(iw, ic0, ic1, ic2)
     d1sW  = WW[iw]  ; if !d1sW.length  then return
     d1sC0 = CC[ic0] ; if !d1sC0.length then return
     d1sC1 = CC[ic1] ; if !d1sC1.length then return
@@ -396,11 +406,6 @@ decompTenpai = (bins) ->
         addRem(rem, d1C0)
       addRem(rem, d1W)
     [].push.apply ret.wait, convert(waitSuite, iw)
-  # enumerate which suite is waiting
-  f(0, 1, 2, 3)
-  f(1, 0, 2, 3)
-  f(2, 0, 1, 3)
-  f(3, 0, 1, 2)
 
   # chiitoi: might also be ryanpeikou
   # NOTE: 1 wait (tanki) by definition (see `tenpai7`)
@@ -411,16 +416,16 @@ decompTenpai = (bins) ->
   ret
 
 # (3*n+2): agari
-# standard form: array of decomp
+# array of decomp
 # NOTE: mostly parallel code of `decompTenpai` (3*n+1) but even simpler as we
 # don't have to enumerate the waiting suite
-decompAgari = (bins) ->
+export function decompAgari(bins)
   # kokushi: exclusive
   if agariK bins
     return [{mentsu: [], jantou: null, k7: \kokushi, wait: null}]
 
   ret = []
-  CC = decomp1sFromBins(bins, 'complete')
+  CC = decomp1sFromBins(bins, \complete)
   d1sC0 = CC[0] ; if !d1sC0.length then return ret
   d1sC1 = CC[1] ; if !d1sC1.length then return ret
   d1sC2 = CC[2] ; if !d1sC2.length then return ret
@@ -447,6 +452,43 @@ decompAgari = (bins) ->
 
   ret
 
+# decompTenpai + agariPai => decompAgari + tenpai type
+# specifically: each decomp has its `.wait` field reused:
+#   \kokushi => \kokushi or \kokushi13
+#   \chiitoi
+#   \tanki
+#   \toitsu => \shanpon (only 1 of the pair of decomps will remain)
+#   \kanchan
+#   \ryanmen => \ryanmen or \penchan
+export function decompAgariFromTenpai({decomps}, agariPai)
+  ret = []
+  for decomp in clone decomps, false # not circular
+    # filter
+    if agariPai not in decomp.wait then continue
+    ret.push decomp
+
+    # find wait type
+    switch decomp.k7
+    | \kokushi =>
+      if decomp.wait.length == 1
+        wait = \kokushi
+      else
+        wait = \kokushi13
+    | \chiitoi => wait = \chiitoi
+    | _ => # standard form
+      wait = \tanki # default when all 4 mentsu are complete
+      for mentsu in decomp.mentsu
+        switch mentsu.type
+        | \toitsu  => wait = \shanpon ; break
+        | \kanchan => wait = \kanchan ; break
+        | \ryanmen =>
+          if mentsu.pai.number in [1 8] # e.g. 12m / 89m
+            wait = \penchan
+          else
+            wait = \ryanmen
+          break
+    decomp.wait = wait
+
 
 # kokushi-musou {13 orphans} and chiitoitsu {7 pairs} details
 # shorthand: `k`, `7`, `k7` (in contrast with `std` for standard form)
@@ -454,12 +496,12 @@ decompAgari = (bins) ->
 # kokushi tenpai: either
 # - [19m19p19s1234567z] => 13-wait
 # - replacing one from above with another => 1-wait (the replaced)
-tenpaiK = (bins) ->
+function tenpaiK(bins)
   yaochuu = Pai.yaochuuFromBins bins
   c0 = c1 = c2 = 0
   i0 = -1
   for x, i in yaochuu => switch x
-  | 0 => 
+  | 0 =>
     if ++c0 > 1 then return null
     i0 = i
   | 1 => ++c1
@@ -473,7 +515,7 @@ tenpaiK = (bins) ->
   return null
 
 # kokushi agari: [19m19p19s1234567z] + one more
-agariK = (bins) ->
+function agariK(bins)
   yaochuu = Pai.yaochuuFromBins bins
   c1 = c2 = 0
   for x, i in yaochuu => switch x
@@ -484,7 +526,7 @@ agariK = (bins) ->
   return c1 == 12 and c2 == 1
 
 # chiitoi tenpai: 6 toitsu + 1 tanki
-tenpai7 = (bins) ->
+function tenpai7(bins)
   c1 = c2 = 0
   p1 = -1
   for s til 4 => for n til 9 => switch bins[s][n]
@@ -498,7 +540,7 @@ tenpai7 = (bins) ->
   return null
 
 # chiitoi agari: 7 toitsu (duh)
-agari7 = (bins) ->
+function agari7(bins)
   c2 = 0
   for s til 4 => for n til 9 => switch bins[s][n]
   | 0 => void
@@ -511,7 +553,7 @@ agari7 = (bins) ->
 if require.main == module
   # bins = Pai.binsFromString '5666777788m'
   # bins = Pai.binsFromString '3456789m1234p11s1s'
-  
+
   debugger
   console.time 'precompute'
   makeDecomp1Lookup!
@@ -532,7 +574,7 @@ if require.main == module
   agariBins = <[
     11122345678999p
   ]>.map Pai.binsFromString
-  
+
   iters = 10
   #iters = 1
   clock = process?.hrtime!
@@ -552,12 +594,3 @@ if require.main == module
   print dahaiTenpai
   print agari
 
-
-
-export
-  init: makeDecomp1Lookup
-  # decomp1Lookup
-  # printDecomp1Lookup
-  decompDahaiTenpai
-  decompTenpai
-  decompAgari
