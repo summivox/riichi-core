@@ -10,11 +10,9 @@ require! {
   './pai': Pai
   './wall': splitWall
   './decomp': {decompTenpai}
-  './agari': _agari
+  './agari': Agari
   './util': {Enum, OTHER_PLAYERS}
 }
-
-# stub: emulated enums
 
 module.exports = class Kyoku implements EventEmitter::
   # start a new kyoku
@@ -104,7 +102,7 @@ module.exports = class Kyoku implements EventEmitter::
   #   TURN : awaiting player decision after tsumo
   #   QUERY: awaiting other players' declaration (chi/pon/kan/ron)
   #   END  : game has finished
-  ::<<< Enum <[ BEGIN TURN QUERY END ]> #
+  ::<<< @STATES = Enum <[ BEGIN TURN QUERY END ]> #
   advance: !->
     {player, state} = @globalPublic
     switch state
@@ -122,7 +120,9 @@ module.exports = class Kyoku implements EventEmitter::
   #     CHI/PON/KAN: fuuro object (see PlayerPublic)
   #     TSUMO_AGARI/RON: agari object
   #     RYOUKYOKU: reason (= \kyuushuukyuuhai)
-  ::<<< Enum <[ TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON RYOUKYOKU ]> #
+  ::<<< @ACTIONS = Enum <[
+    TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON RYOUKYOKU
+  ]> #
 
   # called after action executed
   _publishAction: !->
@@ -140,7 +140,7 @@ module.exports = class Kyoku implements EventEmitter::
     @emit \declare, player, type # only type should be published
 
   # fuuro types
-  ::<<< Enum <[ SHUNTSU KOUTSU DAIMINKAN KAKAN ANKAN ]> #
+  ::<<< @FUURO_TYPES = Enum <[ MINSHUN MINKO DAIMINKAN KAKAN ANKAN ]> #
 
 
   # actions before player's turn
@@ -335,7 +335,7 @@ module.exports = class Kyoku implements EventEmitter::
     pai .= equivPai
     found = false
     for fuuro in @playerPublic[player].fuuro
-      if fuuro.type == @KOUTSU and fuuro.pai == pai
+      if fuuro.type == @MINKO and fuuro.pai == pai
         found = true
         break
     if not found
@@ -455,7 +455,7 @@ module.exports = class Kyoku implements EventEmitter::
     return valid: true, action: {
       type: @CHI, player
       details: {
-        type: @SHUNTSU
+        type: @MINSHUN
         pai: pai0 <? otherPai
         ownPai: [pai0, pai1]
         otherPai
@@ -497,8 +497,8 @@ module.exports = class Kyoku implements EventEmitter::
     pai = otherPai.equivPai
     with @playerHidden[player]
       nAll = ..countEquiv pai
-      if nAll < 2
-        return valid: false, reason: "not enough [#pai] (you have #nAll, need 2)"
+      if nAll < 2 then return valid: false, reason:
+        "not enough [#pai] (you have #nAll, need 2)"
       if pai.number == 5
         # could have akahai
         akahai = Pai[0][pai.S]
@@ -513,7 +513,7 @@ module.exports = class Kyoku implements EventEmitter::
     return valid: true, action: {
       type: @PON, player
       details: {
-        type: @KOUTSU
+        type: @MINKO
         pai, ownPai, otherPai, otherPlayer
       }
     }
@@ -544,9 +544,9 @@ module.exports = class Kyoku implements EventEmitter::
         otherPlayer = ..player
     pai = otherPai.equivPai
     ownPai = @playerHidden[player].getAllEquiv pai
-    if (n = ownPai.length) < 3
-      return valid: false, reason: "not enough [#pai] (you have #n, need 3)"
-    return valid:true, action: {
+    if (n = ownPai.length) < 3 then return valid: false, reason:
+      "not enough [#pai] (you have #n, need 3)"
+    return valid: true, action: {
       type: @KAN, player
       details: {
         type: @DAIMINKAN
@@ -831,10 +831,10 @@ module.exports = class Kyoku implements EventEmitter::
     # shorthands: (pq) chi (o) dahai (d)
     d = dahai.equivPai
     o = otherPai.equivPai
-    if moro and type == @SHUNTSU and d == o or
-       pon  and type == @KOUTSU  and d == o then return true
+    if moro and type == @MINSHUN and d == o or
+       pon  and type == @MINKO  and d == o then return true
 
-    if suji and type == @SHUNTSU and d.suite == o.suite
+    if suji and type == @MINSHUN and d.suite == o.suite
       [p, q] = ownPai.map (.= equivPai) .sort Pai.compare
       return p.succ == q and (
         (o.succ == p and q.succ == d) or # OPQD: PQ chi O => cannot dahai D
@@ -1037,14 +1037,14 @@ class PlayerPublic
     @lastSutehai = null
 
     # fuuro {melds}: (managed externally)
-    #   type: Enum <[ SHUNTSU KOUTSU DAIMINKAN ANKAN KAKAN ]>
+    #   type: Enum <[ MINSHUN MINKO DAIMINKAN ANKAN KAKAN ]>
     #   pai: equiv. Pai with smallest number (e.g. 67m chi 0m => 5m)
     #   ownPai: array of Pai from this player's juntehai
     #   kakanPai: last Pai that makes the kakan
     #   otherPai: Pai taken from other player
-    #   otherPlayer: (as advertised)
+    #   otherPlayer
     @fuuro = []
-    @menzen = true # NOTE: menzen != no fuuro (due to ankan {concealed kan})
+    @menzen = true # NOTE: menzen != no fuuro (due to ankan)
 
     # riichi flags
     @riichi =
