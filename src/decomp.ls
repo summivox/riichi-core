@@ -464,6 +464,7 @@ export function decompAgari(bins)
 # (e.g. 34m ryanmen => pai = 3m ; +2m => 234m shuntsu => pai = 2m)
 export function decompAgariFromTenpai({decomps}, agariPai, isRon)
   ret = []
+  agariPai .= equivPai
   for decomp in clone decomps
     if agariPai not in decomp.wait then continue
     ret.push decomp

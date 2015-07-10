@@ -229,7 +229,7 @@ function getDelta(basicPoints, {
   return delta
 
 function getYakuResult(decomp, {
-  bakaze, jikaze, fuuroFu, agariPai, isTsumo, menzen, doraTotal
+  bakaze, jikaze, fuuroFu, isTsumo, menzen, doraTotal
 }:agariObj)
 
   # yaku
