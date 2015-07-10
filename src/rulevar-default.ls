@@ -29,13 +29,14 @@ module.exports =
   #     1, 1.5, 2 => x times single yakuman
   # if not specified, all default to 1
   yakuman:
-    max: 1
+    max: 2
     /*
     daisuushi: 2
     suuankouTanki: 2
     junseichuurenpoutou: 2
     tenhou: 2
     chihou: 2
+    kokushi13: 2
     */
 
   riichi:
