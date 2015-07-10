@@ -296,7 +296,7 @@ function getYakuResult(decomp, {
       else
         if isTsumo then fu = 22+x else fu = 20+x
     fu = ceilTo fu, 10
-  
+
   if yakuTotal == 0 then return {basicPoints: 0}
   han = yakuTotal + doraTotal
   basicPoints = getBasicPoints han, fu

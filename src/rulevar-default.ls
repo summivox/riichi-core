@@ -1,4 +1,4 @@
-module.exports = 
+module.exports =
   VERSION: '0.1.0'
 
   dora:
@@ -21,7 +21,7 @@ module.exports =
     atotsuke: yes # TODO
     kuitan: yes # if tanyao is valid when not menzen
     kokushiAnkan: no # if ankan can be chankan'd for kokushi-musou
-  
+
   # yakuman control:
   #   max: e.g. set to 2 to enable double yakuman
   #   (yakuman name): multiplier
