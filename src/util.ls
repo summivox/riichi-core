@@ -12,3 +12,15 @@ export OTHER_PLAYERS = [[1 2 3] [2 3 0] [3 0 1] [0 1 2]]
 # ceil positive number to nearest N
 # e.g. ceilTo(1000, 100) => 1000, ceilTo(1001, 100) => 1100
 export function ceilTo(x, N) => Math.ceil(x/N)*N
+
+# who would import lodash for this?
+export function sum(arr)
+  s = 0
+  for x in arr => s += x
+  s
+
+# and what about this?
+export function count(arr, f)
+  s = 0
+  for x in arr => if f x then s++
+  s

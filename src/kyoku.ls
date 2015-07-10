@@ -45,7 +45,7 @@ module.exports = class Kyoku implements EventEmitter::
     {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
 
     # id of chancha {dealer}
-    chancha = init.nKyoku - 1
+    @chancha = chancha = init.nKyoku - 1
     # jikaze {seat wind} of each player
     jikaze =
       (4 - chancha)%4
@@ -74,7 +74,7 @@ module.exports = class Kyoku implements EventEmitter::
       player: chancha
       state: @BEGIN
       actionLog: []
-      lastAction: {type: null} # always last item in actionLog
+      lastAction: {type: null} # last item in actionLog
       lastDeclared:
         CHI: null, PON: null, KAN: null, RON: null
         clear: !-> @CHI = @PON = @KAN = @RON = null
@@ -140,7 +140,7 @@ module.exports = class Kyoku implements EventEmitter::
     @emit \declare, player, type # only type should be published
 
   # fuuro types
-  ::<<< @FUURO_TYPES = Enum <[ MINSHUN MINKO DAIMINKAN KAKAN ANKAN ]> #
+  ::<<< @FUURO_TYPES = Enum <[ SHUNTSU MINKO DAIMINKAN KAKAN ANKAN ]> #
 
 
   # actions before player's turn
@@ -364,7 +364,7 @@ module.exports = class Kyoku implements EventEmitter::
   # tsumoAgari
   canTsumoAgari: (player) ->
     with @_checkTurn player => if not ..valid then return ..
-    if not (agari = @_agari player)
+    if not (agari = @_agari player, @playerPrivate[player].tsumo)
       return valid: false, reason: "no yaku"
     return valid: true, agari: agari
   tsumoAgari: (player) !->
@@ -455,7 +455,7 @@ module.exports = class Kyoku implements EventEmitter::
     return valid: true, action: {
       type: @CHI, player
       details: {
-        type: @MINSHUN
+        type: @SHUNTSU
         pai: pai0 <? otherPai
         ownPai: [pai0, pai1]
         otherPai
@@ -581,10 +581,11 @@ module.exports = class Kyoku implements EventEmitter::
       return valid: false, reason: "furiten"
     pai = @_ronPai!
     equivPai = pai.equivPai
+    houjuuPlayer = @globalPublic.player
     {wait} = @playerHidden[player].decompTenpai
     if equivPai not in wait then return valid: false, reason:
       "#pai not in your tenpai set #{Pai.stringFromArray[wait]}"
-    if not (agari = @_agari player, pai)
+    if not (agari = @_agari player, pai, houjuuPlayer)
       return valid: false, reason: "no yaku"
     return valid: true, action: {
       type: @RON, player
@@ -738,7 +739,7 @@ module.exports = class Kyoku implements EventEmitter::
 
   # enforce ryoukyoku {abortive/exhaustive draw} rules
   # see `suufonrenta` and friends below
-  # return: true/false: if ryoukyoku takes place 
+  # return: true/false: if ryoukyoku takes place
   # rule variations:
   #   `.ryoukyoku`
   _checkRyoukyoku: ->
@@ -831,10 +832,10 @@ module.exports = class Kyoku implements EventEmitter::
     # shorthands: (pq) chi (o) dahai (d)
     d = dahai.equivPai
     o = otherPai.equivPai
-    if moro and type == @MINSHUN and d == o or
+    if moro and type == @SHUNTSU and d == o or
        pon  and type == @MINKO  and d == o then return true
 
-    if suji and type == @MINSHUN and d.suite == o.suite
+    if suji and type == @SHUNTSU and d.suite == o.suite
       [p, q] = ownPai.map (.= equivPai) .sort Pai.compare
       return p.succ == q and (
         (o.succ == p and q.succ == d) or # OPQD: PQ chi O => cannot dahai D
@@ -857,25 +858,41 @@ module.exports = class Kyoku implements EventEmitter::
         if ..length == 4 and ..every (.type == @KAN)
           return player
     return null
-  
+
 
   # assemble information to determine whether a player has a valid win and how
   # many points is it worth
-  _agari: (player, ronPai = null) ->
-    isTsumo = ronPai?
-    isRon = not isTsumo
+  _agari: (agariPlayer, agariPai, houjuuPlayer = null) ->
+    gh = @globalHidden
+    gp = @globalPublic
+    ph = @playerHidden[agariPlayer]
+    pp = @playerPublic[agariPlayer]
+    dict = {
+      agariPai
+      juntehai: pp.juntehai
+      decompTenpai: pp.decompTenpai
+      fuuro: pp.fuuro
+      menzen: pp.menzen
+      riichi: pp.riichi
 
-    # FIXME: same old dummy
-    {decompAgari} = require './decomp'
-    with @playerHidden[player]
-      if ronPai then ..tsumo ronPai
-      decomps = decompAgari ..bins
-      if ronPai then ..tsumokiri
-      if decomps.length == 0 then return null
-      return {
-        player: player
-        delta: [1, 1, 1, 1]
-      }
+      chancha: @chancha
+      agariPlayer: agariPlayer
+      houjuuPlayer: houjuuPlayer
+
+      honba: @init.honba
+      bakaze: @init.bakaze
+      jikaze: pp.jikaze
+      doraHyouji: gh.doraHyouji
+      uraDoraHyouji: gh.uraDoraHyouji
+      nKan: gp.nKan
+
+      isAfterKan: gp.lastAction.type == @KAN
+      isHaitei: gp.nPiipaiLeft == 0
+      isTrueFirstTsumo: isTrueFirstTsumo agariPlayer
+    }
+    a = new Agari dict
+    if not a.isAgari then return null
+    return a
 
 
 
@@ -969,7 +986,7 @@ class PlayerHidden
   # fuuro interface: count and remove
 
   # chi/pon: (3n+1) (no tsumoPai)
-  # count given pai in juntehai 
+  # count given pai in juntehai
   count1: (pai) ->
     s = 0
     for p in @juntehai => if p == pai then s++
@@ -1037,7 +1054,7 @@ class PlayerPublic
     @lastSutehai = null
 
     # fuuro {melds}: (managed externally)
-    #   type: Enum <[ MINSHUN MINKO DAIMINKAN ANKAN KAKAN ]>
+    #   type: Enum <[ SHUNTSU MINKO DAIMINKAN ANKAN KAKAN ]>
     #   pai: equiv. Pai with smallest number (e.g. 67m chi 0m => 5m)
     #   ownPai: array of Pai from this player's juntehai
     #   kakanPai: last Pai that makes the kakan

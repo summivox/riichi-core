@@ -3,14 +3,9 @@
 
 require! {
   './pai': Pai
+  './util': {sum}
   clone
 }
-
-# because I don't want to require lodash
-function sum arr
-  s = 0
-  for x in arr => s += x
-  s
 
 
 # magic numbers:
@@ -452,22 +447,24 @@ export function decompAgari(bins)
 
   ret
 
-# decompTenpai + agariPai => decompAgari + tenpai type
-# specifically: each decomp has its `.wait` field reused:
-#   \kokushi => \kokushi or \kokushi13
+# decompTenpai + agariPai + isRon => both tenpai and agari info
+# each `decomp` has its `.wait` field changed to "type of wait":
+#   \kokushi  => \kokushi or \kokushi13
 #   \chiitoi
 #   \tanki
-#   \toitsu => \shanpon (only 1 of the pair of decomps will remain)
+#   \toitsu   => \shanpon (only 1 of the pair of decomps will remain)
 #   \kanchan
-#   \ryanmen => \ryanmen or \penchan
-export function decompAgariFromTenpai({decomps}, agariPai)
+#   \ryanmen  => \ryanmen or \penchan (e.g. 12/89 => penchan)
+# each `decomp.mentsu` has its `.name` changed to "final form":
+#   \shuntsu            => \shuntsu
+#   \koutsu             => \anko
+#   \toitsu             => \minko (ron) or \anko (tsumo)
+#   \kanchan, \ryanmen  => \shuntsu
+export function decompAgariFromTenpai({decomps}, agariPai, isRon)
   ret = []
   for decomp in clone decomps, false # not circular
-    # filter
     if agariPai not in decomp.wait then continue
     ret.push decomp
-
-    # find wait type
     switch decomp.k7
     | \kokushi =>
       if decomp.wait.length == 1
@@ -476,18 +473,29 @@ export function decompAgariFromTenpai({decomps}, agariPai)
         wait = \kokushi13
     | \chiitoi => wait = \chiitoi
     | _ => # standard form
+
       wait = \tanki # default when all 4 mentsu are complete
-      for mentsu in decomp.mentsu
-        switch mentsu.type
-        | \toitsu  => wait = \shanpon ; break
-        | \kanchan => wait = \kanchan ; break
-        | \ryanmen =>
-          if mentsu.pai.number in [1 8] # e.g. 12m / 89m
-            wait = \penchan
-          else
-            wait = \ryanmen
-          break
+      for m in decomp.mentsu => switch m.type
+      | \shuntsu => void
+      | \koutsu  => m.type = \anko
+      | \toitsu  =>
+        wait = \shanpon
+        if m.pai == agariPai and isRon
+          m.type = \minko
+        else
+          m.type = \anko
+      | \kanchan =>
+        wait = \kanchan
+        m.type = \shuntsu
+      | \ryanmen =>
+        if m.pai.number in [1 8]
+          wait = \penchan
+        else
+          wait = \ryanmen
+        m.type = \shuntsu
+      | _ => throw Error "unknown type"
     decomp.wait = wait
+  ret
 
 
 # kokushi-musou {13 orphans} and chiitoitsu {7 pairs} details

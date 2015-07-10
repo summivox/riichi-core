@@ -100,8 +100,10 @@ for n from 0 to 9
   a = Pai[n] = new Array 4
   for m from 0 to 3
     a[m] = Pai[n + SUITES[m]]
+# link fonpai
+Pai.FONPAI = [Pai\1z, Pai\2z, Pai\3z, Pai\4z]
 
-# export constants
+# constants
 Pai.SUITES = SUITES
 Pai.SUITE_NUMBER = SUITE_NUMBER
 
@@ -235,6 +237,9 @@ Pai.yaochuuFromBins = -> with it => return [
   ..0.0, ..0.8, ..1.0, ..1.8, ..2.0, ..2.8
   ..3.0, ..3.1, ..3.2, ..3.3, ..3.4, ..3.5, ..3.6
 ]
+
+Pai.cloneBins = ->
+  [it.0.slice!, it.1.slice!, it.2.slice!, it.3.slice!]
 
 # generate array of all 136 pai in uniform random order
 # nAkahai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]

@@ -17,15 +17,26 @@ module.exports =
     ura: yes
     kanUra: yes
 
-  keishikiTenpai: # TODO
-    sutehai: yes
-    fuuro: yes
-    dora: yes
-
   yaku:
-    atotsuke: yes
+    atotsuke: yes # TODO
     kuitan: yes # if tanyao is valid when not menzen
     kokushiAnkan: no # if ankan can be chankan'd for kokushi-musou
+  
+  # yakuman control:
+  #   max: e.g. set to 2 to enable double yakuman
+  #   (yakuman name): multiplier
+  #     0 => not allowed
+  #     1, 1.5, 2 => x times single yakuman
+  # if not specified, all default to 1
+  yakuman:
+    max: 1
+    /*
+    daisuushi: 2
+    suuankouTanki: 2
+    junseichuurenpoutou: 2
+    tenhou: 2
+    chihou: 2
+    */
 
   riichi:
     minPiipaiLeft: 4
