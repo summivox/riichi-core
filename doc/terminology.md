@@ -77,7 +77,7 @@ Other categories:
 *   `/[19][mps]|[1-7]z/` __Yaochuupai__ {么九牌, 幺九牌, terminals and honors}
 
 Note:
-*   `/[1-7]z/` are the canonical shorthands; `/[ESWNBGRPFCDHT]/` (single capitals) are permitted alternative shorthands.
+*   `/[1-7]z/` are the canonical shorthands; `/[ESWNBGRPFCZ]/` (single capitals) are permitted alternative shorthands.
 
 
 ## Game Organization
