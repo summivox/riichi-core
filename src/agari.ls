@@ -3,9 +3,8 @@
 require! {
   './pai': Pai
   './decomp': {decompTenpai, decompAgariFromTenpai}
-  './util': {OTHER_PLAYERS, ceilTo, sum}
-  './yaku': {YAKU_LIST, YAKUMAN_LIST}:yaku
-  clone
+  './util': {OTHER_PLAYERS, ceilTo, sum, clone}
+  './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
 
 # properties: almost all flattened as a dictionary
@@ -66,23 +65,25 @@ module.exports = class Agari
     if @decompAgari.length == 0 then return @isAgari = false
 
     # copy and augment fuuro
-    @fuuro = clone @fuuro, false
+    @fuuro = clone @fuuro
     @fuuroFu = augmentFuuro @
 
     # juntehai: now also includes agariPai
     # tehai: juntehai + fuuro
     # NOTE: tehai.length not always 14 (due to kan)
-    @juntehai .= slice!push @agariPai .sort!
+    @juntehai = with @juntehai.slice!
+      ..push @agariPai
+      ..sort Pai.compare
     @tehai = with @juntehai.slice!
       for f in @fuuro => [].push.apply .., f.allPai
-      ..sort!
+      ..sort Pai.compare
     # bins: correspond to full tehai
     @bins = Pai.binsFromArray @tehai
     @binsSum = @bins.map sum
 
     # dora
     @dora = getDora @
-    @doraTotal = with @dora => ..dora + ..uraDora + ..akaDora
+    @doraTotal = @dora.dora + @dora.uraDora + @dora.akaDora
 
     @isRon = @houjuuPlayer?
     @isTsumo = not @isRon
@@ -115,7 +116,7 @@ module.exports = class Agari
 
     if maxBasicPoints == 0 then return @isAgari = false
     import maxDecompResult
-    @delta = getDelta @
+    @delta = getDelta maxBasicPoints, @
     return @isAgari = true
 
 Agari <<<< {
@@ -138,7 +139,7 @@ function augmentFuuro({fuuro})
     f.allPai = with f.ownPai.slice!
       if f.otherPai => ..push f.otherPai
       if f.kakanPai => ..push f.kakanPai
-      ..sort!
+      ..sort Pai.compare
     f.type .= toString!toLowerCase!
     switch f.type
     | \minshun            => fu = 0
@@ -146,7 +147,7 @@ function augmentFuuro({fuuro})
     | \daiminkan, \kakan  => fu = 8
     | \ankan              => fu = 16
     | _ => throw Error "unknown type"
-    if f.pai.isYaochuu then fu *= 2
+    if f.pai.isYaochuupai then fu *= 2
     f.fu = fu
     fuuroFu += fu
   return fuuroFu
@@ -228,10 +229,8 @@ function getDelta(basicPoints, {
   return delta
 
 function getYakuResult(decomp, {
-  bakaze, jikaze, fuuroFu, agariPai, isRon, menzen
+  bakaze, jikaze, fuuroFu, agariPai, isTsumo, menzen, doraTotal
 }:agariObj)
-
-  augmentDecomp decomp, agariObj
 
   # yaku
   yaku = []
@@ -241,9 +240,9 @@ function getYakuResult(decomp, {
     # check if overridden by higher priority yaku
     if name of blacklist then continue
     # check if yaku is menzen-only
-    if not @menzen and kuiHan == 0 then continue
-    if yaku[name](decomp, agariObj)
-      han = if @menzen then menzenHan else kuiHan
+    if not menzen and kuiHan == 0 then continue
+    if Yaku[name](decomp, agariObj)
+      han = if menzen then menzenHan else kuiHan
       yaku.push {name, han}
       yakuTotal += han
       if conflict? then for c in conflict => blacklist[c] = true
@@ -271,14 +270,14 @@ function getYakuResult(decomp, {
       | \shuntsu => mf = 0
       | \minko => mf = 2
       | \anko => mf = 4
-      if m.pai.isYaochuu then mf *= 2
+      if m.pai.isYaochuupai then mf *= 2
       mentsuFu += mf
     switch jantou
     | Pai.FONPAI[bakaze, jikaze], Pai<[5z 6z 7z]> => jantouFu = 2
     | _ => jantouFu = 0
     switch wait
-    | \ryanmen, \shanpon => waitFu = 2
-    | _ => waitFu = 0
+    | \ryanmen, \shanpon => waitFu = 0
+    | _ => waitFu = 2
 
     # 2*2*2 decision tree (pinfu-form * menzen * tsumo/ron)
     x = mentsuFu + jantouFu + waitFu
@@ -296,6 +295,7 @@ function getYakuResult(decomp, {
         if isTsumo then fu = 22+x else fu = 30+x
       else
         if isTsumo then fu = 22+x else fu = 20+x
+    fu = ceilTo fu, 10
   
   if yakuTotal == 0 then return {basicPoints: 0}
   han = yakuTotal + doraTotal
@@ -303,18 +303,18 @@ function getYakuResult(decomp, {
   return {basicPoints, yaku, yakuTotal, han, fu}
 
 # mostly parallel to getYakuResult (the yaku part)
-function getYakumanResult(decomp, agariObj)
+function getYakumanResult(decomp, {rulevar}:agariObj)
   yakuman = []
   yakumanTotal = 0
   blacklist = {}
   for {name, conflict} in YAKUMAN_LIST
     if name of blacklist then continue
-    if yaku[name](decomp, agariObj)
-      times = @rulevar.yakuman[name] ? 1 # <-- different from yaku-han-fu
+    if Yaku[name](decomp, agariObj)
+      times = rulevar.yakuman[name] ? 1 # <-- different from yaku-han-fu
       yakuman.push {name, times}
       yakumanTotal += times
       if conflict? then for c in conflict => blacklist[c] = true
-  yakumanTotal <?= @rulevar.yakuman.max
+  yakumanTotal <?= rulevar.yakuman.max
   if yakumanTotal == 0 then return {basicPoints: 0}
   basicPoints = getBasicPointsYakuman yakumanTotal
   return {basicPoints, yakuman, yakumanTotal}

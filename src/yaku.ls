@@ -20,7 +20,7 @@ require! {
 export YAKU_LIST =
   # == 6 han ==
   * name: \chinniisou
-    conflict: <[honiisou]> #
+    conflict: <[honniisou]> #
     menzenHan: 6, kuiHan: 5
 
   # == 3 han ==
@@ -156,7 +156,7 @@ export
     riichi.accepted and riichi.double
   ippatsu: (decomp, {riichi}) ->
     riichi.accepted and riichi.ippatsu
-  menzenchintsumohou: (decomp, {menzen, tsumo}) ->
+  menzenchintsumohou: (decomp, {menzen, isTsumo}) ->
     menzen and isTsumo
   rinshankaihou: (decomp, {isAfterKan, isTsumo}) ->
     isAfterKan and isTsumo
@@ -228,7 +228,7 @@ export
     if not menzen then return false
     s = agariPai.S
     if s == 3 then return false
-    a = b[s].slice!
+    a = bins[s].slice!
     a.0 -= 3
     for i from 1 to 7 => a[i]--
     a.8 -= 3
@@ -251,7 +251,7 @@ export
     decomp.anko = anko = count decomp.mentsu, (.type == \anko)
     menzen and anko == 4 and decomp.wait == \tanki
   suuankou: (decomp, {menzen}) ->
-    menzen and anko == 4
+    menzen and decomp.anko == 4
   sannankou: (decomp) ->
     decomp.anko == 3
 
@@ -261,7 +261,7 @@ export
       count fuuro, (.type in <[daiminkan ankan kakan]>)
     kantsu == 4
   sankantsu: (decomp) ->
-    kantsu == 3
+    decomp.kantsu == 3
 
   # toitoi
   toitoihou: (decomp, {fuuro}) ->
@@ -318,13 +318,13 @@ export
   sanshokudoukou: (decomp, {fuuro}) ->
     a = [[], [], []]
     for f in fuuro
-      if f.type != \shuntsu
+      if f.type != \shuntsu and f.pai.isSuupai
         a[f.pai.S][f.pai.N] = true
         if a[0][f.pai.N] and a[1][f.pai.N] and a[2][f.pai.N]
           return true
     # parallel
     for m in decomp.mentsu
-      if m.type != \shuntsu
+      if m.type != \shuntsu and m.pai.isSuupai
         a[m.pai.S][m.pai.N] = true
         if a[0][m.pai.N] and a[1][m.pai.N] and a[2][m.pai.N]
           return true
@@ -337,6 +337,7 @@ export
   # - jantou : 11/99
   # - koutsu : 111/999
   chinraotou: (decomp, {fuuro, binsSum}) ->
+    if decomp.k7 then return false
     if decomp.jantou.isChunchanpai then return false
     for f in fuuro
       if f.pai.isTsuupai then continue
@@ -356,7 +357,7 @@ export
   # - koutsu : 111/999
   # - shuntsu: 123/789
   junchantaiyaochuu: (decomp, {fuuro, binsSum}) ->
-    tsuupai = (binsSum.3 > 0)
+    if decomp.k7 then return false
     if decomp.jantou.isChunchanpai then return false
     for f in fuuro
       if f.pai.isTsuupai then continue

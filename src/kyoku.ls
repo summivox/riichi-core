@@ -115,13 +115,13 @@ module.exports = class Kyoku implements EventEmitter::
 
   # actions: {type, player, details}
   #   details for each type:
-  #     TSUMO: # of piipai left
+  #     TSUMO/RINSHAN_TSUMO: # of piipai left
   #     DAHAI: {pai: Pai, riichi: true/false, tsumokiri: true/false}
   #     CHI/PON/KAN: fuuro object (see PlayerPublic)
   #     TSUMO_AGARI/RON: agari object
   #     RYOUKYOKU: reason (= \kyuushuukyuuhai)
   ::<<< @ACTIONS = Enum <[
-    TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON RYOUKYOKU
+    TSUMO RINSHAN_TSUMO TSUMO_AGARI DAHAI CHI PON KAN RON RYOUKYOKU
   ]> #
 
   # called after action executed
@@ -151,15 +151,16 @@ module.exports = class Kyoku implements EventEmitter::
     # tsumo {draw} from either piipai or rinshan
     # NOTE: rinshan tsumo also removes one piipai from the other end so that
     # total piipai count always decreases by 1 for each tsumo
+    n = --@globalPublic.nPiipaiLeft
     with @globalHidden
       if lastAction.type == @KAN
         pai = ..rinshan.pop()
         ..piipai.shift()
+        @_publishAction {type: @RINSHAN_TSUMO, player, details: n}
       else
         pai = ..piipai.pop()
-    n = --@globalPublic.nPiipaiLeft
+        @_publishAction {type: @TSUMO, player, details: n}
     @playerHidden[player].tsumo pai
-    @_publishAction {type: @TSUMO, player, details: n}
     @_goto @TURN # NOTE: don't advance yet
 
     # if only option while in riichi is dahai, do it without asking
@@ -364,7 +365,7 @@ module.exports = class Kyoku implements EventEmitter::
   # tsumoAgari
   canTsumoAgari: (player) ->
     with @_checkTurn player => if not ..valid then return ..
-    if not (agari = @_agari player, @playerPrivate[player].tsumo)
+    if not (agari = @_agari player, @playerHidden[player].tsumoPai)
       return valid: false, reason: "no yaku"
     return valid: true, agari: agari
   tsumoAgari: (player) !->
@@ -645,6 +646,7 @@ module.exports = class Kyoku implements EventEmitter::
   _resolveRon: !->
     {atamahane, double, triple} = @rulevar.ron
     nRon = 0
+    ronList = []
     agariList = []
     delta = @globalPublic.delta.slice!
     renchan = false
@@ -653,8 +655,8 @@ module.exports = class Kyoku implements EventEmitter::
       with @playerHidden[player].declaredAction
         if ..?.type == @RON
           nRon++
-          agari = ..details
-          agariList.push agari
+          ronList.push ..
+          agariList.push (agari = ..details)
           for i til 4 => delta[i] += agari.delta[i]
           delta[player] += kyoutaku
           kyoutaku = 0
@@ -669,11 +671,7 @@ module.exports = class Kyoku implements EventEmitter::
         details: if nRon == 2 then "double ron" else "triple ron"
       }
     else
-      for agari in agariList => @_publishAction {
-        type: @RON
-        player: agari.player
-        details: agari
-      }
+      for action in ronList => @_publishAction action
       @_end {
         type: \RON
         delta
@@ -868,9 +866,11 @@ module.exports = class Kyoku implements EventEmitter::
     ph = @playerHidden[agariPlayer]
     pp = @playerPublic[agariPlayer]
     dict = {
+      rulevar: @rulevar
+
       agariPai
-      juntehai: pp.juntehai
-      decompTenpai: pp.decompTenpai
+      juntehai: ph.juntehai
+      decompTenpai: ph.decompTenpai
       fuuro: pp.fuuro
       menzen: pp.menzen
       riichi: pp.riichi
@@ -886,9 +886,9 @@ module.exports = class Kyoku implements EventEmitter::
       uraDoraHyouji: gh.uraDoraHyouji
       nKan: gp.nKan
 
-      isAfterKan: gp.lastAction.type == @KAN
+      isAfterKan: gp.lastAction.type in [@KAN, @RINSHAN_TSUMO]
       isHaitei: gp.nPiipaiLeft == 0
-      isTrueFirstTsumo: isTrueFirstTsumo agariPlayer
+      isTrueFirstTsumo: @isTrueFirstTsumo agariPlayer
     }
     a = new Agari dict
     if not a.isAgari then return null

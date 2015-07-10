@@ -24,3 +24,8 @@ export function count(arr, f)
   s = 0
   for x in arr => if f x then s++
   s
+
+# ... I give up, this one is too hard
+require! 'lodash._baseclone': baseClone
+export function clone(o)
+  baseClone o, true, -> if it?.paiStr? then return it else return

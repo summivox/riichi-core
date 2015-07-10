@@ -3,8 +3,7 @@
 
 require! {
   './pai': Pai
-  './util': {sum}
-  clone
+  './util': {sum, clone}
 }
 
 
@@ -460,9 +459,12 @@ export function decompAgari(bins)
 #   \koutsu             => \anko
 #   \toitsu             => \minko (ron) or \anko (tsumo)
 #   \kanchan, \ryanmen  => \shuntsu
+#
+# NOTE: after \ryanmen is changed to \shuntsu, its `.pai` might need fixing
+# (e.g. 34m ryanmen => pai = 3m ; +2m => 234m shuntsu => pai = 2m)
 export function decompAgariFromTenpai({decomps}, agariPai, isRon)
   ret = []
-  for decomp in clone decomps, false # not circular
+  for decomp in clone decomps
     if agariPai not in decomp.wait then continue
     ret.push decomp
     switch decomp.k7
@@ -492,6 +494,7 @@ export function decompAgariFromTenpai({decomps}, agariPai, isRon)
           wait = \penchan
         else
           wait = \ryanmen
+          if agariPai.succ == m.pai then m.pai = agariPai
         m.type = \shuntsu
       | _ => throw Error "unknown type"
     decomp.wait = wait
