@@ -182,6 +182,10 @@ export
     tehai.every (.isTsuupai)
   ryuuiisou: (decomp, {tehai}) ->
     tehai.every (in Pai<[2s 3s 4s 6s 8s 6z]>)
+  chinraotou: (decomp, {tehai}) ->
+    tehai.every (.isRaotoupai)
+  honraotou: (decomp, {tehai}) ->
+    tehai.every (.isYaochuupai) # NOTE: no need to exclude kokushi
 
 
   # bins-only
@@ -329,28 +333,6 @@ export
         if a[0][m.pai.N] and a[1][m.pai.N] and a[2][m.pai.N]
           return true
     return false
-
-
-  # terminals
-
-  # chin/hon-raotou:
-  # - jantou : 11/99
-  # - koutsu : 111/999
-  chinraotou: (decomp, {fuuro, binsSum}) ->
-    if decomp.k7 then return false
-    if decomp.jantou.isChunchanpai then return false
-    for f in fuuro
-      if f.pai.isTsuupai then continue
-      if f.type == \shuntsu then return false
-      if f.pai.N not in [0 8] then return false
-    # parallel
-    for m in decomp.mentsu
-      if m.pai.isTsuupai then continue
-      if m.type == \shuntsu then return false
-      if m.pai.N not in [0 8] then return false
-    decomp.honraotou = true
-    return binsSum.3 == 0
-  honraotou: (decomp) -> !!(decomp.honraotou)
 
   # jun/hon-chanta:
   # - jantou : 11/99
