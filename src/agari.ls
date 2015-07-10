@@ -94,7 +94,7 @@ module.exports = class Agari
     for {wait}:decomp in @decompAgari
       # kokushi: exclusive override
       if wait in <[kokushi kokushi13]>
-        times = (@rulevar.yakuman[k] ? 1) <? @rulevar.yakuman.max
+        times = (@rulevar.yakuman[wait] ? 1) <? @rulevar.yakuman.max
         maxBasicPoints = getBasicPointsYakuman times
         maxDecompResult = {
           yakuman: {name: wait, times}
@@ -142,7 +142,7 @@ function augmentFuuro({fuuro})
       ..sort Pai.compare
     f.type .= toString!toLowerCase!
     switch f.type
-    | \minshun            => fu = 0
+    | \shuntsu            => fu = 0
     | \minko              => fu = 2
     | \daiminkan, \kakan  => fu = 8
     | \ankan              => fu = 16
