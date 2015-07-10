@@ -298,7 +298,7 @@ module.exports = class Kyoku implements EventEmitter::
         it.type == \koutsu and it.pai == pai
       if not allKoutsu
         return valid: false, reason: "riichi ankan: change of form"
-      if @rulevar.riichi.okurikan and ph.tsumoPai.equivPai != pai
+      if @rulevar.riichi.okurikan and ph.tsumohai.equivPai != pai
         return valid: false, reason: "riichi ankan: okurikan"
     return valid: true
 
@@ -365,7 +365,7 @@ module.exports = class Kyoku implements EventEmitter::
   # tsumoAgari
   canTsumoAgari: (player) ->
     with @_checkTurn player => if not ..valid then return ..
-    if not (agari = @_agari player, @playerHidden[player].tsumoPai)
+    if not (agari = @_agari player, @playerHidden[player].tsumohai)
       return valid: false, reason: "no yaku"
     return valid: true, agari: agari
   tsumoAgari: (player) !->
@@ -901,15 +901,15 @@ module.exports = class Kyoku implements EventEmitter::
 class PlayerHidden
   (@id, haipai) ->
     # members:
-    #   tsumoPai: null or Pai
-    #   juntehai: sorted array of Pai (excl. tsumoPai)
-    #   bins: (INCL. tsumoPai)
-    #   decompTenpai: latest (3n+1) decomp (excl. tsumoPai)
-    @tsumoPai = null
+    #   tsumohai: null or Pai
+    #   juntehai: sorted array of Pai (excl. tsumohai)
+    #   bins: (INCL. tsumohai)
+    #   decompTenpai: latest (3n+1) decomp (excl. tsumohai)
+    @tsumohai = null
     @juntehai = haipai.sort Pai.compare
     @bins = bins = Pai.binsFromArray haipai
     @decompTenpai = decompTenpai bins
-    # summary of possible hand states: (* => tsumoPai ; N = n or n-1)
+    # summary of possible hand states: (* => tsumohai ; N = n or n-1)
     #
     # - (3n+1)   : tsumo    => (3n+1)*
     #            : chi/pon  => (3N+2)   -> dahai  => (3N+1)
@@ -929,26 +929,26 @@ class PlayerHidden
 
   # (3n+1) => (3n+1)*
   tsumo: (pai) !->
-    if @tsumoPai?
+    if @tsumohai?
       # arriving at here means corrupt state => panic
       throw new Error "riichi-core: kyoku: PlayerHidden: "+
-        "already has tsumoPai (#{@tsumoPai})"
+        "already has tsumohai (#{@tsumohai})"
     @bins[pai.S][pai.N]++
-    @tsumoPai = pai
+    @tsumohai = pai
 
   # (3n+1)* => (3n+1)
   # update decompTenpai
   canTsumokiri: ->
-    if not @tsumoPai? then return valid: false, reason: "no tsumoPai"
+    if not @tsumohai? then return valid: false, reason: "no tsumohai"
     return valid: true
   tsumokiri: ->
     {valid, reason} = @canTsumokiri!
     if not valid
       throw new Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
-    pai = @tsumoPai
+    pai = @tsumohai
     @bins[pai.S][pai.N]--
     @decompTenpai = decompTenpai @bins
-    @tsumoPai = null
+    @tsumohai = null
     return pai
 
   # (3n+1)* or (3n+2) => (3n+1)
@@ -965,17 +965,17 @@ class PlayerHidden
     @bins[pai.S][pai.N]--
     @decompTenpai = decompTenpai @bins
     with @juntehai
-      if @tsumoPai # (3n+1)*
-        ..[i] = @tsumoPai
+      if @tsumohai # (3n+1)*
+        ..[i] = @tsumohai
         ..sort Pai.compare
       else         # (3n+2)
         ..splice(i, 1)
-      @tsumoPai = null
+      @tsumohai = null
     return pai
 
   # decompose (3n+1)* or (3n+2) hand excluding given pai
   decompTenpaiWithout: (pai) ->
-    if !@tsumoPai then return null
+    if !@tsumohai then return null
     bins = @bins
     if bins[pai.S][pai.N] <= 0 then return null
     bins[pai.S][pai.N]--
@@ -985,7 +985,7 @@ class PlayerHidden
 
   # fuuro interface: count and remove
 
-  # chi/pon: (3n+1) (no tsumoPai)
+  # chi/pon: (3n+1) (no tsumohai)
   # count given pai in juntehai
   count1: (pai) ->
     s = 0
@@ -1001,15 +1001,15 @@ class PlayerHidden
 
   # kan: (3n+1) [daiminkan] or (3n+1)* [ankan/kakan]
   # here akahai {red 5} == normal 5 (i.e. 0m/0p/0s == 5m/5p/5s)
-  # count/return given pai in juntehai & tsumoPai
+  # count/return given pai in juntehai & tsumohai
   countEquiv: (pai) ->
     @bins[pai.S][pai.N]
   getAllEquiv: (pai) ->
     pai .= equivPai
     ret = @juntehai.filter (.equivPai == pai)
-    if @tsumoPai then ret.push @tsumoPai
+    if @tsumohai then ret.push @tsumohai
     ret
-  # remove n * given pai in juntehai & tsumoPai
+  # remove n * given pai in juntehai & tsumohai
   #   daiminkan: (3n+1)  => (3N+1)
   #   an/kakan:  (3n+1)* => (3N+1)
   # update decompTenpai
@@ -1024,14 +1024,14 @@ class PlayerHidden
         ret.push it
         return false
       return true
-    if @tsumoPai?.equivPai == pai && --n >= 0
-      ret.push @tsumoPai
-      @tsumoPai = null
-    # if tsumoPai remains after removing, join it with juntehai to arrive at
+    if @tsumohai?.equivPai == pai && --n >= 0
+      ret.push @tsumohai
+      @tsumohai = null
+    # if tsumohai remains after removing, join it with juntehai to arrive at
     # (3m+1) form and make way for the incoming rinshan tsumo
-    if @tsumoPai
-      @juntehai.push @tsumoPai # <-- need to sort
-      @tsumoPai = null
+    if @tsumohai
+      @juntehai.push @tsumohai # <-- need to sort
+      @tsumohai = null
       @juntehai.sort Pai.compare
     ret
 

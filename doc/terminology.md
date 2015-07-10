@@ -101,7 +101,7 @@ Note:
 ## Game Flow
 
 *   __Tsumo__ {自摸, (to) self draw (tile)}
-    *   __TsumoPai__ {自摸牌, tile drawn}
+    *   __Tsumohai__ {自摸牌, tile drawn}
 *   __Dahai__ {打牌, (to) discard tile}
     *   __Sutehai__ {捨て牌, discarded tile}
     *   __Tsumokiri__ {自摸切り, ツモ切り, (to) discard self draw tile}
