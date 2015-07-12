@@ -59,8 +59,12 @@ module.exports = class Kyoku implements EventEmitter::
       rinshan
       doraHyouji
       uraDoraHyouji
+      # see `resolveQuery`
+      lastDeclared:
+        CHI: null, PON: null, KAN: null, RON: null
+        clear: !-> @CHI = @PON = @KAN = @RON = null
     }
-    @globalPublic =
+    @globalPublic = {
       # visible on the table:
       nPiipaiLeft: 70
       nKan: 0
@@ -75,9 +79,7 @@ module.exports = class Kyoku implements EventEmitter::
       state: @BEGIN
       actionLog: []
       lastAction: {type: null} # last item in actionLog
-      lastDeclared:
-        CHI: null, PON: null, KAN: null, RON: null
-        clear: !-> @CHI = @PON = @KAN = @RON = null
+    }
     @playerHidden = [new PlayerHidden i, haipai[jikaze[i]] for i til 4]
     @playerPublic = [new PlayerPublic i,        jikaze[i]  for i til 4]
 
@@ -145,7 +147,7 @@ module.exports = class Kyoku implements EventEmitter::
   # is executed (when `_publishAction` is then called)
   _declareAction: ({type, player}:action) !->
     @playerHidden[player].declaredAction = action
-    @globalPublic.lastDeclared[type] = action
+    @globalHidden.lastDeclared[type] = action
     @emit \declare, player, type # only type should be published
 
   # fuuro types
@@ -619,7 +621,7 @@ module.exports = class Kyoku implements EventEmitter::
   #
   # NOTE: cleanup between `@_goto` and `@advance`
   resolveQuery: !->
-    with @globalPublic.lastDeclared
+    with @globalHidden.lastDeclared
       if ..RON then return @_resolveRon!
       # check for doujun/riichi furiten
       @_updateFuritenResolve!
@@ -1081,7 +1083,7 @@ class PlayerPublic
 
   tsumokiri: (pai) -> @dahai pai, true
   dahai: (pai, !!tsumokiri) ->
-    @sutehaiBitmaps[pai.suiteNumber] .|.= 1 .<<. pai.N
+    @sutehaiBitmaps[pai.S] .|.= 1 .<<. pai.N
     sutehai = {
       pai
       riichi: @riichi.declared
@@ -1093,4 +1095,4 @@ class PlayerPublic
 
   # check if pai has been discarded before
   sutehaiContains: (pai) ->
-    !!(@sutehaiBitmaps[pai.suiteNumber] .&. (1 .<<. pai.N))
+    !!(@sutehaiBitmaps[pai.S] .&. (1 .<<. pai.N))
