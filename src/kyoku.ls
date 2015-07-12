@@ -230,16 +230,19 @@ module.exports = class Kyoku implements EventEmitter::
   #   `.riichi`
   canDahai: (player, pai, !!riichi) ->
     with @_checkTurn player => if not ..valid then return ..
+    if pai? then pai = Pai[pai] ; tsumokiri = false
+    else tsumokiri = true
+
     with @playerHidden[player]
-      with (if pai? then ..canDahai pai else ..canTsumokiri!)
+      with (if tsumokiri then ..canTsumokiri! else ..canDahai pai)
         if not ..valid then return ..
       if riichi
         if (n = @globalPublic.nPiipaiLeft) < (m = @rulevar.riichi.minPiipaiLeft)
           return valid: false, reason: "not enough piipai (#n left, need #m)"
-        if pai?
-          decomp = ..decompTenpaiWithout pai
-        else
+        if tsumokiri
           decomp = ..decompTenpai
+        else
+          decomp = ..decompTenpaiWithout pai
         if !decomp? or decomp.wait.length == 0
           return valid: false, reason: "not tenpai if dahai is [#pai]"
     with @globalPublic.lastAction
@@ -252,11 +255,13 @@ module.exports = class Kyoku implements EventEmitter::
     {valid, reason} = @canDahai player, pai, riichi
     if not valid
       throw Error "riichi-core: kyoku: dahai: #reason"
+    if pai? then pai = Pai[pai] ; tsumokiri = false
+    else tsumokiri = true
 
     if riichi then with @playerPublic[player].riichi
       ..declared = true
       if @isTrueFirstTsumo player then ..double = true
-    if (tsumokiri = !pai?)
+    if tsumokiri
       @playerPublic[player].tsumokiri pai = @playerHidden[player].tsumokiri!
     else
       @playerPublic[player].dahai @playerHidden[player].dahai pai
@@ -276,8 +281,10 @@ module.exports = class Kyoku implements EventEmitter::
   #   `.riichi.ankan/okurikan`
   canAnkan: (player, pai) ->
     with @_checkTurn player => if not ..valid then return ..
+    if pai? then pai = Pai[pai]
     if not pai?.paiStr
       return valid: false, reason: "invalid pai"
+
     with @globalPublic
       if ..nPiipaiLeft <= 0
         return valid: false, reason: "cannot kan when no piipai left"
@@ -310,7 +317,7 @@ module.exports = class Kyoku implements EventEmitter::
       throw Error "riichi-core: kyoku: ankan: #reason"
     if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
 
-    pai .= equivPai
+    pai = Pai[pai].equivPai
     ownPai = @playerHidden[player].removeEquivN pai, 4
     @playerPublic[player].fuuro.push fuuro = {
       type: @ANKAN, pai, ownPai, otherPai: null
@@ -326,8 +333,10 @@ module.exports = class Kyoku implements EventEmitter::
   # NOTE: code mostly parallel with ankan
   canKakan: (player, pai) ->
     with @_checkTurn player => if not ..valid then return ..
+    if pai? then pai = Pai[pai]
     if not pai?.paiStr
       return valid: false, reason: "invalid pai"
+
     with @globalPublic
       if ..nPiipaiLeft <= 0
         return valid: false, reason: "cannot kan when no piipai left"
@@ -353,7 +362,7 @@ module.exports = class Kyoku implements EventEmitter::
       throw Error "riichi-core: kyoku: kakan: #reason"
     if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
 
-    pai .= equivPai
+    pai = Pai[pai].equivPai
     [kakanPai] = @playerHidden[player].removeEquivN pai, 1
     with fuuro
       ..type = @KAKAN
@@ -439,8 +448,11 @@ module.exports = class Kyoku implements EventEmitter::
   # NOTE: Akahai {red 5} considered *different* from regular 5!
   canChi: (player, pai0, pai1) ->
     with @_checkQuery player => if not ..valid then return ..
+    if pai0? then pai0 = Pai[pai0]
+    if pai1? then pai1 = Pai[pai1]
     if not pai0?.paiStr or not pai1?.paiStr
       return valid: false, reason: "invalid pai"
+
     if @globalPublic.nPiipaiLeft <= 0
       return valid: false, reason: "cannot chi when no piipai left"
     with @globalPublic.lastAction
