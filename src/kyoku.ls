@@ -96,6 +96,15 @@ module.exports = class Kyoku implements EventEmitter::
     # done
 
   # NOTE: underscore-prefixed methods should not be called from outside
+ 
+  # dictionary of all player-facing methods (player, ...) -> ...
+  # see below for semantics of `can` prefix
+  @PLAYER_CALLS = []
+  <[
+    canDahai dahai canTsumokiri tsumokiri canAnkan ankan canKakan kakan
+    canTsumoAgari tsumoAgari canKyuushuukyuuhai kyuushuukyuuhai
+    canChi chi canPon pon canDaiminkan daiminkan canRon ron
+  ]>.forEach -> @PLAYER_CALLS[it] = it
 
   # state machine
   #   BEGIN: player starts turn normally or after kan
