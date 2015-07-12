@@ -25,6 +25,14 @@ export function count(arr, f)
   for x in arr => if f x then s++
   s
 
+# NOTE: in-place operation
+export function randomShuffle(arr, rand = Math.random)
+  l = arr.length
+  for i from l - 1 til 0 by -1
+    j = ~~(rand! * (i + 1))
+    t = arr[j] ; arr[j] = arr[i] ; arr[i] = t
+  arr
+
 # ... I give up, this one is too hard
 require! 'lodash._baseclone': baseClone
 export function clone(o)

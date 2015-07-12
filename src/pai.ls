@@ -3,6 +3,8 @@
 #
 # e.g. Pai['7z']
 
+require! './util': {randomShuffle}
+
 SUUPAI = /([0-9])([mps])/
 TSUUPAI = /([1-7])z/
 TSUUPAI_ALT = /([ESWNBGRPFCZ])/
@@ -255,9 +257,4 @@ Pai.shuffleAll = (nAkahai = [1 1 1]) ->
       "1111222233334444#{'0'*s0}#{'5'*s5}6666777788889999s"+
       "1111222233334444555566667777z"
   a = Pai.arrayFromString S
-
-  # shuffle
-  for i from 136-1 til 0 by -1
-    j = ~~(Math.random! * (i + 1))
-    t = a[j] ; a[j] = a[i] ; a[i] = t
-  a
+  randomShuffle a
