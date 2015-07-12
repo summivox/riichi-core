@@ -13,13 +13,19 @@ export OTHER_PLAYERS = [[1 2 3] [2 3 0] [3 0 1] [0 1 2]]
 # e.g. ceilTo(1000, 100) => 1000, ceilTo(1001, 100) => 1100
 export function ceilTo(x, N) => Math.ceil(x/N)*N
 
-# who would import lodash for this?
+# simple functional (no need for lodash/prelude here)
 export function sum(arr)
   s = 0
   for x in arr => s += x
   s
-
-# and what about this?
+export function max(arr)
+  m = -Infinity
+  for x in arr => m >?= x
+  m
+export function min(arr)
+  m = +Infinity
+  for x in arr => m <?= x
+  m
 export function count(arr, f)
   s = 0
   for x in arr => if f x then s++

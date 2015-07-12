@@ -110,7 +110,7 @@ module.exports = class Kyoku implements EventEmitter::
     | @TURN   => @emit \turn , player
     | @QUERY  => @emit \query, player, @globalPublic.lastAction
     | @END    => @emit \end  , @result
-    | _ => throw new Error "riichi-core: kyoku: advance: bad state (#state)"
+    | _ => throw Error "riichi-core: kyoku: advance: bad state (#state)"
   _goto: -> @globalPublic.state = it
 
   # actions: {type, player, details}
@@ -249,7 +249,7 @@ module.exports = class Kyoku implements EventEmitter::
   dahai: (player, pai, !!riichi) !->
     {valid, reason} = @canDahai player, pai, riichi
     if not valid
-      throw new Error "riichi-core: kyoku: dahai: #reason"
+      throw Error "riichi-core: kyoku: dahai: #reason"
 
     if riichi then with @playerPublic[player].riichi
       ..declared = true
@@ -305,7 +305,7 @@ module.exports = class Kyoku implements EventEmitter::
   ankan: (player, pai) !->
     {valid, reason} = @canAnkan player, pai
     if not valid
-      throw new Error "riichi-core: kyoku: ankan: #reason"
+      throw Error "riichi-core: kyoku: ankan: #reason"
     if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
 
     pai .= equivPai
@@ -348,7 +348,7 @@ module.exports = class Kyoku implements EventEmitter::
   kakan: (player, pai) !->
     {valid, reason, fuuro} = @canKakan player, pai
     if not valid
-      throw new Error "riichi-core: kyoku: kakan: #reason"
+      throw Error "riichi-core: kyoku: kakan: #reason"
     if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
 
     pai .= equivPai
@@ -371,7 +371,7 @@ module.exports = class Kyoku implements EventEmitter::
   tsumoAgari: (player) !->
     {valid, reason, agari} = @canTsumoAgari player
     if not valid
-      throw new Error "riichi-core: kyoku: tsumoAgari: #reason"
+      throw Error "riichi-core: kyoku: tsumoAgari: #reason"
     delta = @globalPublic.delta.slice!
     for i til 4 => delta[i] += agari.delta[i]
     delta[player] += @globalPublic.kyoutaku
@@ -404,7 +404,7 @@ module.exports = class Kyoku implements EventEmitter::
   kyuushuukyuuhai: (player) !->
     {valid, reason, renchan} = @canKyuushuukyuuhai player
     if not valid
-      throw new Error "riichi-core: kyoku: kyuushuukyuuhai: #reason"
+      throw Error "riichi-core: kyoku: kyuushuukyuuhai: #reason"
     @_publishAction {type: @RYOUKYOKU, player, details: \kyuushuukyuuhai}
     @_end {
       type: \RYOUKYOKU
@@ -466,7 +466,7 @@ module.exports = class Kyoku implements EventEmitter::
   chi: (player, pai0, pai1) !->
     {valid, reason, action} = @canChi player, pai0, pai1
     if not valid
-      throw new Error "riichi-core: kyoku: chi: #reason"
+      throw Error "riichi-core: kyoku: chi: #reason"
     @_declareAction action
 
   _chi: ({player, details: fuuro}:action) -> # see `_pon`
@@ -521,7 +521,7 @@ module.exports = class Kyoku implements EventEmitter::
   pon: (player, maxAkahai = 2) !->
     {valid, reason, action} = @canPon player, maxAkahai
     if not valid
-      throw new Error "riichi-core: kyoku: pon: #reason"
+      throw Error "riichi-core: kyoku: pon: #reason"
     @_declareAction action
 
   _pon: -> @_chi ... # <--- http://bit.ly/1HDdOal
@@ -557,7 +557,7 @@ module.exports = class Kyoku implements EventEmitter::
   daiminkan: (player) !->
     {valid, reason, action} = @canDaiminkan player
     if not valid
-      throw new Error "riichi-core: kyoku: daiminkan: #reason"
+      throw Error "riichi-core: kyoku: daiminkan: #reason"
     @_declareAction action
 
   _daiminkan: ({player, details: fuuro}:action) !->
@@ -595,7 +595,7 @@ module.exports = class Kyoku implements EventEmitter::
   ron: (player) !->
     {valid, reason, action} = @canRon player
     if not valid
-      throw new Error "riichi-core: kyoku: ron: #reason"
+      throw Error "riichi-core: kyoku: ron: #reason"
     @_declareAction action
 
   # helper: find the pai to be ron'd
@@ -931,7 +931,7 @@ class PlayerHidden
   tsumo: (pai) !->
     if @tsumohai?
       # arriving at here means corrupt state => panic
-      throw new Error "riichi-core: kyoku: PlayerHidden: "+
+      throw Error "riichi-core: kyoku: PlayerHidden: "+
         "already has tsumohai (#{@tsumohai})"
     @bins[pai.S][pai.N]++
     @tsumohai = pai
@@ -944,7 +944,7 @@ class PlayerHidden
   tsumokiri: ->
     {valid, reason} = @canTsumokiri!
     if not valid
-      throw new Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
+      throw Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
     pai = @tsumohai
     @bins[pai.S][pai.N]--
     @decompTenpai = decompTenpai @bins
@@ -961,7 +961,7 @@ class PlayerHidden
   dahai: (pai) ->
     {valid, reason, i} = @canDahai pai
     if not valid
-      throw new Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
+      throw Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
     @bins[pai.S][pai.N]--
     @decompTenpai = decompTenpai @bins
     with @juntehai
