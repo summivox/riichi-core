@@ -1053,9 +1053,11 @@ class PlayerHidden
 class PlayerPublic
   (@id, @jikaze) ->
     # sutehai {discarded tile}: (updated through methods)
+    #   pai
     #   fuuroPlayer: (only property that can be set externally)
     #     claimed by a player through chi/pon/kan => id of this player
     #     otherwise => null
+    #   tsumokiri
     #   riichi: if used to *declare* riichi
     # sutehaiBitmap: for fast check of `sutehaiFuriten` condition
     #   same convention as `Pai.binFromBitmap`
