@@ -19,11 +19,11 @@ module.exports = class Kyoku implements EventEmitter::
   #
   # `init` (immutable):
   #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
-  #   nKyoku: 1/2/3/4
+  #   chancha: 0/1/2/3 {dealer}
   #   honba: >= 0
   #   kyoutaku: >= 0
   #   points: array of each player's points **at the start of kyoku**
-  # e.g. {1 3 2 1} =>
+  # e.g. {1 2 2 1} =>
   # - Nan {South} 3 Kyoku {Round}
   # - current dealer = player 2
   # - 2 Honba (dealer has renchan'd twice)
@@ -45,7 +45,7 @@ module.exports = class Kyoku implements EventEmitter::
     {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
 
     # id of chancha {dealer}
-    @chancha = chancha = init.nKyoku - 1
+    @chancha = chancha = init.chancha
     # jikaze {seat wind} of each player
     jikaze =
       (4 - chancha)%4
