@@ -477,7 +477,7 @@ module.exports = class Kyoku implements EventEmitter::
     with @playerHidden[player]
       if not (..countEquiv pai0 and ..countEquiv pai1)
         return valid: false, reason: "[#pai0#pai1] not in juntehai"
-      if useAkahai and ..count (p = P[0])
+      if useAkahai and ..count1 (p = P[0])
         switch 5
         | pai0.number => pai0 = p
         | pai1.number => pai1 = p
@@ -824,9 +824,9 @@ module.exports = class Kyoku implements EventEmitter::
     return pai.0.isFonpai and pai.0 == pai.1 == pai.2 == pai.3
   suukaikan: ->
     switch @globalPublic.nKan
-    | 0, 1, 2, 3 => return false
-    | 4 => return @suukantsuCandidate!?
-    | _ => return true
+    | 0, 1, 2, 3 => false
+    | 4 => not @suukantsuCandidate!? # all same player => not suukaikan
+    | _ => true
   suuchariichi: -> @globalPublic.nRiichi == 4
 
   # if given 3 pai (in array) can form a shuntsu
@@ -882,7 +882,8 @@ module.exports = class Kyoku implements EventEmitter::
     if @globalPublic.nKan < 4 then return null
     for player til 4
       with @playerPublic[player].fuuro
-        if ..length == 4 and ..every (.type == @KAN)
+        # FIXME: not-so-elegant hack for matching @DAIMINKAN, @ANKAN, @KAKAN
+        if ..length == 4 and ..every (.type.0.match /KAN$/)
           return player
     return null
 
