@@ -444,40 +444,55 @@ module.exports = class Kyoku implements EventEmitter::
   # Rationale: if you know if you can chi/pon/kan you already have the info to
   # actually do it
 
-  # chi: specify 2 pai from juntehai
-  # NOTE: Akahai {red 5} considered *different* from regular 5!
-  canChi: (player, pai0, pai1) ->
+  # chi:
+  #   dir:
+  #     < 0 : e.g. 34m chi 5m
+  #     = 0 : e.g. 46m chi 5m
+  #     > 0 : e.g. 67m chi 5m
+  #   useAkahai:
+  #     true => use akahai when you have it (default)
+  #     false => don't use even if you have it
+  canChi: (player, dir, useAkahai) ->
     with @_checkQuery player => if not ..valid then return ..
-    if pai0? then pai0 = Pai[pai0]
-    if pai1? then pai1 = Pai[pai1]
-    if not pai0?.paiStr or not pai1?.paiStr
-      return valid: false, reason: "invalid pai"
-
     if @globalPublic.nPiipaiLeft <= 0
       return valid: false, reason: "cannot chi when no piipai left"
     with @globalPublic.lastAction
       otherPlayer = ..player
       if ..type != @DAHAI or (otherPlayer+1)%4 != player
         return valid: false, reason: "can only chi after kamicha dahai"
-      otherPai = ..details.pai
-    if not @isShuntsu [pai0, pai1, otherPai]
-      return valid: false, reason: "[#pai0#pai1]+[#otherPai] not shuntsu"
+      {S, equivNumber: x} = otherPai = ..details.pai
+
+    P = Pai[S]
+    switch
+    | dir < 0   =>
+      if x in [1 2] then return valid: false, reason: "wrong direction"
+      pai0 = P[x - 2] ; pai1 = P[x - 1] ; pai = pai0
+    | dir == 0  => 
+      if x in [1 9] then return valid: false, reason: "wrong direction"
+      pai0 = P[x - 1] ; pai1 = P[x + 1] ; pai = pai0
+    | dir > 0   =>
+      if x in [8 9] then return valid: false, reason: "wrong direction"
+      pai0 = P[x + 1] ; pai1 = P[x + 2] ; pai = otherPai
+
     with @playerHidden[player]
-      if not (..count1(pai0) and ..count1(pai1))
-        return valid: false, reason: "[#pai0] or [#pai1] not in juntehai"
-    if Pai.compare(pai0, pai1) > 0
-      [pai0, pai1] = [pai1, pai0]
+      if not (..countEquiv pai0 and ..countEquiv pai1)
+        return valid: false, reason: "[#pai0#pai1] not in juntehai"
+      if useAkahai and ..count (p = P[0])
+        switch 5
+        | pai0.number => pai0 = p
+        | pai1.number => pai1 = p
+
     return valid: true, action: {
       type: @CHI, player
       details: {
         type: @SHUNTSU
-        pai: pai0 <? otherPai
+        pai
         ownPai: [pai0, pai1]
         otherPai
         otherPlayer
       }
     }
-  chi: (player, pai0, pai1) !->
+  chi: (player, dir, useAkahai) !->
     {valid, reason, action} = @canChi player, pai0, pai1
     if not valid
       throw Error "riichi-core: kyoku: chi: #reason"
