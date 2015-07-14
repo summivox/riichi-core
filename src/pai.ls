@@ -1,7 +1,20 @@
 # Pai {tile}
-# represents a tile with tenhou-compatible shorthand string
 #
-# e.g. Pai['7z']
+# canonical str: /[0-9][mps]|[1-7]z/
+# alternative str for tsuupai: ESWNBGRPFCZ
+# pai literals are atoms (can be compared with strong equality)
+#
+# examples:
+#   Pai['7s'] == Pai[2][7]
+#   Pai['7s'].S == 2
+#            .N == 6 (== 7 - 1)
+#
+#   Pai['0p'] == Pai[1][0]
+#   Pai['0p'].S == 2
+#            .N == 4 (== 5 - 1 ; because 0p ~= 5p)
+#
+# NOTE: very easy to confuse 0-based number vs. 1-based number!
+#   rule of thumb: only use 1-based when akahai must be telled apart
 
 require! './util': {randomShuffle}
 
@@ -74,10 +87,10 @@ class PaiClass
         else ++n
     new PaiClass(n + @suite!)
 
-# Build pai literals
+# build Pai[str]
 module.exports = Pai = {}
-f = -> @paiStr
-proto = {toString: f, toJSON: f}
+strFromPai = -> @paiStr
+proto = {toString: strFromPai, toJSON: strFromPai}
 for m from 0 to 3
   for n from 0 to 9
     paiStr = n + SUITES[m]
@@ -94,18 +107,21 @@ for own paiStr, paiLit of Pai
     if v instanceof PaiClass then v = Pai[v.paiStr]
     paiLit[k] = v
 
-# link alternative shorthands
+# build Pai[altStr]
 for alt, n of TSUUPAI_ALT_MAP
   Pai[alt] = Pai[n]
-# link Pai[number][suiteNumber]
-for n from 0 to 9
-  a = Pai[n] = new Array 4
-  for m from 0 to 3
-    a[m] = Pai[n + SUITES[m]]
+
+# link Pai[suiteNumber][number]
+# NOTE: 1-based number (0 => akahai)
+for m from 0 to 3
+  a = Pai[m] = new Array 10
+  for n from 0 to 9
+    a[n] = Pai[n + SUITES[m]]
+
 # link fonpai
 Pai.FONPAI = [Pai\1z, Pai\2z, Pai\3z, Pai\4z]
 
-# constants
+# export constants
 Pai.SUITES = SUITES
 Pai.SUITE_NUMBER = SUITE_NUMBER
 
@@ -221,13 +237,12 @@ Pai.binFromBitmap = (bitmap) ->
     bitmap .>>.= 1
   ret
 
-Pai.arrayFromBitmapSuite = (bitmap, suite) ->
-  # accept both 'm/p/s/z' and 0/1/2/3
-  if suite.length then suite = SUITE_NUMBER[suite]
+Pai.arrayFromBitmapSuite = (bitmap, suiteNumber) ->
+  P = Pai[suiteNumber]
   n = 1
   ret = []
   while bitmap
-    if bitmap .&. 1 then ret.push Pai[n][suite]
+    if bitmap .&. 1 then ret.push P[n]
     n++
     bitmap .>>.= 1
   ret

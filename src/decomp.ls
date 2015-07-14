@@ -296,18 +296,18 @@ function stitch(decomp1s, suites)
     wait: null
     k7: null
   for {placements}, i in decomp1s
-    suite = suites[i]
+    P = Pai[suites[i]]
     for placement in placements
       {patternId, offset} = restorePlacement placement
       {name, target} = patterns[patternId]
       switch target
         when \shuntsu, \koutsu
           ret.mentsu.push {
-            type: name # NOTE: see above
-            pai: Pai[offset+1][suite]
+            type: name # NOTE: see definition of decomp above
+            pai: P[offset+1]
           }
         when \jantou
-          ret.jantou = Pai[offset+1][suite]
+          ret.jantou = P[offset+1]
   ret
 
 
@@ -545,7 +545,7 @@ function tenpai7(bins)
   | 0 => void
   | 1 =>
     if ++c1 > 1 then return null
-    p1 = Pai[n+1][s]
+    p1 = Pai[s][n+1]
   | 2 => ++c2
   | _ => return null
   if c1 == 1 and c2 == 6 then return [p1]

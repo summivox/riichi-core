@@ -493,7 +493,7 @@ module.exports = class Kyoku implements EventEmitter::
       }
     }
   chi: (player, dir, useAkahai) !->
-    {valid, reason, action} = @canChi player, pai0, pai1
+    {valid, reason, action} = @canChi player, dir, useAkahai
     if not valid
       throw Error "riichi-core: kyoku: chi: #reason"
     @_declareAction action
@@ -531,7 +531,7 @@ module.exports = class Kyoku implements EventEmitter::
         "not enough [#pai] (you have #nAll, need 2)"
       if pai.number == 5
         # could have akahai
-        akahai = Pai[0][pai.S]
+        akahai = Pai[pai.S][0]
         nAkahai = ..count1 akahai
         nAkahai <?= maxAkahai
       else
