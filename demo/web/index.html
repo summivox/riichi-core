@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title> riichi-core demo </title>
+<link rel="shortcut icon" href="favicon.ico" />
+
+<script src="lib/react-with-addons.js"></script>
+
+<script>var AUTOBAHN_DEBUG = true;</script>
+<script src="lib/autobahn.js"></script>
+
+<link rel="stylesheet" href="style/reset.css" />
+<style>
+h1 {
+    font-size: 3em;
+    padding-bottom: 0.5em;
+}
+.code {
+    margin: 1em 0em;
+    width: 640px;
+}
+code > pre {
+    font-family: Consolas, 'Courier New', monospace;
+    background-color: #eee;
+}
+</style>
+</head>
+<body>
+<h1> riichi-core demo </h1>
+<form>
+    <table>
+        <tr>
+            <td> <label for="inputGameId">game id</label> </td>
+            <td> <input id="inputGameId" /> </td>
+            <td> <input type="button" id="btnNew" value="new" /> </td>
+        </tr>
+        <tr>
+            <td> <label for="inputName">name</label> </td>
+            <td> <input id="inputName" /> </td>
+            <td>
+                <input type="button" id="btnJoin" value="join" />
+                <input type="button" id="btnLeave" value="leave" disabled />
+            </td>
+        </tr>
+    </table>
+</form>
+<div class="code"><code><pre id="con">Log
+==============
+
+</pre></code></div>
+<script src="index.b.js"></script>
+</body>
+</html>

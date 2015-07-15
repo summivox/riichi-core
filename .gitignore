@@ -35,3 +35,8 @@ src/*.js
 src/*.map
 spec/*.js
 spec/*.map
+
+demo/server/*.js
+demo/server/*.map
+demo/client/*.js
+demo/client/*.map
