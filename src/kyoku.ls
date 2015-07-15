@@ -249,7 +249,7 @@ module.exports = class Kyoku implements EventEmitter::
       if ..type in [@CHI, @PON] and ..player == player
       and @isKuikae ..details, pai
         return valid: false, reason: "kuikae"
-    return valid:true
+    return valid: true
 
   dahai: (player, pai, !!riichi) !->
     {valid, reason} = @canDahai player, pai, riichi
