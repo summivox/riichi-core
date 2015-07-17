@@ -611,7 +611,7 @@ module.exports = class Kyoku implements EventEmitter::
     with @_checkQuery player => if not ..valid then return ..
     if @playerHidden[player].furiten
       return valid: false, reason: "furiten"
-    pai = @_ronPai!
+    pai = @ronPai!
     equivPai = pai.equivPai
     houjuuPlayer = @globalPublic.player
     {wait} = @playerHidden[player].decompTenpai
@@ -629,12 +629,6 @@ module.exports = class Kyoku implements EventEmitter::
       throw Error "riichi-core: kyoku: ron: #reason"
     @_declareAction action
 
-  # helper: find the pai to be ron'd
-  _ronPai: ->
-    with @globalPublic.lastAction
-      switch ..type
-      | @KAKAN => return ..details.kakanPai # <-- NOTE: this is why (chankan)
-      | _ => return ..details.pai
 
   # resolution of declarations during query
   # called e.g. after query times out or all responses have been received
@@ -662,6 +656,7 @@ module.exports = class Kyoku implements EventEmitter::
       # clear all declarations now that they're resolved
       ..clear!
       for i til 4 => @playerHidden[i].declaredAction = null
+    @emit \queryResolved
     @advance!
 
   # (multi-)ron resolution
@@ -746,7 +741,7 @@ module.exports = class Kyoku implements EventEmitter::
   _updateFuritenResolve: (player) !->
     for player in OTHER_PLAYERS[@globalPublic.player]
       with @playerHidden[player]
-        if @_ronPai!equivPai in ..decompTenpai.wait
+        if @ronPai!equivPai in ..decompTenpai.wait
           ..furiten = true
           ..doujunFuriten = true
           ..riichiFuriten = @playerPublic[player].riichi.accepted
@@ -883,6 +878,13 @@ module.exports = class Kyoku implements EventEmitter::
         if ..length == 4 and ..every (.type.0.match /KAN$/)
           return player
     return null
+
+  # find pai that might be ron'd: dahai or kakanPai (for chankan)
+  ronPai: ->
+    with @globalPublic.lastAction
+      switch ..type
+      | @KAKAN => return ..details.kakanPai
+      | _ => return ..details.pai
 
 
   # assemble information to determine whether a player has a valid win and how
