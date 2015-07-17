@@ -14,9 +14,14 @@
 #            .N == 4 (== 5 - 1 ; because 0p ~= 5p)
 #
 # NOTE: very easy to confuse 0-based number vs. 1-based number!
-#   rule of thumb: only use 1-based when akahai must be telled apart
+# rule of thumb: only use 1-based when akahai must be telled apart
+#
+# Lots of utilities involving Pai are all piled here in no particular order
 
-require! './util': {randomShuffle}
+require! {
+  './util': {randomShuffle}
+  'lodash._baseclone': baseClone
+}
 
 SUUPAI = /([0-9])([mps])/
 TSUUPAI = /([1-7])z/
@@ -107,7 +112,7 @@ for own paiStr, paiLit of Pai
     if v instanceof PaiClass then v = Pai[v.paiStr]
     paiLit[k] = v
 
-# build Pai[altStr]
+# link Pai[altStr]
 for alt, n of TSUUPAI_ALT_MAP
   Pai[alt] = Pai[n]
 
@@ -247,6 +252,8 @@ Pai.arrayFromBitmapSuite = (bitmap, suiteNumber) ->
     bitmap .>>.= 1
   ret
 
+# bins related
+
 Pai.YAOCHUU = [
   \1m \9m \1p \9p \1s \9s
   \1z \2z \3z \4z \5z \6z \7z].map (Pai.)
@@ -258,6 +265,7 @@ Pai.yaochuuFromBins = -> with it => return [
 Pai.cloneBins = ->
   [it.0.slice!, it.1.slice!, it.2.slice!, it.3.slice!]
 
+
 # generate array of all 136 pai in uniform random order
 # nAkahai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]
 Pai.shuffleAll = (nAkahai = [1 1 1]) ->
@@ -266,10 +274,16 @@ Pai.shuffleAll = (nAkahai = [1 1 1]) ->
   p5 = 4 - p0
   s5 = 4 - s0
 
-  # meh.
+  # brutal and swift way
   S = "1111222233334444#{'0'*m0}#{'5'*m5}6666777788889999m"+
       "1111222233334444#{'0'*p0}#{'5'*p5}6666777788889999p"+
       "1111222233334444#{'0'*s0}#{'5'*s5}6666777788889999s"+
       "1111222233334444555566667777z"
   a = Pai.arrayFromString S
   randomShuffle a
+
+# deep clone object while correctly handling Pai, even serialized
+Pai.cloneFix = (o) ->
+  baseClone o, true, !->
+    if it?.paiStr then return it
+    if typeof it is \string and it is /^\d[mpsz]$/ then return Pai[it]

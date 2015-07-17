@@ -3,7 +3,7 @@
 require! {
   './pai': Pai
   './decomp': {decompTenpai, decompAgariFromTenpai}
-  './util': {OTHER_PLAYERS, ceilTo, sum, clone}
+  './util': {OTHER_PLAYERS, ceilTo, sum}
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
 
@@ -65,7 +65,7 @@ module.exports = class Agari
     if @decompAgari.length == 0 then return @isAgari = false
 
     # copy and augment fuuro
-    @fuuro = clone @fuuro
+    @fuuro = Pai.cloneFix @fuuro
     @fuuroFu = augmentFuuro @
 
     # juntehai: now also includes agariPai

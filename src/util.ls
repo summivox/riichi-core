@@ -41,8 +41,3 @@ export function randomShuffle(arr, rand = Math.random)
 
 export function randomRange(lo, hi)
   Math.random!*(hi - lo) + lo
-
-# ... I give up, this one is too hard
-require! 'lodash._baseclone': baseClone
-export function clone(o)
-  baseClone o, true, -> if it?.paiStr? then return it else return

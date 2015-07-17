@@ -3,7 +3,7 @@
 
 require! {
   './pai': Pai
-  './util': {sum, clone}
+  './util': {sum}
 }
 
 
@@ -465,7 +465,7 @@ export function decompAgari(bins)
 export function decompAgariFromTenpai({decomps}, agariPai, isRon)
   ret = []
   agariPai .= equivPai
-  for decomp in clone decomps
+  for decomp in Pai.cloneFix decomps
     if agariPai not in decomp.wait then continue
     ret.push decomp
     switch decomp.k7
