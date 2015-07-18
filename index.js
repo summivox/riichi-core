@@ -4,5 +4,7 @@ module.exports = {
   decomp: require('./src/decomp'),
   Kyoku: require('./src/kyoku'),
   KyokuView: require('./src/kyoku-view'),
-  rule: require('./src/rulevar-default')
+  rule: require('./src/rulevar-default'),
+
+  init: function() { module.exports.decomp.init(); }
 };
