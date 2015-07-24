@@ -68,8 +68,8 @@ module.exports = class KyokuView
       doraHyouji: []
       uraDoraHyouji: []
       lastDeclared:
-        CHI: null, PON: null, KAN: null, RON: null
-        clear: !-> @CHI = @PON = @KAN = @RON = null
+        chi: null, pon: null, kan: null, ron: null
+        clear: !-> @chi = @pon = @kan = @ron = null
 
     @globalPublic = Pai.cloneFix pack.globalPublic
     @playerPublic = pack.playerPublic.map (pp) -> PlayerPublic with pp
@@ -100,33 +100,33 @@ module.exports = class KyokuView
   handleAction: (player, action) !->
     details = Pai.cloneFix action.details
     switch action.type
-    | @TSUMO, @RINSHAN_TSUMO =>
+    | \tsumo, \rinshanTsumo =>
       if player != @me then @playerHidden[player].tsumo!
       # (otherwise: see `handleOwnTsumo`)
 
-    | @DAHAI =>
+    | \dahai =>
       {pai, riichi, tsumokiri} = details
       if player != @me then @playerHidden[player].nextDahai = pai
       if tsumokiri then pai = null
       Kyoku::dahai.call this, player, pai, riichi
 
-    | @CHI =>
-      @globalHidden.lastDeclared.CHI = action
+    | \chi =>
+      @globalHidden.lastDeclared.chi = action
 
-    | @PON =>
-      @globalHidden.lastDeclared.PON = action
+    | \pon =>
+      @globalHidden.lastDeclared.pon = action
 
-    | @KAN =>
+    | \kan =>
       switch details.type
-      | @DAIMINKAN =>
-        @globalHidden.lastDeclared.KAN = action
+      | \daiminkan =>
+        @globalHidden.lastDeclared.kan = action
 
-      | @ANKAN =>
+      | \ankan =>
         {pai, ownPai} = details
         if player != @me then @playerHidden[player].nextRemoved = ownPai
         Kyoku::ankan.call this, player, pai
 
-      | @KAKAN =>
+      | \kakan =>
         {kakanPai} = details
         if player != @me then @playerHidden[player].nextRemoved = [kakanPai]
         Kyoku::kakan.call this, player, kakanPai

@@ -140,9 +140,8 @@ function augmentFuuro({fuuro})
       if f.otherPai => ..push f.otherPai
       if f.kakanPai => ..push f.kakanPai
       ..sort Pai.compare
-    f.type .= toString!toLowerCase!
     switch f.type
-    | \shuntsu            => fu = 0
+    | \minshun            => fu = 0
     | \minko              => fu = 2
     | \daiminkan, \kakan  => fu = 8
     | \ankan              => fu = 16
