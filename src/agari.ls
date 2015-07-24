@@ -3,7 +3,7 @@
 require! {
   './pai': Pai
   './decomp': {decompTenpai, decompAgariFromTenpai}
-  './util': {OTHER_PLAYERS, ceilTo, sum}
+  './util': {OTHER_PLAYERS, ceilTo, sum, count}
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
 
@@ -171,12 +171,11 @@ function getDora({
     uraDora = []
 
   ret = dora: 0, uraDora: 0, akaDora: 0
-
-  for p in tehai => switch
-  | p in dora    => ret.dora++
-  | p in uraDora => ret.uraDora++
-  | p.isAkahai   => ret.akaDora++
-
+  for p in tehai
+    if p.isAkahai then ret.akaDora++
+    p .= equivPai
+    ret.dora += count dora, p
+    ret.uraDora += count uraDora, p
   ret
 
 function getBasicPoints(han, fu)
@@ -318,11 +317,5 @@ function getYakumanResult(decomp, {rulevar}:agariObj)
   if yakumanTotal == 0 then return {basicPoints: 0}
   basicPoints = getBasicPointsYakuman yakumanTotal
   return {basicPoints, yakuman, yakumanTotal}
-
-
-
-
-
-
 
 # [1]: your mileage may vary

@@ -66,8 +66,28 @@ module.exports =
   #   yes: can ryoukyoku and renchan
   ryoukyoku:
     kyuushuukyuuhai: yes
-    nagashimankan: yes # TODO
+    nagashimankan: no # TODO
     tochuu:
       suufonrenta: yes
       suukaikan: yes
       suuchariichi: yes
+
+  # game-wide rules
+  # - each player starts with `points.init`
+  # - normal game: play until `bakaze == end.normal`
+  # - if oya renchan during last kyoku in normal game: game ends
+  # - if no player has point at least `points.origin`: enter overtime
+  # - overtime
+  #   - always end when `bakaze == end.overtime`
+  #   - end prematurely when some player reach `points.origin`:
+  #     - sudden death: checked at end of a kyoku
+  #     - otherwise: checked at end of a bakaze
+  setup:
+    points:
+      init: 25000   # each player starts with this
+      origin: 30000 # overtime/sudden death starts if normal game completes but no one has point >= origin
+    end:
+      normal: 2
+      overtime: 4
+      suddenDeath: yes
+      oyaALTop: yes

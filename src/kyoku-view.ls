@@ -95,7 +95,7 @@ module.exports = class KyokuView
   # - declarations during query: ignore (visible state not affected)
   # - query resolution:
   #   - register result of resolution upon action event
-  #   - `resolveQuery` upon queryResolved event
+  #   - `resolveQuery` upon resolved event
 
   handleAction: (player, action) !->
     details = Pai.cloneFix action.details
@@ -131,7 +131,7 @@ module.exports = class KyokuView
         if player != @me then @playerHidden[player].nextRemoved = [kakanPai]
         Kyoku::kakan.call this, player, kakanPai
 
-  handleQueryResolved: Kyoku::resolveQuery
+  handleResolved: Kyoku::resolveQuery
 
   # special cases:
   # - "my" own tsumo: separately fed and patched after `_begin`

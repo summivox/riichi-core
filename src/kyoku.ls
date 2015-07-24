@@ -1,6 +1,6 @@
 # Kyoku {round}
 # Implements core game state flow and logic
-# 
+#
 # A Kyoku instance is both the "table" and the "referee" of a round of game.
 # Responsiblity:
 # - maintaining all states and transitions according to game rules
@@ -21,24 +21,50 @@ require! {
 }
 
 module.exports = class Kyoku implements EventEmitter::
-  # `init` (immutable):
-  #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
-  #   chancha: 0/1/2/3 {dealer}
-  #   honba: >= 0
-  #   kyoutaku: >= 0
-  #   points: array of each player's points **at the start of kyoku**
-  # e.g. {1 2 2 1} =>
-  # - Nan {South} 3 Kyoku {Round}
-  # - current dealer = player 2
-  # - 2 Honba (dealer has renchan'd twice)
-  # - 1*1000 kyoutaku {riichi bet} on table
-  #
-  # NOTE:
-  # - kyoutaku (deduction of player's points due to riichi) is not reflected in
-  #   `init.points` as `init` is immutable; see `@globalPublic.delta`
-  # - wall defaults to shuffled but can be provided (e.g. for testing)
   (@init, @rulevar, wall = null) ->
+    # events:
+    #   state transition: see state machine below
+    #     turn(player)
+    #     query(player, action)
+    #     resolved(): see `resolveQuery` (additional seq point)
+    #     end(result, next)
+    #   player action:
+    #     action(player, details)
+    #     declare(player, type)
+    #   extra info:
+    #     tsumo(player, pai): NOT broadcast, see `_begin`
+    #     doraHyouji(pai)
+    #
+    # NOTE:
+    # - tsumo has 2 events:
+    #   - action(player, {type: tsumo, nPiipaiLeft}): broadcast for all
+    #   - tsumo(player, pai): intended for only that player
     EventEmitter.call @
+
+    # `init` (immutable): default to first kyoku in game
+    #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
+    #   chancha: 0/1/2/3 {dealer}
+    #   honba: >= 0
+    #   kyoutaku: >= 0
+    #   points: array of each player's points **at the start of kyoku**
+    # e.g. {1 2 2 1} =>
+    # - Nan {South} 3 Kyoku {Round}
+    # - current dealer = player 2
+    # - 2 Honba (dealer has renchan'd twice)
+    # - 1*1000 kyoutaku {riichi bet} on table
+    #
+    # NOTE:
+    # - kyoutaku (deduction of player's points due to riichi) is not reflected in
+    #   `init.points` as `init` is immutable; see `@globalPublic.delta`
+    # - wall defaults to shuffled but can be provided (e.g. for testing)
+    p0 = rulevar.setup.points
+    init ?=
+      bakaze: 0
+      chancha: 0
+      honba: 0
+      kyoutaku: 0
+      points: [p0, p0, p0, p0]
+
     # dora handling:
     # - @globalHidden.doraHyouji/uraDoraHyouji: all 5 stacks
     # - @globalPublic.doraHyouji: only revealed ones
@@ -100,6 +126,9 @@ module.exports = class Kyoku implements EventEmitter::
     #   RYOUKYOKU: reason
     @result = null
 
+    # next: `init` for next kyoku, or null if whole game ends
+    @next = null
+
     # done
 
   # NOTE: underscore-prefixed methods should not be called from outside
@@ -116,7 +145,7 @@ module.exports = class Kyoku implements EventEmitter::
     | @BEGIN  => @_begin!
     | @TURN   => @emit \turn , player
     | @QUERY  => @emit \query, player, @globalPublic.lastAction
-    | @END    => @emit \end  , @result
+    | @END    => @emit \end  , @result, @next
     | _ => throw Error "riichi-core: kyoku: advance: bad state (#state)"
   _goto: -> @globalPublic.state = it
 
@@ -144,7 +173,7 @@ module.exports = class Kyoku implements EventEmitter::
   _declareAction: ({type, player}:action) !->
     @playerHidden[player].declaredAction = action
     @globalHidden.lastDeclared[type] = action
-    @emit \declare, player, type # only type should be published
+    @emit \declare, player, type
 
   # fuuro types: see `PlayerPublic::fuuro`
   ::<<<< @FUURO_TYPES = Enum <[ SHUNTSU MINKO DAIMINKAN KAKAN ANKAN ]> #
@@ -155,8 +184,10 @@ module.exports = class Kyoku implements EventEmitter::
     if @_checkRyoukyoku! then return
 
     # tsumo {draw} from either piipai or rinshan
-    # NOTE: rinshan tsumo also removes one piipai from the other end so that
-    # total piipai count always decreases by 1 for each tsumo
+    # NOTE:
+    # - rinshan tsumo also removes one piipai from the other end so that
+    #   total piipai count always decreases by 1 for each tsumo
+    # - separate events (see above for events definition)
     {player, lastAction} = @globalPublic
     isAfterKan = (lastAction.type == @KAN)
     n = --@globalPublic.nPiipaiLeft
@@ -169,6 +200,7 @@ module.exports = class Kyoku implements EventEmitter::
         pai = ..piipai.pop()
         @_publishAction {type: @TSUMO, player, details: n}
     @playerHidden[player].tsumo pai
+    @emit \tsumo, player, pai
     @_goto @TURN # NOTE: don't advance yet
 
     # if only option while in riichi is dahai, do it without asking
@@ -181,10 +213,47 @@ module.exports = class Kyoku implements EventEmitter::
         return @dahai player, null
     @advance!
 
-  _end: (result) ->
-    @result = result
+  # mark end of kyoku and calculate `next`
+  # rule variations:
+  #   `.setup`
+  _end: (@result) !->
+    {setup:
+      points: {origin}
+      end
+    } = @rulevar
+    @next = do ~>
+      {bakaze, chancha, honba, kyoutaku, points} = @init
+      points .= slice!
+      for i til 4
+        if (points[i] += result.delta[i]) < 0
+          # strictly negative points not allowed
+          return null
+
+      newBakaze = false
+      if result.renchan
+        honba++
+        # all-last oya top
+        if end.oyaTop and bakaze == end.bakaze - 1 and chancha == 3
+        and util.max(points) == points[3]
+          return null
+      else
+        if result.type == \RYOUKYOKU then honba++
+        else honba = 0
+        if ++chancha == 4
+          chancha = 0
+          bakaze++
+          newBakaze = true
+
+      if bakaze < end.bakaze then void
+      else if bakaze < end.overtime
+        if (newBakaze or end.suddenDeath)
+        and points.some (> origin) then return null
+      else return null
+
+      # next kyoku
+      return {bakaze, chancha, honba, kyoutaku, points}
     @_goto @END ; @advance!
-    true
+
 
 
 
@@ -469,7 +538,7 @@ module.exports = class Kyoku implements EventEmitter::
     | dir < 0   =>
       if x in [1 2] then return valid: false, reason: "wrong direction"
       pai0 = P[x - 2] ; pai1 = P[x - 1] ; pai = pai0
-    | dir == 0  => 
+    | dir == 0  =>
       if x in [1 9] then return valid: false, reason: "wrong direction"
       pai0 = P[x - 1] ; pai1 = P[x + 1] ; pai = pai0
     | dir > 0   =>
@@ -656,7 +725,7 @@ module.exports = class Kyoku implements EventEmitter::
       # clear all declarations now that they're resolved
       ..clear!
       for i til 4 => @playerHidden[i].declaredAction = null
-    @emit \queryResolved
+    @emit \resolved
     @advance!
 
   # (multi-)ron resolution
