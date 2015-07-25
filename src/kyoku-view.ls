@@ -38,7 +38,7 @@ module.exports = class KyokuView
   # initialization:
   # Kyoku instance => packed representation => KyokuView constructor
   #
-  # NOTE: decompTenpai is not packed, but instead re-computed upon
+  # NOTE: decompTenpai is deliberately not packed, but instead re-computed upon
   # construction. This causes it to be out of sync if right after chi/pon (see
   # PlayerHidden juntehai state diagram), but soon corrected after dahai.
   @packFromKyoku = (kyoku, me) ->
@@ -74,7 +74,8 @@ module.exports = class KyokuView
         clear: !-> @chi = @pon = @kan = @ron = null
 
     @globalPublic = Pai.cloneFix pack.globalPublic
-    @playerPublic = pack.playerPublic.map (pp) -> PlayerPublic with pp
+    @playerPublic = pack.playerPublic.map (pp) ->
+      PlayerPublic with Pai.cloneFix pp
     @playerHidden = pack.playerHidden.map (ph, i) ->
       if i == @me
         # restore `bins` and `decompTenpai` using `juntehai` and `tsumohai`
