@@ -65,6 +65,8 @@ module.exports = class KyokuView
     @chancha = @init.chancha
 
     @globalHidden =
+      piipai: []  # pop => `void`
+      rinshan: [] # ^
       doraHyouji: []
       uraDoraHyouji: []
       lastDeclared:
@@ -85,7 +87,7 @@ module.exports = class KyokuView
             declaredAction
           } = ph
       else PlayerHiddenMock with ph
-    @advance!
+    @nextTurn!
 
 
   # game flow reconstruction from events:
@@ -94,15 +96,17 @@ module.exports = class KyokuView
   # - actions during turn: replay locally
   # - declarations during query: ignore (visible state not affected)
   # - query resolution:
-  #   - register result of resolution upon action event
-  #   - `resolveQuery` upon resolved event
+  #   - receive chi/pon/daiminkan action: register then resolve
+  #   - receive tsumo instead: resolve first
 
-  handleAction: (player, action) !->
+  resolve: !-> Kyoku::resolveQuery.call this
+  handleAction: (action) !->
+    player = action.player
     details = Pai.cloneFix action.details
     switch action.type
-    | \tsumo, \rinshanTsumo =>
-      if player != @me then @playerHidden[player].tsumo!
-      # (otherwise: see `handleOwnTsumo`)
+    | \tsumo =>
+      if player != me and @globalPublic.state == \query then @resolve!
+      # NOTE: `nextTurn` and `handleOwnTsumo` handle the rest
 
     | \dahai =>
       {pai, riichi, tsumokiri} = details
@@ -112,14 +116,17 @@ module.exports = class KyokuView
 
     | \chi =>
       @globalHidden.lastDeclared.chi = action
+      @resolve!
 
     | \pon =>
       @globalHidden.lastDeclared.pon = action
+      @resolve!
 
     | \kan =>
       switch details.type
       | \daiminkan =>
         @globalHidden.lastDeclared.kan = action
+        @resolve!
 
       | \ankan =>
         {pai, ownPai} = details
@@ -131,21 +138,18 @@ module.exports = class KyokuView
         if player != @me then @playerHidden[player].nextRemoved = [kakanPai]
         Kyoku::kakan.call this, player, kakanPai
 
-  handleResolved: Kyoku::resolveQuery
-
-  # special cases:
-  # - "my" own tsumo: separately fed and patched after `_begin`
-  # - doraHyouji revealed upon event
-  handleOwnTsumo: (tsumohai) ->
+  # own tsumo: overrides public tsumo event
+  handleOwnTsumo: (tsumohai) !->
+    if @globalPublic.state == \query then @resolve!
     @playerHidden[@me].tsumo tsumohai
-  handleDoraHyouji: (doraHyouji) ->
-    @globalPublic.doraHyouji.push doraHyouji
 
+  handleDoraHyouji: (doraHyouji) !->
+    @globalPublic.doraHyouji.push doraHyouji
 
 
   # original game flow methods are kept unchanged
   emit: (!->)
-  ::{advance, _goto, _publishAction, _declareAction, _begin} = Kyoku:: #
+  ::{_goto, _publishAction, _declareAction, nextTurn} = Kyoku:: #
 
   # `can`-methods: ignore others (none of "my" business)
   ignoreOthers = (fn) -> (player) ->
@@ -161,7 +165,7 @@ module.exports = class KyokuView
 
   # internal state updates: case-by-case analysis
 
-  # doraHyouji: ignored (handled by `handleDoraHyouji`)
+  # doraHyouji: ignored (lack information; `handleDoraHyouji` instead)
   _revealDoraHyouji: (!->)
 
   # furiten:

@@ -26,7 +26,7 @@ module.exports = class Kyoku implements EventEmitter::
     #   action(player, action)
     #   declare(player, type)
     #   doraHyouji(pai)
-    #   end(result, next)
+    #   end(result, nextInit)
     #
     # NOTE:
     # - 2 events are emitted upon tsumo (in this order):
@@ -119,11 +119,10 @@ module.exports = class Kyoku implements EventEmitter::
     #   \ryoukyoku: reason
     @result = null
 
-    # next: `init` for next kyoku, or null if whole game ends
-    @next = null
+    # nextInit: `init` for next kyoku, or null if whole game ends
+    @nextInit = null
 
-    # done (can call `start` now)
-  start: !-> if @globalPublic.state == \begin then @_begin!
+    # done (call `next` to start kyoku)
 
 
   # NOTE: underscore-prefixed methods should not be called from outside
@@ -161,17 +160,16 @@ module.exports = class Kyoku implements EventEmitter::
     @emit \declare, player, type
 
 
-  # actions before player's turn:
+  # preparation for a new turn:
   # - check for ryoukyoku
   # - (rinshan) tsumo
-  _begin: !->
+  # NOTE:
+  # - howanpai already handled by ryoukyoku checks
+  # - rinshan tsumo also removes one piipai from tail side so that total
+  #   piipai count always decreases by 1 regardless of rinshan or not
+  nextTurn: !->
     if @_checkRyoukyoku! then return
 
-    # tsumo {draw} from either piipai or rinshan
-    # NOTE:
-    # - howanpai already handled by ryoukyoku checks
-    # - rinshan tsumo also removes one piipai from tail side so that total
-    #   piipai count always decreases by 1 regardless of rinshan or not
     {player, lastAction} = @globalPublic
     isAfterKan = (lastAction.type == \kan)
     @globalPublic.nPiipaiLeft--
@@ -185,7 +183,10 @@ module.exports = class Kyoku implements EventEmitter::
     @_goto \turn
     @_publishAction {type: \tsumo, player, details: isAfterKan}
 
-  # called after kyoku ends
+  # called when kyoku should end:
+  # - calculate what next kyoku should be (`nextInit`)
+  # - publish result
+  #
   # rule variations:
   #   `.setup`
   _end: (@result) !->
@@ -193,7 +194,7 @@ module.exports = class Kyoku implements EventEmitter::
       points: {origin}
       end
     } = @rulevar
-    @next = next = do ~>
+    @nextInit = nextInit = do ~>
       {bakaze, chancha, honba, kyoutaku, points} = @init
       points .= slice!
       for i til 4
@@ -225,7 +226,7 @@ module.exports = class Kyoku implements EventEmitter::
       # next kyoku
       return {bakaze, chancha, honba, kyoutaku, points}
     @_goto \end
-    @emit \end, result, next
+    @emit \end, result, nextInit
 
 
   # method pair with & without `can`-prefix: player action interface
@@ -255,7 +256,6 @@ module.exports = class Kyoku implements EventEmitter::
     # extra: should only declare once
     if (action = @playerHidden[player].declaredAction?)
       return valid: false, reason: "you already declared #{action.type}"
-
     return valid: true
 
 
@@ -371,7 +371,11 @@ module.exports = class Kyoku implements EventEmitter::
     @_publishAction {type: \kan, player, details: fuuro}
     @_revealDoraHyouji \ankan
     @_clearIppatsu!
-    if @rulevar.yaku.kokushiAnkan then @_goto \query else @_goto \begin
+    if @rulevar.yaku.kokushiAnkan
+      @_goto \query
+    else
+      @_goto \begin
+      @nextTurn!
 
   # kakan
   # NOTE: code mostly parallel with ankan
@@ -596,7 +600,7 @@ module.exports = class Kyoku implements EventEmitter::
       throw Error "riichi-core: kyoku: pon: #reason"
     @_declareAction action
 
-  _pon: ::_chi # <--- http://bit.ly/1HDdOal
+  _pon: ::_chi # same code as above
   # reason why this works: action object in same format (both have 2 ownPai)
 
   # daiminkan
@@ -673,28 +677,29 @@ module.exports = class Kyoku implements EventEmitter::
 
   # resolution of declarations during query
   # called e.g. after query times out or all responses have been received
-  resolveQuery: !->
-    with @globalHidden.lastDeclared
-      if ..ron then return @_resolveRon!
-      # check for doujun/riichi furiten
-      @_updateFuritenResolve!
-      # if declared riichi isn't ron'd, it becomes accepted
-      @_checkAcceptedRiichi!
+  resolveQuery: !-> with @globalHidden.lastDeclared
+    if ..ron then return @_resolveRon!
+    # check for doujun/riichi furiten
+    @_updateFuritenResolve!
+    # if declared riichi isn't ron'd, it becomes accepted
+    @_checkAcceptedRiichi!
 
-      switch
-      | (action = ..kan)? => @_daiminkan action
-      | (action = ..pon)? => @_pon       action
-      | (action = ..chi)? => @_chi       action
-      | _ =>
-        # no declarations, move on
-        # NOTE: kakan/ankan => stay in player's turn
-        with @globalPublic
-          if ..lastAction.type == \dahai
-            ..player = (..player + 1)%4
-        @_goto \begin
-      # clear all declarations now that they're resolved
-      ..clear!
-      for i til 4 => @playerHidden[i].declaredAction = null
+    switch
+    | (action = ..kan)? => @_daiminkan action
+    | (action = ..pon)? => @_pon       action
+    | (action = ..chi)? => @_chi       action
+    | _ =>
+      # no declarations, move on
+      # NOTE: kakan/ankan => stay in player's turn
+      with @globalPublic
+        if ..lastAction.type == \dahai
+          ..player = (..player + 1)%4
+      @start!
+    # clear all declarations now that they're resolved
+    ..clear!
+    for i til 4 => @playerHidden[i].declaredAction = null
+    # proceed to next turn
+    if @globalPublic.state == \begin then @nextTurn!
 
   # (multi-)ron resolution
   # priority of players are decided by natural turn order after houjuu player:
@@ -727,7 +732,7 @@ module.exports = class Kyoku implements EventEmitter::
           if atamahane then break
     if (nRon == 2 and not double) or (nRon == 3 and not triple)
       @_end {
-        type: \RYOUKYOKU
+        type: \ryoukyoku
         delta: @globalPublic.delta.slice!
         kyoutaku: @globalPublic.kyoutaku # remains on table
         renchan
@@ -736,7 +741,7 @@ module.exports = class Kyoku implements EventEmitter::
     else
       for action in ronList => @_publishAction action
       @_end {
-        type: \RON
+        type: \ron
         delta
         kyoutaku: 0 # taken
         renchan
@@ -813,7 +818,7 @@ module.exports = class Kyoku implements EventEmitter::
       | _     => renchan = false
       # perform check if this rule is implemented
       if @[type]?! then return @_end {
-        type: \RYOUKYOKU
+        type: \ryoukyoku
         delta: @globalPublic.delta.slice!
         kyoutaku: @globalPublic.kyoutaku # remains on table
         renchan
@@ -835,7 +840,7 @@ module.exports = class Kyoku implements EventEmitter::
         for i in ten => delta[i] += sTen
         for i in noTen => delta[i] -= sNoTen
       return @_end {
-        type: \RYOUKYOKU
+        type: \ryoukyoku
         delta
         kyoutaku: @globalPublic.kyoutaku # remains on table
         renchan: @chancha in ten # all-no-ten & all-ten => also renchan
@@ -892,7 +897,9 @@ module.exports = class Kyoku implements EventEmitter::
        pon  and type == \minko   and d == o then return true
 
     if suji and type == \minshun and d.suite == o.suite
-      [p, q] = ownPai.map (.= equivPai) .sort Pai.compare
+      [p, q] = ownPai
+      p .= equivPai
+      q .= equivPai
       return p.succ == q and (
         (o.succ == p and q.succ == d) or # OPQD: PQ chi O => cannot dahai D
         (d.succ == p and q.succ == o)    # DPQO: PQ chi O => cannot dahai D
