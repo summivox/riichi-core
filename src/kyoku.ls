@@ -23,17 +23,10 @@ require! {
 module.exports = class Kyoku implements EventEmitter::
   (@init, @rulevar, wall = null) ->
     # events:
-    #   state transition: see state machine below
-    #     turn(player)
-    #     query(player, action)
-    #     resolved(): see `resolveQuery` (additional seq point)
-    #     end(result, next)
-    #   player action:
-    #     action(player, action)
-    #     declare(player, type)
-    #   extra info:
-    #     doraHyouji(pai)
-    #     tsumo(player, pai)
+    #   action(player, action)
+    #   declare(player, type)
+    #   doraHyouji(pai)
+    #   end(result, next)
     #
     # NOTE:
     # - 2 events are emitted upon tsumo (in this order):
@@ -129,28 +122,24 @@ module.exports = class Kyoku implements EventEmitter::
     # next: `init` for next kyoku, or null if whole game ends
     @next = null
 
-    # done
+    # done (can call `start` now)
+  start: !-> if @globalPublic.state == \begin then @_begin!
+
 
   # NOTE: underscore-prefixed methods should not be called from outside
+
 
   # state machine
   #   begin: player starts turn normally or after kan
   #   turn : awaiting player decision after tsumo
   #   query: awaiting other players' declaration (chi/pon/kan/ron)
   #   end  : game has finished
-  advance: !->
-    {player, state} = @globalPublic
-    switch state
-    | \begin  => @_begin!
-    | \turn   => @emit \turn , player
-    | \query  => @emit \query, player, @globalPublic.lastAction
-    | \end    => @emit \end  , @result, @next
-    | _ => throw Error "riichi-core: kyoku: advance: bad state (#state)"
   _goto: -> @globalPublic.state = it
+
 
   # actions: {type, player, details}
   #   details for each type:
-  #     tsumo/rinshanTsumo: # of piipai left
+  #     tsumo: true if rinshan
   #     dahai: {pai: pai, riichi: true/false, tsumokiri: true/false}
   #     chi/pon/kan: fuuro object (see playerpublic)
   #     tsumoAgari/ron: agari object
@@ -161,7 +150,7 @@ module.exports = class Kyoku implements EventEmitter::
     with @globalPublic
       ..actionLog.push it
       ..lastAction = it
-    @emit \action, it.player, it
+    @emit \action, it
 
   # called after \query action *declared* (see below)
   # NOTE: details of declared action should NOT be published
@@ -172,41 +161,31 @@ module.exports = class Kyoku implements EventEmitter::
     @emit \declare, player, type
 
 
-  # actions before player's turn
+  # actions before player's turn:
+  # - check for ryoukyoku
+  # - (rinshan) tsumo
   _begin: !->
     if @_checkRyoukyoku! then return
 
     # tsumo {draw} from either piipai or rinshan
     # NOTE:
-    # - rinshan tsumo also removes one piipai from the other end so that
-    #   total piipai count always decreases by 1 for each tsumo
-    # - separate events (see above for events definition)
+    # - howanpai already handled by ryoukyoku checks
+    # - rinshan tsumo also removes one piipai from tail side so that total
+    #   piipai count always decreases by 1 regardless of rinshan or not
     {player, lastAction} = @globalPublic
     isAfterKan = (lastAction.type == \kan)
-    n = --@globalPublic.nPiipaiLeft
+    @globalPublic.nPiipaiLeft--
     with @globalHidden
       if isAfterKan
         pai = ..rinshan.pop()
         ..piipai.shift()
-        @_publishAction {type: \rinshanTsumo, player, details: n}
       else
         pai = ..piipai.pop()
-        @_publishAction {type: \tsumo, player, details: n}
     @playerHidden[player].tsumo pai
-    @emit \tsumo, player, pai
-    @_goto \turn # NOTE: don't advance yet
+    @_goto \turn
+    @_publishAction {type: \tsumo, player, details: isAfterKan}
 
-    # if only option while in riichi is dahai, do it without asking
-    # FIXME: okurikan is perma-banned here -- need more checks if you want it
-    # enabled instead!
-    if @playerPublic[player].riichi.accepted
-    and not @canAnkan player, pai .valid
-    and not @canTsumoAgari player .valid
-      if @rulevar.riichi.autoTsumokiri # DEBUG
-        return @dahai player, null
-    @advance!
-
-  # mark end of kyoku and calculate `next`
+  # called after kyoku ends
   # rule variations:
   #   `.setup`
   _end: (@result) !->
@@ -214,7 +193,7 @@ module.exports = class Kyoku implements EventEmitter::
       points: {origin}
       end
     } = @rulevar
-    @next = do ~>
+    @next = next = do ~>
       {bakaze, chancha, honba, kyoutaku, points} = @init
       points .= slice!
       for i til 4
@@ -245,9 +224,8 @@ module.exports = class Kyoku implements EventEmitter::
 
       # next kyoku
       return {bakaze, chancha, honba, kyoutaku, points}
-    @_goto \end ; @advance!
-
-
+    @_goto \end
+    @emit \end, result, next
 
 
   # method pair with & without `can`-prefix: player action interface
@@ -300,6 +278,8 @@ module.exports = class Kyoku implements EventEmitter::
     with @_checkTurn player => if not ..valid then return ..
     tsumokiri = !pai?
 
+    if @playerPublic[player].riichi.accepted and not tsumokiri
+      return valid: false, reason: "can only tsumokiri after riichi"
     with @playerHidden[player]
       with (if tsumokiri then ..canTsumokiri! else ..canDahai pai)
         if not ..valid then return ..
@@ -339,7 +319,7 @@ module.exports = class Kyoku implements EventEmitter::
     @playerPublic[player].riichi.ippatsu = false
     @_updateFuritenDahai player
     @_revealDoraHyouji!
-    @_goto \query ; @advance!
+    @_goto \query
 
   # ankan
   # rule variations:
@@ -392,7 +372,6 @@ module.exports = class Kyoku implements EventEmitter::
     @_revealDoraHyouji \ankan
     @_clearIppatsu!
     if @rulevar.yaku.kokushiAnkan then @_goto \query else @_goto \begin
-    @advance!
 
   # kakan
   # NOTE: code mostly parallel with ankan
@@ -435,7 +414,7 @@ module.exports = class Kyoku implements EventEmitter::
     @_publishAction {type: \kan, player, details: fuuro}
     @_revealDoraHyouji \kakan
     @_clearIppatsu!
-    @_goto \query ; @advance!
+    @_goto \query
 
   # tsumoAgari
   canTsumoAgari: (player) ->
@@ -666,7 +645,7 @@ module.exports = class Kyoku implements EventEmitter::
     @_revealDoraHyouji \daiminkan
     @_publishAction action
     @_clearIppatsu!
-    @_goto \begin # do not advance yet -- see `resolveQuery`
+    @_goto \begin
 
   # ron
   canRon: (player) ->
@@ -694,8 +673,6 @@ module.exports = class Kyoku implements EventEmitter::
 
   # resolution of declarations during query
   # called e.g. after query times out or all responses have been received
-  #
-  # NOTE: cleanup between `@_goto` and `@advance`
   resolveQuery: !->
     with @globalHidden.lastDeclared
       if ..ron then return @_resolveRon!
@@ -718,8 +695,6 @@ module.exports = class Kyoku implements EventEmitter::
       # clear all declarations now that they're resolved
       ..clear!
       for i til 4 => @playerHidden[i].declaredAction = null
-    @emit \resolved
-    @advance!
 
   # (multi-)ron resolution
   # priority of players are decided by natural turn order after houjuu player:
@@ -955,6 +930,7 @@ module.exports = class Kyoku implements EventEmitter::
     gp = @globalPublic
     ph = @playerHidden[agariPlayer]
     pp = @playerPublic[agariPlayer]
+    la = gp.lastAction
     dict = {
       rulevar: @rulevar
 
@@ -976,7 +952,7 @@ module.exports = class Kyoku implements EventEmitter::
       uraDoraHyouji: gh.uraDoraHyouji
       nKan: gp.nKan
 
-      isAfterKan: gp.lastAction.type in <[kan rinshanTsumo]>
+      isAfterKan: la.type == \kan or (la.type == \tsumo and la.details == true)
       isHaitei: gp.nPiipaiLeft == 0
       isTrueFirstTsumo: @isTrueFirstTsumo agariPlayer
     }

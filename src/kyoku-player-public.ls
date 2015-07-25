@@ -28,7 +28,7 @@ module.exports = class PlayerPublic
     @fuuro = []
     @menzen = true # NOTE: menzen != no fuuro (due to ankan)
 
-    # riichi flags
+    # riichi flags: (managed externally by Kyoku logic)
     @riichi =
       declared: false # goes and stays true immediately after player declares
       accepted: false # goes and stays true when the dahai did not cause ron
