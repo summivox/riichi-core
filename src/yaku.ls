@@ -292,9 +292,13 @@ export
     return peikou == 2
   iipeikou: (decomp) -> decomp.peikou == 1
 
-  # 1-tsu: 123, 456, 789 in one of the suites
+  # 1-tsuu: 123, 456, 789 in one of the suites
   ikkitsuukan: (decomp) ->
     a = [[0 0 0], [0 0 0], [0 0 0]]
+    for f in fuuro
+      if f.type == \minshun and f.pai.N in [0 3 6]
+        a[f.pai.S][f.pai.N/3]++
+    # parallel
     for m in decomp.mentsu
       if m.type == \shuntsu and m.pai.N in [0 3 6]
         a[m.pai.S][m.pai.N/3]++
