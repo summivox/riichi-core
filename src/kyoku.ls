@@ -35,7 +35,7 @@ module.exports = class Kyoku implements EventEmitter::
     # - events always emitted asynchronously (see `_emit`)
     EventEmitter.call @
 
-    # `init` (immutable): default to first kyoku in game
+    # `init` (immutable): default to first kyoku with init points
     #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
     #   chancha: 0/1/2/3 {dealer}
     #   honba: >= 0
@@ -51,7 +51,7 @@ module.exports = class Kyoku implements EventEmitter::
     # - kyoutaku (deduction of player's points due to riichi) is not reflected in
     #   `init.points` as `init` is immutable; see `@globalPublic.delta`
     # - wall defaults to shuffled but can be provided (e.g. for testing)
-    p0 = rulevar.setup.points
+    p0 = rulevar.setup.points.init
     init ?=
       bakaze: 0
       chancha: 0
