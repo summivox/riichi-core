@@ -547,7 +547,7 @@ module.exports = class Kyoku implements EventEmitter::
     return valid: true, action: {
       type: \chi, player
       details: {
-        type: \minshun
+        type: \minjun
         pai
         ownPai: [pai0, pai1]
         otherPai
@@ -907,17 +907,17 @@ module.exports = class Kyoku implements EventEmitter::
   #   `.banKuikae`
   isKuikae: (fuuro, dahai) ->
     {type, ownPai, otherPai} = fuuro
-    if type not in <[minshun minko]> then return false
+    if type not in <[minjun minko]> then return false
     {moro, suji, pon} = @rulevar.banKuikae
 
     # NOTE: fuuro object is NOT modified
     # shorthands: (pq) chi (o) dahai (d)
     d = dahai.equivPai
     o = otherPai.equivPai
-    if moro and type == \minshun and d == o or
+    if moro and type == \minjun and d == o or
        pon  and type == \minko   and d == o then return true
 
-    if suji and type == \minshun and d.suite == o.suite
+    if suji and type == \minjun and d.suite == o.suite
       [p, q] = ownPai
       p .= equivPai
       q .= equivPai
@@ -939,7 +939,7 @@ module.exports = class Kyoku implements EventEmitter::
     if @globalPublic.nKan < 4 then return null
     for player til 4
       with @playerPublic[player].fuuro
-        if ..length == 4 and ..every (.type not in <[minshun minko]>)
+        if ..length == 4 and ..every (.type not in <[minjun minko]>)
           return player
     return null
 

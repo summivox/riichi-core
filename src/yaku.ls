@@ -296,7 +296,7 @@ export
   ikkitsuukan: (decomp) ->
     a = [[0 0 0], [0 0 0], [0 0 0]]
     for f in fuuro
-      if f.type == \minshun and f.pai.N in [0 3 6]
+      if f.type == \minjun and f.pai.N in [0 3 6]
         a[f.pai.S][f.pai.N/3]++
     # parallel
     for m in decomp.mentsu

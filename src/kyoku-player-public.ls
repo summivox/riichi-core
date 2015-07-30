@@ -19,7 +19,7 @@ module.exports = class PlayerPublic
     @lastSutehai = null
 
     # fuuro {melds}: (managed externally by Kyoku logic)
-    #   type: <[minshun minko daiminkan ankan kakan]>
+    #   type: <[minjun minko daiminkan ankan kakan]>
     #   pai: equiv. Pai with smallest number (e.g. 67m chi 0m => 5m)
     #   ownPai: array of Pai from this player's juntehai
     #   kakanPai: last Pai that makes the kakan
