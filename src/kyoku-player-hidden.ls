@@ -47,14 +47,6 @@ module.exports = class PlayerHidden
     @doujunFuriten = false
     @riichiFuriten = false
 
-    # stores details of a declaration yet to be resolved (chi/pon/kan/ron)
-    # (managed externally by Kyoku logic)
-    #
-    # NOTE: reason of this staying hidden: the player doesn't have to reveal
-    # the pai associated with declared action before resolution
-    # (`Kyoku::resolveQuery`)
-    @declaredAction = null
-
   # (3n+1) => (3n+1)*
   tsumo: (pai) !->
     if !pai? then return # NOTE: backdoor for `KyokuView`

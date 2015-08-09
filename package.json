@@ -12,12 +12,13 @@
     "Riichi"
   ],
   "author": "summivox",
-  "license": "GPLv2",
+  "license": "GPL-2.0",
   "bugs": {
     "url": "https://github.com/summivox/riichi-core/issues"
   },
   "homepage": "https://github.com/summivox/riichi-core#readme",
   "dependencies": {
-    "lodash._baseclone": "^3.3.0"
+    "lodash._baseclone": "^3.3.0",
+    "performance-now": "^0.2.0"
   }
 }

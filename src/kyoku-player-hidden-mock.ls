@@ -27,9 +27,6 @@ module.exports = class PlayerHiddenMock
     # fake decompTenpai: empty wait
     @decompTenpai = wait: []
 
-    # fake declaredAction: always null
-    @declaredAction = null
-
   # (3n+1) => (3n+1)*
   tsumo: !-> @hasTsumohai = true
 

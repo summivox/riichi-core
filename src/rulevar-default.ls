@@ -86,6 +86,6 @@ module.exports =
       origin: 30000 # overtime/sudden death starts if normal game completes but no one has point >= origin
     end:
       normal: 2
-      overtime: 4
+      overtime: 3
       suddenDeath: yes
       oyaALTop: yes

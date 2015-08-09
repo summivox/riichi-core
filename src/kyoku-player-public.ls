@@ -22,9 +22,9 @@ module.exports = class PlayerPublic
     #   type: <[minjun minko daiminkan ankan kakan]>
     #   pai: equiv. Pai with smallest number (e.g. 67m chi 0m => 5m)
     #   ownPai: array of Pai from this player's juntehai
-    #   kakanPai: last Pai that makes the kakan
     #   otherPai: Pai taken from other player
     #   otherPlayer
+    #   kakanPai: last Pai that makes the kakan
     @fuuro = []
     @menzen = true # NOTE: menzen != no fuuro (due to ankan)
 
