@@ -20,7 +20,7 @@
 
 require! {
   './util': {randomShuffle}
-  'lodash._baseclone': baseClone
+  'lodash.cloneDeep': cloneDeep
 }
 
 SUUPAI = /([0-9])([mps])/
@@ -266,9 +266,9 @@ Pai.cloneBins = ->
   [it.0.slice!, it.1.slice!, it.2.slice!, it.3.slice!]
 
 
-# generate array of all 136 pai in uniform random order
+# generate array of all 136 pai + uniform random shuffle
 # nAkahai: # of [0m, 0p, 0s] to replace corresponding [5m, 5p, 5s]
-Pai.shuffleAll = (nAkahai = [1 1 1]) ->
+Pai.makeAll = (nAkahai = [1 1 1]) ->
   [m0, p0, s0] = nAkahai
   m5 = 4 - m0
   p5 = 4 - p0
@@ -279,11 +279,12 @@ Pai.shuffleAll = (nAkahai = [1 1 1]) ->
       "1111222233334444#{'0'*p0}#{'5'*p5}6666777788889999p"+
       "1111222233334444#{'0'*s0}#{'5'*s5}6666777788889999s"+
       "1111222233334444555566667777z"
-  a = Pai.arrayFromString S
-  randomShuffle a
+  Pai.arrayFromString S
+Pai.shuffleAll = (nAkahai) ->
+  randomShuffle Pai.makeAll nAkahai
 
 # deep clone object while correctly handling Pai, even serialized
 Pai.cloneFix = (o) ->
-  baseClone o, true, !->
+  cloneDeep o, !->
     if it?.paiStr then return it
     if typeof it is \string and it is /^\d[mpsz]$/ then return Pai[it]

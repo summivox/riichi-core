@@ -1,8 +1,8 @@
 module.exports =
-  VERSION: '0.1.0'
+  VERSION: require '../package.json' .version
 
   dora:
-    akahai: [1, 1, 1] # number of 0m/p/s to replace 5m/p/s
+    akahai: [1 1 1] # number of 0m/p/s to replace 5m/p/s
 
     # kan:
     #   no => no kan-dora
@@ -64,14 +64,14 @@ module.exports =
   #   yes: can ryoukyoku and renchan
   ryoukyoku:
     kyuushuukyuuhai: yes
-    nagashimankan: no # TODO
+    nagashimangan: no # TODO
     tochuu:
       suufonrenta: yes
       suukaikan: yes
       suuchariichi: yes
 
   # game-wide rules
-  # - each player starts with `points.init`
+  # - each player starts with `points.initial`
   # - normal game: play until `bakaze == end.normal`
   # - if oya renchan during last kyoku in normal game: game ends
   # - if no player has point at least `points.origin`: enter overtime
@@ -82,7 +82,7 @@ module.exports =
   #     - otherwise: checked at end of a bakaze
   setup:
     points:
-      init: 25000   # each player starts with this
+      initial: 25000 # each player starts with this
       origin: 30000 # overtime/sudden death starts if normal game completes but no one has point >= origin
     end:
       normal: 2

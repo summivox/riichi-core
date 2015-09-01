@@ -27,6 +27,8 @@ export function count(arr, f)
   s = 0
   for x in arr => if f x then s++
   s
+export function invert(obj)
+  {[v, k] for k, v of obj}
 
 # NOTE: in-place operation
 export function randomShuffle(arr, rand = Math.random)
@@ -35,3 +37,11 @@ export function randomShuffle(arr, rand = Math.random)
     j = ~~(rand! * (i + 1))
     t = arr[j] ; arr[j] = arr[i] ; arr[i] = t
   arr
+
+# providing defaults for a nested options object
+require! {
+  'lodash.cloneDeep': cloneDeep
+  'lodash.merge': merge
+}
+export function addDefaultsTo(def, obj)
+  merge cloneDeep(def), obj

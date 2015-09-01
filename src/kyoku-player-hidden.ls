@@ -49,7 +49,6 @@ module.exports = class PlayerHidden
 
   # (3n+1) => (3n+1)*
   tsumo: (pai) !->
-    if !pai? then return # NOTE: backdoor for `KyokuView`
     if @tsumohai?
       # arriving at here means corrupt state => panic
       throw Error "riichi-core: kyoku: PlayerHidden: "+

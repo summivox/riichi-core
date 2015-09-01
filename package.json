@@ -9,7 +9,8 @@
   },
   "keywords": [
     "Mahjong",
-    "Riichi"
+    "Riichi",
+    "Game"
   ],
   "author": "summivox",
   "license": "GPL-2.0",
@@ -19,6 +20,9 @@
   "homepage": "https://github.com/summivox/riichi-core#readme",
   "dependencies": {
     "lodash._baseclone": "^3.3.0",
+    "lodash.clonedeep": "^3.0.1",
+    "lodash.difference": "^3.2.2",
+    "lodash.merge": "^3.3.2",
     "performance-now": "^0.2.0"
   }
 }

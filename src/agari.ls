@@ -56,8 +56,8 @@ require! {
 #     `fu`
 
 module.exports = class Agari
-  ->
-    import it
+  (input) ->
+    import all input
 
     # tenpai and agari decompsition
     if @decompTenpai.length == 0 then return @isAgari = false
@@ -115,17 +115,16 @@ module.exports = class Agari
         maxDecompResult = yakuResult
 
     if maxBasicPoints == 0 then return @isAgari = false
-    import maxDecompResult
-    @delta = getDelta maxBasicPoints, @
-    return @isAgari = true
+    import all maxDecompResult
+    @delta = getDelta @
 
-Agari <<<< {
-  augmentFuuro
-  getDora
-  getBasicPoints, getBasicPointsYakuman
-  getDelta
-  getYakuResult, getYakumanResult
-}
+  import all {
+    augmentFuuro
+    getDora
+    getBasicPoints, getBasicPointsYakuman
+    getDelta
+    getYakuResult, getYakumanResult
+  }
 
 # add fields for each fuuro object:
 #   allPai: sorted Pai array
@@ -141,7 +140,7 @@ function augmentFuuro({fuuro})
       if f.kakanPai => ..push f.kakanPai
       ..sort Pai.compare
     switch f.type
-    | \minjun            => fu = 0
+    | \minjun             => fu = 0
     | \minko              => fu = 2
     | \daiminkan, \kakan  => fu = 8
     | \ankan              => fu = 16
@@ -177,7 +176,7 @@ function getDora({
     ret.uraDora += count uraDora, p
   ret
 
-function getBasicPoints(han, fu)
+function getBasicPoints({han, fu})
   switch han
   | 0 => 0
   | 1, 2, 3, 4, 5 => (fu*(1.<<.(2+han)) <? 2000)
@@ -187,8 +186,8 @@ function getBasicPoints(han, fu)
   | _         => 8000
 function getBasicPointsYakuman(yakumanTotal) => 8000 * yakumanTotal
 
-function getDelta(basicPoints, {
-  chancha, agariPlayer, houjuuPlayer, isRon, honba
+function getDelta({
+  basicPoints, chancha, agariPlayer, houjuuPlayer, isRon, honba
 })
   # distribution {fudangaku} calculation
   # [0] tsumo : ko  <- each ko
@@ -297,7 +296,7 @@ function getYakuResult(decomp, {
 
   if yakuTotal == 0 then return {basicPoints: 0}
   han = yakuTotal + doraTotal
-  basicPoints = getBasicPoints han, fu
+  basicPoints = getBasicPoints {han, fu}
   return {basicPoints, yaku, yakuTotal, han, fu}
 
 # mostly parallel to getYakuResult (the yaku part)

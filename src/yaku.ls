@@ -7,7 +7,7 @@
 #
 # NOTE:
 # - \pinfu is NOT included (handled during fu calculation)
-# - \chiitoi is included (other mentsu-agnostic yaku might still apply)
+# - \chiitoitsu is included (other mentsu-agnostic yaku might still apply)
 #   no need to list as conflict in mentsu-specific yaku
 # - any yakuman overrides all normal yaku
 # - some names contain extra 'n' -- this agrees with Japanese IME input rules
@@ -50,7 +50,7 @@ export YAKU_LIST =
     menzenHan: 2, kuiHan: 2
 
   * name: \honraotou # NOTE: agrees with `Pai::isRaotoupai`
-    conflict: <[honchantaiyaochuu]>
+    conflict: <[honchantaiyaochuu]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \sannankou
@@ -117,7 +117,7 @@ export YAKU_LIST =
 
 
 # yakuman
-# - kokushi is NOT included (handled specially)
+# - \kokushi and \kokushi13 are NOT included (exclusive override)
 # - "times yakuman" is specified in rule variations instead
 export YAKUMAN_LIST =
   * name: \tenhou
