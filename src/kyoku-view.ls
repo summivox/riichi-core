@@ -49,8 +49,8 @@ module.exports = class KyokuView
   #   PlayerHidden juntehai state diagram); this is corrected after dahai
   @packFromKyoku = (kyoku, me) ->
     if kyoku.VERSION != VERSION # TODO: semver
-      throw Error "riichi-core: KyokuView: packFromKyoku: incompatible version 
-        (ours: #VERSION; their: #{kyoku.VERSION}"
+      throw Error "riichi-core: KyokuView: packFromKyoku: incompatible version
+        (ours: #VERSION; their: #{kyoku.VERSION})"
     pack = {me}
     if kyoku.phase != \end
       pack{
