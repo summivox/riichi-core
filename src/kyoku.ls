@@ -412,7 +412,7 @@ module.exports = class Kyoku implements EventEmitter::
       if ..nKan >= 4 and not @suukantsuCandidate!?
         return valid: false, reason: "cannot kan when no rinshan left"
     if @lastAction.type in <[chi pon]>
-      return valid: false, reason: "cannot ankan after #{@lastAction.type}"
+      return valid: false, reason: "cannot kakan after #{@lastAction.type}"
     pai .= equivPai
     found = false
     for fuuro in @playerPublic[player].fuuro
@@ -527,6 +527,8 @@ module.exports = class Kyoku implements EventEmitter::
   #     false => don't use even if you have it
   canChi: (player, dir, useAkahai) ->
     with @_checkQuery player => if not ..valid then return ..
+    if @playerPublic[player].riichi.accepted
+      return valid: false, reason: "cannot chi after riichi"
     if @globalPublic.nPiipaiLeft <= 0
       return valid: false, reason: "cannot chi when no piipai left"
     with @lastAction
@@ -594,6 +596,8 @@ module.exports = class Kyoku implements EventEmitter::
     with @_checkQuery player => if not ..valid then return ..
     if not (0 <= maxAkahai <= 2)
       return valid: false, reason: "maxAkahai should be 0/1/2"
+    if @playerPublic[player].riichi.accepted
+      return valid: false, reason: "cannot pon after riichi"
     if @globalPublic.nPiipaiLeft <= 0
       return valid: false, reason: "cannot pon when no piipai left"
     with @lastAction
@@ -640,6 +644,8 @@ module.exports = class Kyoku implements EventEmitter::
   # declared during player's own turn
   canDaiminkan: (player) ->
     with @_checkQuery player => if not ..valid then return ..
+    if @playerPublic[player].riichi.accepted
+      return valid: false, reason: "cannot daiminkan after riichi"
     with @globalPublic
       if ..nPiipaiLeft <= 0
         return valid: false, reason: "cannot kan when no piipai left"
