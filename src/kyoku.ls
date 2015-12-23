@@ -26,20 +26,20 @@ require! {
 }
 
 module.exports = class Kyoku implements EventEmitter::
-  ({rulevar, gameStateBefore, wall}) ->
+  ({rulevar, startState, wall}) ->
     @VERSION = VERSION
 
     # events: always emitted asynchronously (see `@_emit`)
     #   action(action)
     #   declare(player, type)
     #   doraHyouji(pai)
-    #   end(result, gameStateAfter)
+    #   end(result, endState)
     EventEmitter.call @
 
     # rulevar: missing object/fields filled with default
     @rulevar = rulevar = merge {}, rulevarDefault, rulevar
 
-    # gameStateBefore:
+    # startState:
     #   seq: origin of action sequence number (see `@seq`)
     #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
     #   chancha: 0/1/2/3 {dealer}
@@ -48,12 +48,12 @@ module.exports = class Kyoku implements EventEmitter::
     #   points: array of each player's points at the start of kyoku
     #
     # NOTE:
-    # - gameStateBefore is immutable
+    # - startState is immutable
     # - if not supplied, defaults to first kyoku in game
     # - kyoutaku during this kyoku is not reflected in `.points` due to
     #   immutability; see `@globalPublic.delta`
     p0 = rulevar.setup.points.initial
-    @gameStateBefore = gameStateBefore ?=
+    @startState = startState ?=
       seq: 0
       bakaze: 0
       chancha: 0
@@ -71,7 +71,7 @@ module.exports = class Kyoku implements EventEmitter::
     {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
 
     # id of chancha {dealer}
-    @chancha = chancha = gameStateBefore.chancha
+    @chancha = chancha = startState.chancha
     # jikaze {seat wind} of each player
     jikaze =
       (4 - chancha)%4
@@ -87,7 +87,7 @@ module.exports = class Kyoku implements EventEmitter::
       doraHyouji: [doraHyouji[0]]
 
       # riichi-related: see `@_checkAcceptedRiichi`
-      kyoutaku: gameStateBefore.kyoutaku
+      kyoutaku: startState.kyoutaku
       delta: [0 0 0 0]
       nRiichi: 0
     }
@@ -96,7 +96,7 @@ module.exports = class Kyoku implements EventEmitter::
 
     # game progression: (TODO DOC)
     #   seq: action sequence number
-    #     == `@gameStateBefore.seq`+1, +2, +3, ...
+    #     == `@startState.seq`+1, +2, +3, ...
     #     == `lastAction.seq`
     #   phase:
     #     begin: after turn starts or successful kan; before tsumo
@@ -104,7 +104,7 @@ module.exports = class Kyoku implements EventEmitter::
     #     query: after own-turn action; awaiting declaration (chi/pon/kan/ron)
     #     end  : end of kyoku
     #   currPlayer: (obvious)
-    @seq = gameStateBefore.seq
+    @seq = startState.seq
     @phase = \begin
     @currPlayer = chancha
 
@@ -141,8 +141,8 @@ module.exports = class Kyoku implements EventEmitter::
     #   ryoukyoku: reason (string)
     @result = null
 
-    # gameStateAfter: see `@_end`
-    @gameStateAfter = null
+    # endState: see `@_end`
+    @endState = null
 
     # done (call `nextTurn` to start kyoku)
 
@@ -197,7 +197,7 @@ module.exports = class Kyoku implements EventEmitter::
     @phase = \turn
 
   # called when kyoku should end:
-  # - calculate what next kyoku should be (`gameStateAfter`)
+  # - calculate what next kyoku should be (`endState`)
   # - publish result
   SEQ_MAJOR = 10000
   _end: (@result) !->
@@ -205,9 +205,9 @@ module.exports = class Kyoku implements EventEmitter::
       points: {origin}
       end
     } = @rulevar
-    @gameStateAfter = gameStateAfter = do ~>
+    @endState = endState = do ~>
       seq = floorTo(++@seq, SEQ_MAJOR) + SEQ_MAJOR
-      {bakaze, chancha, honba, points} = @gameStateBefore
+      {bakaze, chancha, honba, points} = @startState
       {kyoutaku, delta} = result
 
       # apply delta to points
@@ -243,7 +243,7 @@ module.exports = class Kyoku implements EventEmitter::
       # next kyoku
       return {seq, bakaze, chancha, honba, kyoutaku, points}
     @phase = \end
-    @_emit \end, result, gameStateAfter
+    @_emit \end, result, endState
 
 
   # method pair with & without `can`-prefix: action interface
@@ -969,7 +969,7 @@ module.exports = class Kyoku implements EventEmitter::
   # many points is it worth
   _agari: (agariPlayer, agariPai, houjuuPlayer = null) ->
     if not agariPai then return null
-    gsb = @gameStateBefore
+    gsb = @startState
     gh = @globalHidden
     gp = @globalPublic
     ph = @playerHidden[agariPlayer]

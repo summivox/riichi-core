@@ -332,7 +332,7 @@ const AGARI_YAKU_KAZE = <[東 南 西 北]> #
 const AGARI_YAKU_DICT_INV = invert AGARI_YAKU_DICT
 export function makeAgari({
   chancha, bakaze
-}:gameStateBefore, {
+}:startState, {
   isTsumo, isRon, delta
   player, houjuuPlayer
   han, fu, basicPoints, dora
@@ -427,15 +427,15 @@ export function parseResult([type]:result)
     ... # TODO: lack of result
 
 const RYOUKYOKU_DICT_INV = invert RYOUKYOKU_DICT
-export function makeResult(gameStateBefore, {type, delta, details})
+export function makeResult(startState, {type, delta, details})
   switch type
   | \tsumoAgari =>
-    details = makeAgari gameStateBefore, details
+    details = makeAgari startState, details
     ['和了', delta, details]
   | \ron =>
     with ['和了']
       for a in details
-        ..push a.delta, makeAgari gameStateBefore, a
+        ..push a.delta, makeAgari startState, a
   | \ryoukyoku =>
     switch details
     | \howanpai, \nagashiMangan =>
@@ -463,7 +463,7 @@ export function parseKyoku([
 
   bakaze = nKyoku.>>.2 # floor div 4
   chancha = nKyoku%4
-  gameStateBefore = {seq, bakaze, chancha, honba, kyoutaku, points}
+  startState = {seq, bakaze, chancha, honba, kyoutaku, points}
 
   # parse each component
   doraHyouji .= map (PAI.)
@@ -499,7 +499,7 @@ export function parseKyoku([
   #
   # Even in the case actual wall is embedded, recontructed wall is checked
   # against it to ensure integrity.
-  
+
   # rearrange: hai0/1/2/3 => E/S/W/N
   [hai0, hai1, hai2, hai3] = hai[chancha til 4] ++ hai[0 til chancha]
   wall = [
@@ -586,19 +586,19 @@ export function parseKyoku([
   result.kyoutaku = kyoutaku
 
   return {
-    gameStateBefore
+    startState
     wall
     actionLog
     result
   }
 export function makeKyoku({
-  gameStateBefore
+  startState
   wall
   actionLog
   result
 })
   # mostly borrowed from `./kyoku`:`Kyoku::constructor`
-  {seq, bakaze, chancha, honba, kyoutaku, points} = gameStateBefore
+  {seq, bakaze, chancha, honba, kyoutaku, points} = startState
   nKyoku = bakaze*4 + chancha
   {haipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
   doraHyouji .= map (PAI_INV.)
@@ -611,7 +611,7 @@ export function makeKyoku({
   for {player}:action in actionLog
     if (i = makeIncoming action)? then inc[player].push i
     if (o = makeOutgoing action)? then out[player].push o
-  rawResult = makeResult gameStateBefore, result
+  rawResult = makeResult startState, result
 
   [
     [nKyoku, honba, kyoutaku]

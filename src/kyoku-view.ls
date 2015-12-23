@@ -54,7 +54,7 @@ module.exports = class KyokuView
     pack = {me}
     if kyoku.phase != \end
       pack{
-        gameStateBefore
+        startState
         seq, phase, currPlayer, lastAction
         globalPublic, playerPublic
       } = kyoku
@@ -69,9 +69,9 @@ module.exports = class KyokuView
           nJuntehai: ph.juntehai.length
     else
       pack{
-        gameStateBefore
+        startState
         seq, phase
-        result, gameStateAfter
+        result, endState
       } = kyoku
     pack
 
@@ -80,9 +80,9 @@ module.exports = class KyokuView
   # - restore classes
   # - re-compute omitted
   (@rulevar, pack) ->
-    @{me, gameStateBefore, seq, phase, currPlayer} = pack
+    @{me, startState, seq, phase, currPlayer} = pack
 
-    @chancha = @gameStateBefore.chancha
+    @chancha = @startState.chancha
 
     # NOTE: [] always reads/pops `void`
     @globalHidden =
