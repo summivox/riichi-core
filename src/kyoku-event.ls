@@ -95,13 +95,13 @@ Event.deal = class Deal #{{{
     return this
 
   apply: !-> with kyoku = @[KYOKU]
-    if not ..isReplicated # master
+    if not ..isReplicated # master: {[SPLIT]}
       s = @[SPLIT]
-      initDoraHyouji = [s.initDoraHyouji.0]
+      initDoraHyouji = [s.doraHyouji.0]
       ..globalHidden = s
       ..playerHidden = for p til 4
         new PlayerHidden s.haipai[(4 - ..chancha + p) % 4]
-    else # replicate
+    else # replicate: {haipai, initDoraHyouji}
       initDoraHyouji = @initDoraHyouji
       ..globalHidden = null
       ..playerHidden = for p til 4
@@ -121,7 +121,6 @@ Event.tsumo = class Tsumo #{{{
   #	  rinshan: bool
   #	  pai: ?Pai -- for current player only
 
-  # constructor: master
   (kyoku) -> with kyoku
     assert not ..isReplicated
     assert ..globalPublic.nPiipaiLeft > 0
@@ -139,6 +138,7 @@ Event.tsumo = class Tsumo #{{{
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
+    assert ..globalPublic.nPiipaiLeft > 0
     return this
 
   apply: !-> with kyoku = @[KYOKU]
@@ -160,7 +160,7 @@ Event.tsumo = class Tsumo #{{{
 Event.dahai = class Dahai #{{{
   # replicate-initiated
   # minimal:
-  #   pai: ?Pai -- null implies tsumokiri
+  #   pai: Pai
   #   tsumokiri: ?bool
   #   riichi: bool
   # full:
@@ -174,7 +174,7 @@ Event.dahai = class Dahai #{{{
     if ..isReplicated
       assert.equal @player, ..me,
         "cannot construct for others on replicate instance"
-    # null `pai` implies tsumokiri
+    # constructor shortcut: null `pai` implies tsumokiri
     # by definition: `pai = tsumohai`
     if !@pai? or @tsumokiri
       @pai = ..playerHidden[@player].tsumohai
@@ -187,22 +187,24 @@ Event.dahai = class Dahai #{{{
     assert.equal @player, ..currPlayer
     assert ..phase in <[postTsumo postChiPon]>,
       "can only dahai after tsumo/chi/pon"
-
-    PH = ..playerHidden[@player]
     PP = ..playerPublic[@player]
+    PH = ..playerHidden[@player]
+
+    assert.notNull @pai
+    pai = @pai
 
     if PP.riichi.accepted
       assert.isTrue @tsumokiri, "can only tsumokiri after riichi"
       assert.isFalse @riichi, "can only riichi once"
 
+    if ..phase == \postChiPon and ..rulevar.banKuikae?
+      assert not ..isKuikae(PP.fuuro[*-1], pai), "kuikae banned by rule"
+
     # master: try reveal doraHyouji
     if not ..isReplicated
       @newDoraHyouji ?= getNewDoraHyouji kyoku, \dahai
-    # replicate-others: no information for checking others => assume valid
-    if ..isReplicated and @player != ..me then return this
 
-    # master, replicate-me
-    pai = @pai
+    if PH not instanceof PlayerHidden then return this
     with (if @tsumokiri then PH.canTsumokiri! else PH.canDahai pai)
       assert ..valid, ..reason
     if @riichi
@@ -215,14 +217,12 @@ Event.dahai = class Dahai #{{{
       else
         decomp = PH.decompTenpaiWithout pai # calculated on demand
       assert decomp?.wait?.length > 0, "not tenpai if dahai is [#pai]"
-    if ..phase == \postChiPon
-      assert not ..isKuikae(PP.fuuro[*-1], pai), "kuikae banned by rule"
 
     return this
 
   apply: !-> with kyoku = @[KYOKU]
-    PH = ..playerHidden[@player]
     PP = ..playerPublic[@player]
+    PH = ..playerHidden[@player]
 
     if @riichi
       PP.riichi.declared = true
@@ -267,9 +267,9 @@ Event.ankan = class Ankan #{{{
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
-
     GP = ..globalPublic
-    PH = ..playerHidden[player]
+    PP = ..playerPublic[@player]
+    PH = ..playerHidden[@player]
 
     assert.notNull @pai
     pai = @pai = @pai.equivPai
@@ -294,17 +294,14 @@ Event.ankan = class Ankan #{{{
       kakanPai: null
     }
 
-    # replicate-others: no information for checking others => assume valid
-    if ..isReplicated and @player != ..me then return this
-
     # master: try reveal doraHyouji
     if not ..isReplicated
       @newDoraHyouji ?= getNewDoraHyouji kyoku, \ankan
 
-    # master, replicate-me
+    if PH not instanceof PlayerHidden then return this
     assert.equal (n = PH.countEquiv pai), 4,
       "not enough [#pai] (you have #n, need 4)"
-    if @playerPublic[player].riichi.accepted
+    if PP.riichi.accepted
       assert.isTrue @rulevar.riichi.ankan, "riichi ankan: not allowed by rule"
       # riichi ankan condition (simplified)
       #   basic: all tenpai decomps must have `pai` as koutsu
@@ -361,10 +358,9 @@ Event.kakan = class Kakan #{{{
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
-
     GP = ..globalPublic
-    PH = ..playerHidden[player]
-    PP = ..playerPublic[player]
+    PP = ..playerPublic[@player]
+    PH = ..playerHidden[@player]
 
     assert.notNull @pai
     {equivPai} = pai = @pai
@@ -381,11 +377,9 @@ Event.kakan = class Kakan #{{{
     # master: try reveal doraHyouji
     if not ..isReplicated
       @newDoraHyouji ?= getNewDoraHyouji kyoku, \kakan
-    # <replicate-others>: no information for checking others => assume valid
-    if ..isReplicated and @player != ..me then return this
 
-    # master, replicate-me: check if `pai` exists in juntehai
-    assert.equal PH.count1(pai), 1
+    if PH instanceof PlayerHidden
+      assert.equal PH.count1(pai), 1, "need [#pai] in juntehai"
 
     return this
 
@@ -393,7 +387,7 @@ Event.kakan = class Kakan #{{{
     # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
     # TODO: impl ryoukyoku in general -- above should be unnecessary
 
-    ..playerHidden[player].removeEquivN @pai.equivPai, 1
+    ..playerHidden[@player].removeEquivN @pai.equivPai, 1
     @[FUURO]
       ..type = \kakan
       ..kakanPai = @pai
@@ -411,7 +405,7 @@ Event.tsumoAgari = class TsumoAgari #{{{
   # minimal: null
   # full:
   #   player: 0/1/2/3
-  #   delta: [4]Number
+  #   delta: [4]Integer
   #   agari: Agari
 
   (kyoku) -> with kyoku
@@ -427,15 +421,17 @@ Event.tsumoAgari = class TsumoAgari #{{{
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
+    PH = ..playerHidden[@player]
 
-    # <replicate-others>: no information for checking others => assume valid
-    if ..isReplicated and @player != ..me then return this
+    if PH instanceof PlayerHidden
+      tsumohai = PH.tsumohai
+      assert.notNull tsumohai, "tsumoAgari requires tsumohai"
+      @agari = .._agari(@player, tsumohai)
+      assert.notNull @agari
+    else # PlayerHiddenMock
+      assert PH.hasTsumohai, "tsumoAgari requires tsumohai"
+      # this is for completeness -- could be redundant
 
-    # master, replicate-me
-    tsumohai = ..playerHidden[player].tsumohai
-    assert.notNull tsumohai, "tsumoAgari requires tsumohai"
-    @agari = .._agari(player, tsumohai)
-    assert.notNull @agari
     return this
 
   apply: !-> with kyoku = @[KYOKU]
@@ -456,7 +452,7 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai #{{{
   # minimal: null
   # full:
   #   player: 0/1/2/3
-  #   delta: [4]Number
+  #   delta: [4]Integer
 
   (kyoku) -> with kyoku
     ...
@@ -482,6 +478,7 @@ Event.declare = class Declare #{{{
     @init kyoku
 
   init: (kyoku) -> with @[KYOKU] = kyoku
+    assert @what in <[chi pon daiminkan ron]>
     new Event[@what](kyoku) # verify validity
     return this
 
@@ -497,8 +494,9 @@ Event.chi = class Chi #{{{
   #   player: 0/1/2/3 -- must be next player of `currPlayer`
   #   option 1:
   #     ownPai: [2]Pai -- should satisfy the following:
+  #       both must exist in juntehai
   #       ownPai.0.equivNumber < ownPai.1.equivNumber
-  #       `ownPai ++ kyoku.currPai` should form shuntsu
+  #       `ownPai ++ kyoku.currPai` should form a shuntsu
   #   option 2:
   #     dir: Number
   #       < 0 : e.g. 34m chi 5m
@@ -533,7 +531,7 @@ Event.chi = class Chi #{{{
       | dir == 0 => assert n not in [1 9] ; op0 = P[n - 1] ; op1 = P[n + 1]
       | dir >  0 => assert n not in [8 9] ; op0 = P[n + 1] ; op1 = P[n + 2]
       @ownPai = [op0, op1]
-      with ..playerHidden[player]
+      with ..playerHidden[@player]
         assert (..countEquiv op0 and ..countEquiv op1),
           "you must have [#{op0}#{op1}] in juntehai"
         # check whether we replace one of @ownPai with corresponding akahai
@@ -556,13 +554,13 @@ Event.chi = class Chi #{{{
     assert.equal ..phase, \postDahai
 
     assert.lengthOf @ownPai, 2
-    a = @ownPai.0
-    b = @ownPai.1
+    [a, b] = @ownPai
     c = ..currPai
-    assert a.N < b.N, "ownPai should be in ascending order"
+    if a.N > b.N then [a, b] = @ownPai = [b, a]
     [p, q, r] = [a, b, c] .map (.equivPai) .sort Pai.compare
     assert (p.suite == q.suite == r.suite and p.succ == q and q.succ == r),
       "[#p#q#r] is not valid shuntsu"
+      # NOTE: `equivPai` is shown (not original)
 
     # build fuuro object
     @[FUURO] = {
@@ -574,43 +572,96 @@ Event.chi = class Chi #{{{
       kakanPai: null
     }
 
-    # replicate-others: no information for checking others => assume valid
-    if ..isReplicated and @player != ..me then return this
-
-    with ..playerHidden[player]
+    with ..playerHidden[@player] => if .. instanceof PlayerHidden
       assert (..count1 a and ..count1 b), "you must have [#a#b] in juntehai"
 
     return this
 
   apply: !-> with kyoku = @[KYOKU]
-    ..playerHidden[@player].remove2 pai0, pai1
+    ..playerHidden[@player].remove2 @ownPai.0, @ownPai.1
     ..playerPublic[@player]
-      ..fuuro.push fuuro
+      ..fuuro.push @[FUURO]
       ..menzen = false
     ..playerPublic[..currPlayer].lastSutehai.fuuroPlayer = @player
 
     # TODO: unified generalized ippatsu
 
     ..currPlayer = @player
-    ..phase = \turn # do not advance yet -- see `..resolveQuery`
+    ..phase = \postChiPon
     ..seq++
 #}}}
 
 Event.pon = class Pon #{{{
-  # replicate-initiated
-  # minimal: null
+  # replicate-declared
+  # minimal:
+  #   player: 0/1/2/3 -- must be next player of `currPlayer`
+  #   option 1:
+  #     ownPai: [2]Pai -- should satisfy the following:
+  #       both must exist in juntehai
+  #       `ownPai ++ kyoku.currPai` should form a koutsu (i.e. same `equivPai`)
+  #   option 2:
+  #     maxAkahai: Integer -- max number of akahai to use as ownPai
   # full:
-  #   player: 0/1/2/3
-  #   delta: [4]Number
+  #   ownPai: [2]Pai
+  # private:
+  #   FUURO
 
-  (kyoku) -> with kyoku
-    ...
+  (kyoku, {@player, @ownPai, maxAkahai = 2}) -> with kyoku
+    @type = \pon
+    @seq = ..seq
+    if ..isReplicated
+      assert.equal @player, ..me,
+        "cannot construct for others on replicate instance"
+    if !@ownPai?
+      # infer `ownPai` from `maxAkahai`
+      assert.isNumber maxAkahai
+      pai = ..currPai
+      with ..playerHidden[@player]
+        nAll = ..countEquiv pai
+        assert nAll >= 2, "not enough [#pai] (you have #nAll, need 2)"
+        if pai.number == 5
+          akahai = Pai[pai.S][0]
+          nAkahai = ..count1 akahai
+          nAkahai <?= maxAkahai <? 2
+        else
+          nAkahai = 0
+      @ownPai = switch nAkahai
+      | 0 => [pai, pai]
+      | 1 => [akahai, pai]
+      | 2 => [akahai, akahai]
+    @init kyoku
 
   init: (kyoku) -> with @[KYOKU] = kyoku
-    ...
+    assert.equal @seq, ..seq
+    assert.notEqual @player, ..currPlayer
+    assert.equal ..phase, \postDahai
 
-  apply: !-> with kyoku = @[KYOKU]
-    ...
+    assert.lengthOf @ownPai, 2
+    [a, b] = @ownPai
+    c = ..currPai
+    if a.N > b.N then [a, b] = @ownPai = [b, a]
+    assert a.equivPai == b.equivPai == c.equivPai,
+      "[#a#b#c] is not a valid koutsu"
+
+    # build fuuro object
+    @[FUURO] = {
+      type: \minko
+      anchor: c.equivPai
+      ownPai: @ownPai
+      otherPai: c
+      fromPlayer: ..currPlayer
+      kakanPai: null
+    }
+
+    with ..playerHidden[@player] => if .. instanceof PlayerHidden
+      if a == b
+        assert ..count1 a >= 2, "you must have [#a#b] in juntehai"
+      else
+        assert (..count1 a and ..count1 b), "you must have [#a#b] in juntehai"
+
+    return this
+
+  apply: Chi::apply # same object layout -- simply reuse
 #}}}
 
 
