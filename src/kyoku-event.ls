@@ -152,7 +152,7 @@ Event.tsumo = class Tsumo #{{{
     ..globalPublic.nPiipaiLeft--
     ..playerHidden[..currPlayer].tsumo @pai
 
-    ..currPai = @pai
+    ..currPai = @pai # NOTE: null on replicate-others -- this is okay
     ..phase = \postTsumo
     ..seq++
 #}}}
@@ -239,6 +239,7 @@ Event.dahai = class Dahai #{{{
     .._updateFuritenDahai @player
     addDoraHyouji kyoku, @newDoraHyouji
 
+    ..rinshan = false
     ..currPai = @pai
     ..phase = \postDahai
     ..seq++
@@ -288,7 +289,8 @@ Event.ankan = class Ankan #{{{
       ownPai = [pai]*4
     @[FUURO] = {
       type: \ankan
-      pai, ownPai
+      anchor: pai
+      ownPai
       otherPai: null
       fromPlayer: null
       kakanPai: null
@@ -299,8 +301,8 @@ Event.ankan = class Ankan #{{{
       @newDoraHyouji ?= getNewDoraHyouji kyoku, \ankan
 
     if PH not instanceof PlayerHidden then return this
-    assert.equal (n = PH.countEquiv pai), 4,
-      "not enough [#pai] (you have #n, need 4)"
+    assert.equal PH.countEquiv(pai), 4,
+      "need 4 [#pai] in juntehai"
     if PP.riichi.accepted
       assert.isTrue @rulevar.riichi.ankan, "riichi ankan: not allowed by rule"
       # riichi ankan condition (simplified)
@@ -330,6 +332,7 @@ Event.ankan = class Ankan #{{{
     # TODO: unified generalized ippatsu
     addDoraHyouji kyoku, @newDoraHyouji
 
+    ..rinshan = true
     ..currPai = @pai
     ..phase = \postKan
     ..seq++
@@ -395,6 +398,7 @@ Event.kakan = class Kakan #{{{
     # TODO: unified generalized ippatsu
     addDoraHyouji kyoku, @newDoraHyouji
 
+    ..rinshan = true
     ..currPai = @pai
     ..phase = \postKan
     ..seq++
@@ -472,7 +476,7 @@ Event.declare = class Declare #{{{
   # minimal == full: (includes partial)
   #   args: (constructor args for constructing corresponding event)
 
-  (kyoku, @player, @what, @args) -> with kyoku
+  (kyoku, {@player, @what, @args}) -> with kyoku
     @type = \declare
     @seq = ..seq
     @init kyoku
@@ -594,7 +598,7 @@ Event.chi = class Chi #{{{
 Event.pon = class Pon #{{{
   # replicate-declared
   # minimal:
-  #   player: 0/1/2/3 -- must be next player of `currPlayer`
+  #   player: 0/1/2/3 -- must not be `currPlayer`
   #   option 1:
   #     ownPai: [2]Pai -- should satisfy the following:
   #       both must exist in juntehai
@@ -662,6 +666,83 @@ Event.pon = class Pon #{{{
     return this
 
   apply: Chi::apply # same object layout -- simply reuse
+#}}}
+
+Event.daiminkan = class Daiminkan #{{{
+  # replicate-declared
+  # minimal:
+  #   player: 0/1/2/3 -- must not be `currPlayer`
+  # full:
+  #   newDoraHyouji: ?[]Pai
+  # private:
+  #   FUURO
+
+  (kyoku, @player) -> with kyoku
+    @type = \daiminkan
+    @seq = ..seq
+    if ..isReplicated
+      assert.equal @player, ..me,
+        "cannot construct for others on replicate instance"
+    @init kyoku
+
+  init: (kyoku) -> with @[KYOKU] = kyoku
+    assert.equal @seq, ..seq
+    assert.notEqual @player, ..currPlayer
+    assert.equal ..phase, \postDahai
+
+    pai = ..currPai
+
+    assert GP.nPiiPaiLeft > 0, "cannot kan when no piipai left"
+    if GP.nKan >= 4 # FIXME: should be redundant
+      if not ..suukantsuCandidate!? then debugger
+
+    # build fuuro object
+    # list all 4 pai
+    if pai.isSuupai and pai.number == 5
+      # include all akahai
+      akahai = pai.akahai
+      nAkahai = ..rulevar.dora.akahai[pai.S]
+      ownPai = [akahai]*nAkahai ++ [pai]*(4 - nAkahai)
+    else
+      ownPai = [pai]*4
+    # exclude sutehai (not own)
+    i = ownPai.indexOf pai
+    ownPai.splice i, 1
+    @[FUURO] = {
+      type: \daiminkan
+      pai, ownPai
+      otherPai: ..currPai
+      fromPlayer: ..currPlayer
+      kakanPai: null
+    }
+
+    # master: try reveal doraHyouji
+    if not ..isReplicated
+      @newDoraHyouji ?= getNewDoraHyouji kyoku, \daiminkan
+
+    with ..playerHidden[@player] => if .. instanceof PlayerHidden
+      assert.equal ..countEquiv(..currPai), 3,
+        "need 3 [#pai] in juntehai"
+
+    return this
+
+  apply: !-> with kyoku = @[KYOKU]
+    # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
+    # TODO: impl ryoukyoku in general -- above should be unnecessary
+
+    ..playerHidden[@player].removeEquivN ..currPai.equivPai, 3
+    ..playerPublic[@player]
+      ..fuuro.push @[FUURO]
+      ..menzen = false
+    ..playerPublic[..currPlayer].lastSutehai.fuuroPlayer = @player
+
+    # TODO: unified generalized ippatsu
+    addDoraHyouji kyoku, @newDoraHyouji
+
+    ..rinshan = true
+    ..currPlayer = @player
+    ..phase = \preTsumo # NOTE: no need to ask for ron
+    ..seq++
 #}}}
 
 
