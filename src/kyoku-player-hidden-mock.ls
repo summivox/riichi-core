@@ -5,36 +5,27 @@
 # NOTE: all `can`-methods are removed
 # See: `PlayerHidden`, `KyokuView`
 
-require! {
-  './pai': Pai
-  './decomp': {decompTenpai}
-}
-
 module.exports = class PlayerHiddenMock
-  (!!@hasTsumohai, +@nJuntehai) ->
+  (!!@hasTsumohai = false, +@nJuntehai = 13) ->
     # Juntehai and tsumohai: (maintained by methods)
-    #   hasTsumohai <=> `PH::tsumohai?`
-    #   nJuntehai   <=> `PH::juntehai.length`
+    #   hasTsumohai <=> `PlayerHidden::tsumohai?`
+    #   nJuntehai   <=> `PlayerHidden::juntehai.length`
     #
     # see: juntehai/tsumohai state transition diagram in `PlayerHidden`
-    
-    # fake return values for:
-    # - tsumokiri/dahai
-    # - removeEquivN
-    @nextDahai = null
-    @nextRemoved = []
-
-    # fake decompTenpai: empty wait
-    @decompTenpai = wait: []
 
   # (3n+1) => (3n+1)*
   tsumo: !-> @hasTsumohai = true
 
   # (3n+1)* => (3n+1)
-  tsumokiri: -> @hasTsumohai = false ; @nextDahai
+  tsumokiri: !->
+    @hasTsumohai = false
 
   # (3n+1)* or (3n+2) => (3n+1)
-  dahai: -> @nJuntehai-- ; @nextDahai
+  dahai: (pai) !->
+    if @hasTsumohai # (3n+1)*
+      @hasTsumohai = false
+    else            # (3n+2)
+      @nJuntehai--
 
   # fuuro interface: remove only
 
@@ -46,7 +37,6 @@ module.exports = class PlayerHiddenMock
   # remove n * given pai in juntehai & tsumohai
   #   daiminkan: (3n+1)  => (3N+1)
   #   an/kakan:  (3n+1)* => (3N+1)
-  removeEquivN: (pai, n) ->
+  removeEquivN: (pai, n) !->
     @nJuntehai = @nJuntehai - n + @hasTsumohai
     @hasTsumohai = false
-    @nextRemoved

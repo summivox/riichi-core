@@ -10,124 +10,111 @@
 # NOTE: This is a God Class out of necessity and essential complexity.
 
 require! {
-  'events': {EventEmitter}
+  events: {EventEmitter}
 
   'lodash.merge': merge
 
   '../package.json': {version: VERSION}
   './pai': Pai
-  './wall': splitWall
   './agari': Agari
-  './util': {OTHER_PLAYERS, floorTo}
+  './util': {OTHER_PLAYERS}
   './rulevar-default': rulevarDefault
 
-  './kyoku-player-hidden': PlayerHidden
+  './kyoku-event': Event
   './kyoku-player-public': PlayerPublic
 }
 
 module.exports = class Kyoku implements EventEmitter::
-  ({rulevar, startState, wall}) ->
+  # constructor {{{
+  #   required:
+  #     rulevar: (see `./rulevar-default`)
+  #     startState: (see below)
+  #   client/replicate:
+  #     forPlayer: replicate player id: 0/1/2/3
+  #
+  ({rulevar, startState, forPlayer}) ->
     @VERSION = VERSION
 
     # events: always emitted asynchronously (see `@_emit`)
-    #   action(action)
-    #   declare(player, type)
-    #   doraHyouji(pai)
-    #   end(result, endState)
+    #   only one event type: `kyoku.on 'event', (e) -> ...`
     EventEmitter.call @
 
     # rulevar: missing object/fields filled with default
     @rulevar = rulevar = merge {}, rulevarDefault, rulevar
 
     # startState:
-    #   seq: origin of action sequence number (see `@seq`)
-    #   bakaze: 0/1/2/3 => E/S/W/N {prevailing wind}
-    #   chancha: 0/1/2/3 {dealer}
-    #   honba: 0/1/2/... {count of renchan}
-    #   kyoutaku: 0/1/2/... {count of riichi bet}
+    #   bakaze: 0/1/2/3 => E/S/W/N
+    #   chancha: 0/1/2/3
+    #   honba: 0/1/2/...
+    #   kyoutaku: 0/1/2/...
     #   points: array of each player's points at the start of kyoku
-    #
     # NOTE:
-    # - startState is immutable
+    # - immutable
     # - if not supplied, defaults to first kyoku in game
     # - kyoutaku during this kyoku is not reflected in `.points` due to
     #   immutability; see `@globalPublic.delta`
     p0 = rulevar.setup.points.initial
     @startState = startState ?=
-      seq: 0
       bakaze: 0
       chancha: 0
       honba: 0
       kyoutaku: 0
       points: [p0, p0, p0, p0]
-
-    # wall: defaults to new randomly shuffled wall if not supplied
-    if !wall? then wall = Pai.shuffleAll rulevar.dora.akahai
-    @wall = wall
-    # initial deal: see `splitWall`
-    # handling of dora indicators:
-    # - @globalHidden.doraHyouji/uraDoraHyouji: all 5 stacks
-    # - @globalPublic.doraHyouji: only revealed ones
-    {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
-
-    # id of chancha {dealer}
     @chancha = chancha = startState.chancha
-    # jikaze {seat wind} of each player
-    jikaze =
-      (4 - chancha)%4
-      (5 - chancha)%4
-      (6 - chancha)%4
-      (7 - chancha)%4
 
-    # table state: {global, player}{hidden, public}
-    @globalHidden = {piipai, rinshan, doraHyouji, uraDoraHyouji}
+    if forPlayer?
+      # replicated instance
+      @me = forPlayer
+      @isReplicated = true
+    else
+      # master instance
+      @isReplicated = false
+
+    # table state visible to all
     @globalPublic = {
-      nPiipaiLeft: piipai.length # == 70
+      nPiipaiLeft: 70 # == 34*4 - 13*4 - 7*2 == piipai.length
       nKan: 0
-      doraHyouji: [doraHyouji[0]]
+      doraHyouji: [] # visible ones only (see `@globalPublic.doraHyouji`)
 
       # riichi-related: see `@_checkAcceptedRiichi`
       kyoutaku: startState.kyoutaku
       delta: [0 0 0 0]
       nRiichi: 0
     }
-    @playerHidden = [new PlayerHidden haipai[jikaze[i]] for i til 4]
-    @playerPublic = [new PlayerPublic        jikaze[i]  for i til 4]
+    @playerPublic = for p til 4
+      new PlayerPublic (4 - chancha + p)%4
 
-    # game progression: (TODO DOC)
-    #   seq: action sequence number
-    #     == `@startState.seq`+1, +2, +3, ...
-    #     == `lastAction.seq`
-    #   phase:
-    #     begin: after turn starts or successful kan; before tsumo
-    #     turn : after tsumo; before own-turn action
-    #     query: after own-turn action; awaiting declaration (chi/pon/kan/ron)
-    #     end  : end of kyoku
-    #   currPlayer: (obvious)
-    @seq = startState.seq
+    void
+
+    # game progression:
+    #   seq: FIXME number of executed events
+    #   phase: begin/preTsumo/postTsumo/postDahai/postKan/postChiPon/end
+    #   currPlayer: 0/1/2/3
+    #   currPai: most recently touched pai
+    #     after dahai: sutehai
+    #     after fuuro:
+    #       chi/pon/daiminkan/ankan: ownPai
+    #       kakan: kakanPai
+    #   rinshan: true/false
+    #     TODO: set flag after kan, clear flag after rinshan tsumo
+    @seq = 0
     @phase = \begin
     @currPlayer = chancha
-
-    # action: {seq, type, player, details}
-    #   type/details:
-    #     tsumo: {pai, rinshan: true/false}
-    #     dahai: {pai, riichi: true/false, tsumokiri: true/false}
-    #     chi/pon/kan: fuuro object (see PlayerPublic)
-    @lastAction = {type: null, seq: @seq}
-    @actionLog = []
+    @currPai = null
+    @rinshan = false
 
     # declarations yet to be resolved during current query
     #
     # NOTE: during one query:
     # - player may only declare once
     # - chi can only be declared by one player
-    # - pon/kan can only be declared by one player
+    # - pon/daiminkan can only be declared by one player
     # - ron is not exclusive and might be overwritten; however, this doesn't
     #   matter (see `_resolveRon`)
     @lastDecl =
-      chi: null, pon: null, kan: null, ron: null
+      chi: null, pon: null, daiminkan: null, ron: null
       0: null, 1: null, 2: null, 3: null
-      clear: !-> @chi = @pon = @kan = @ron = @0 = @1 = @2 = @3 = null
+      clear: !-> @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
 
     # result: null when still playing
     # common fields:
@@ -145,32 +132,29 @@ module.exports = class Kyoku implements EventEmitter::
     @endState = null
 
     # done (call `nextTurn` to start kyoku)
-
-
-  # NOTE: underscore-prefixed methods should not be called from outside
-
+  #}}}
 
   # delayed event:
   # - clears call stack
   # - allows methods to finish cleanup
   _emit: (...a) -> process.nextTick ~> @emit ...a
 
-
-  # called after action executed:
-  # - log the action
-  # - emit event AFTER action finishes cleanup
-  _publishAction: (action) !->
-    action.seq = ++@seq
-    @lastAction = action
-    @actionLog.push action
-    @_emit \action, action
-
   # called after \query action *declared* (see below)
   # NOTE: details of declared action should NOT be published
-  _declareAction: ({type, player}:action) !->
-    with @lastDecl
-      ..[type] == ..[player] = action
-    @_emit \declare, player, type
+  # FIXME
+  #_declareAction: ({type, player}:action) !->
+    #with @lastDecl
+      #..[type] = ..[player] = action
+    #@_emit \declare, player, type
+
+  # <master> prepare wall and start game
+  #   wall:
+  #     [136]pai: given wall (see `./wall`)
+  #     null: randomly shuffled wall
+  deal: (wall) !->
+    if !wall? then wall = Pai.shuffleAll rulevar.dora.akahai
+    e = new Event.deal @, wall
+    # TODO
 
 
   # preparation for a new turn:
@@ -182,31 +166,16 @@ module.exports = class Kyoku implements EventEmitter::
   #   piipai count always decreases by 1 regardless of rinshan or not
   nextTurn: !->
     if @_checkRyoukyoku! then return
-
-    {currPlayer: player, lastAction} = @
-    isAfterKan = (lastAction.type == \kan)
-    @globalPublic.nPiipaiLeft--
-    with @globalHidden
-      if isAfterKan
-        pai = ..rinshan.pop()
-        ..piipai.shift()
-      else
-        pai = ..piipai.pop()
-    @playerHidden[player].tsumo pai
-    @_publishAction {type: \tsumo, player, details: isAfterKan}
-    @phase = \turn
+    # TODO: Event.tsumo
 
   # called when kyoku should end:
   # - calculate what next kyoku should be (`endState`)
-  # - publish result
-  SEQ_MAJOR = 10000
   _end: (@result) !->
     {setup:
       points: {origin}
       end
     } = @rulevar
-    @endState = endState = do ~>
-      seq = floorTo(++@seq, SEQ_MAJOR) + SEQ_MAJOR
+    @endState = endState = let
       {bakaze, chancha, honba, points} = @startState
       {kyoutaku, delta} = result
 
@@ -226,8 +195,7 @@ module.exports = class Kyoku implements EventEmitter::
         and util.max(points) == points[3]
           return null
       else
-        if result.type == \ryoukyoku then honba++
-        else honba = 0
+        honba = 0
         if ++chancha == 4
           chancha = 0
           bakaze++
@@ -241,9 +209,9 @@ module.exports = class Kyoku implements EventEmitter::
       else return null
 
       # next kyoku
-      return {seq, bakaze, chancha, honba, kyoutaku, points}
+      return {bakaze, chancha, honba, kyoutaku, points}
     @phase = \end
-    @_emit \end, result, endState
+    @seq++
 
 
   # method pair with & without `can`-prefix: action interface
@@ -262,13 +230,10 @@ module.exports = class Kyoku implements EventEmitter::
   #   access `@globalHidden` or `@playerHidden[someOtherPlayer]`
 
   # common check for `can`-methods: if player can make any move at all
-  _checkTurn: (player) ->
-    if player != @currPlayer or @phase != \turn
-      return valid: false, reason: "not your turn"
-    return valid: true
   _checkQuery: (player) ->
-    # NOTE: not typo!
-    if player == @currPlayer or @phase != \query
+    if player not in [0 1 2 3]
+      return valid: false, reason: "bad player"
+    if player == @currPlayer or not @phase.startsWith \query
       return valid: false, reason: "not your turn"
     # extra: should only declare once
     if (action = @lastDecl[player])
@@ -281,167 +246,10 @@ module.exports = class Kyoku implements EventEmitter::
   # - kakan/ankan
   # - tsumoAgari
   # - kyuushuukyuuhai (the only dedicated ryoukyoku action)
-  @METHOD_ACTION = {
-    +dahai, +ankan, +kakan, +tsumoAgari, +kyuushuukyuuhai
-  }
 
   # dahai {discard}
   # - pai: null => tsumokiri
   # - riichi: true => declare riichi before discard
-  #
-  # NOTE: when publishing event, `null` for tsumokiri is replaced with actual
-  # pai as it becomes revealed; `tsumokiri` flag is set instead
-  canDahai: (player, pai, !!riichi) ->
-    with @_checkTurn player => if not ..valid then return ..
-    tsumokiri = !pai?
-
-    if @playerPublic[player].riichi.accepted and not tsumokiri
-      return valid: false, reason: "can only tsumokiri after riichi"
-    with @playerHidden[player]
-      with (if tsumokiri then ..canTsumokiri! else ..canDahai pai)
-        if not ..valid then return ..
-      if riichi
-        if (n = @globalPublic.nPiipaiLeft) < (m = @rulevar.riichi.minPiipaiLeft)
-          return valid: false, reason: "not enough piipai (#n left, need #m)"
-        if tsumokiri
-          decomp = ..decompTenpai
-        else
-          decomp = ..decompTenpaiWithout pai
-        if !decomp? or decomp.wait.length == 0
-          return valid: false, reason: "not tenpai if dahai is [#pai]"
-    with @lastAction
-      if ..type in <[chi pon]> and ..player == player
-      and @isKuikae ..details, pai
-        return valid: false, reason: "kuikae"
-    return valid: true
-
-  dahai: (player, pai, !!riichi) !->
-    {valid, reason} = @canDahai player, pai, riichi
-    if not valid
-      throw Error "riichi-core: kyoku: dahai: #reason"
-    tsumokiri = !pai?
-    pp = @playerPublic[player]
-    ph = @playerHidden[player]
-
-    if riichi
-      pp.riichi.declared = true
-      if @isTrueFirstTsumo player then pp.riichi.double = true
-    if tsumokiri
-      pp.tsumokiri pai = ph.tsumokiri!
-    else
-      pp.dahai ph.dahai pai
-
-    @_updateFuritenDahai player
-    @_revealDoraHyouji!
-    @_clearOwnIppatsu player # NOTE: clear own only!
-
-    @_publishAction {
-      type: \dahai, player
-      details: {pai, riichi, tsumokiri}
-    }
-    @phase = \query
-
-  # ankan
-  canAnkan: (player, pai) ->
-    with @_checkTurn player => if not ..valid then return ..
-    if not pai?.paiStr
-      return valid: false, reason: "invalid pai"
-
-    with @globalPublic
-      if ..nPiipaiLeft <= 0
-        return valid: false, reason: "cannot kan when no piipai left"
-      if ..nKan >= 4 and not @suukantsuCandidate!?
-        return valid: false, reason: "cannot kan when no rinshan left"
-    if @lastAction.type in <[chi pon]>
-      return valid: false, reason: "cannot ankan after #{@lastAction.type}"
-    pai .= equivPai
-    ph = @playerHidden[player]
-    if (n = ph.countEquiv pai) < 4
-      return valid: false, reason: "not enough [#pai] (you have #n, need 4)"
-    if @playerPublic[player].riichi.accepted
-      if not @rulevar.riichi.ankan
-        return valid: false, reason: "riichi ankan: not allowed by rule"
-      # riichi ankan condition (simplified)
-      #   basic: all tenpai decomps must have `pai` as koutsu
-      #   okurikan: can only use tsumo for ankan
-      d = ph.decompTenpai
-      allKoutsu = d.decomps.every -> it.mentsu.some ->
-        it.type == \koutsu and it.pai == pai
-      if not allKoutsu
-        return valid: false, reason: "riichi ankan: change of form"
-      if @rulevar.riichi.okurikan and ph.tsumohai.equivPai != pai
-        return valid: false, reason: "riichi ankan: okurikan"
-    return valid: true
-
-  ankan: (player, pai) !->
-    {valid, reason} = @canAnkan player, pai
-    if not valid
-      throw Error "riichi-core: kyoku: ankan: #reason"
-    if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
-
-    pai .= equivPai
-    ownPai = @playerHidden[player].removeEquivN pai, 4
-    @playerPublic[player].fuuro.push fuuro = {
-      type: \ankan
-      pai, ownPai
-      otherPai: null
-      fromPlayer: null
-      kakanPai: null
-    }
-
-    @_revealDoraHyouji \ankan
-    @_clearAllIppatsu!
-
-    @_publishAction {type: \kan, player, details: fuuro}
-    if @rulevar.yaku.kokushiAnkan
-      @phase = \query
-    else
-      @phase = \begin
-      @nextTurn!
-
-  # kakan
-  # NOTE: code mostly parallel with ankan
-  canKakan: (player, pai) ->
-    with @_checkTurn player => if not ..valid then return ..
-    if not pai?.paiStr
-      return valid: false, reason: "invalid pai"
-
-    with @globalPublic
-      if ..nPiipaiLeft <= 0
-        return valid: false, reason: "cannot kan when no piipai left"
-      if ..nKan >= 4 and not @suukantsuCandidate!?
-        return valid: false, reason: "cannot kan when no rinshan left"
-    if @lastAction.type in <[chi pon]>
-      return valid: false, reason: "cannot kakan after #{@lastAction.type}"
-    pai .= equivPai
-    found = false
-    for fuuro in @playerPublic[player].fuuro
-      if fuuro.type == \minko and fuuro.pai == pai
-        found = true
-        break
-    if not found
-      return valid: false, reason: "must have minko of 3*[#pai]"
-    if (n = @playerHidden[player].countEquiv pai) != 1
-      return valid: false, reason: "must have one [#pai] in juntehai"
-    return valid: true, fuuro: fuuro
-
-  kakan: (player, pai) !->
-    {valid, reason, fuuro} = @canKakan player, pai
-    if not valid
-      throw Error "riichi-core: kyoku: kakan: #reason"
-    if ++@globalPublic.nKan > 4 then return @_checkRyoukyoku!
-
-    pai .= equivPai
-    [kakanPai] = @playerHidden[player].removeEquivN pai, 1
-    fuuro
-      ..type = \kakan
-      ..kakanPai = kakanPai
-
-    @_revealDoraHyouji \kakan
-    @_clearAllIppatsu!
-
-    @_publishAction {type: \kan, player, details: fuuro}
-    @phase = \query
 
   # tsumoAgari
   canTsumoAgari: (player) ->
@@ -702,6 +510,7 @@ module.exports = class Kyoku implements EventEmitter::
     {wait} = @playerHidden[player].decompTenpai
     if equivPai not in wait then return valid: false, reason:
       "#pai not in your tenpai set #{Pai.stringFromArray[wait]}"
+    # FIXME: kokushiAnkan
     if not (agari = @_agari player, pai, houjuuPlayer)
       return valid: false, reason: "no yaku"
     return valid: true, action: {
@@ -847,8 +656,7 @@ module.exports = class Kyoku implements EventEmitter::
 
   # enforce ryoukyoku {abortive/exhaustive draw} rules
   # see `@suufonrenta` and friends below
-  # return: true/false: if ryoukyoku takes place
-  _checkRyoukyoku: ->
+  _checkRyoukyoku: !->
     # tochuu ryoukyoku {abortive draw}
     for type, allowed of @rulevar.ryoukyoku.tochuu
       switch allowed
@@ -885,7 +693,6 @@ module.exports = class Kyoku implements EventEmitter::
         renchan: @chancha in ten # all-no-ten & all-ten => also renchan
         details: \howanpai
       }
-    return false
 
 
   # predicates
@@ -905,7 +712,7 @@ module.exports = class Kyoku implements EventEmitter::
     switch @globalPublic.nKan
     | 0, 1, 2, 3 => false
     | 4 => not @suukantsuCandidate!? # all same player => not suukaikan
-    | _ => true
+    | _ => true # one more from another player => suukaikan
   suuchariichi: -> @globalPublic.nRiichi == 4
 
   # kuikae {swap call}: refers to the situation where a player declares chi
@@ -929,8 +736,8 @@ module.exports = class Kyoku implements EventEmitter::
     # shorthands: (pq) chi (o) dahai (d)
     d = dahai.equivPai
     o = otherPai.equivPai
-    if moro and type == \minjun and d == o or
-       pon  and type == \minko   and d == o then return true
+    if (moro and type == \minjun and d == o) or
+       (pon  and type == \minko  and d == o) then return true
 
     if suji and type == \minjun and d.suite == o.suite
       [p, q] = ownPai
@@ -958,6 +765,7 @@ module.exports = class Kyoku implements EventEmitter::
     return null
 
   # find pai that might be ron'd: dahai or kakanPai (for chankan)
+  # FIXME: kokushiAnkan
   ronPai: ->
     with @lastAction
       switch ..type
@@ -967,6 +775,7 @@ module.exports = class Kyoku implements EventEmitter::
 
   # assemble information to determine whether a player has a valid win and how
   # many points is it worth
+  # FIXME: use new flags
   _agari: (agariPlayer, agariPai, houjuuPlayer = null) ->
     if not agariPai then return null
     gsb = @startState

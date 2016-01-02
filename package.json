@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/summivox/riichi-core#readme",
   "dependencies": {
+    "chai": "^3.4.1",
     "lodash._baseclone": "^3.3.0",
     "lodash.clonedeep": "^3.0.1",
     "lodash.difference": "^3.2.2",

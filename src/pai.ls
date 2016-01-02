@@ -70,6 +70,12 @@ class PaiClass
     if @isAkahai! then 5 else n
   equivPai: ->
     new PaiClass(@equivNumber! + @suite!)
+  hasAkapai: -> @isSuupai! and @equivNumber! == 5
+  akahai: ->
+    if not @isSuupai! then return @
+    n = @equivNumber!
+    if n == 5 then n = 0
+    new PaiClass(n + @suite!)
 
   # suupai successor (not wrapping)
   succ: ->

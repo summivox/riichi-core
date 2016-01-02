@@ -31,7 +31,7 @@ module.exports = class PlayerPublic
     # riichi flags: (managed externally by Kyoku logic)
     @riichi =
       declared: false # goes and stays true immediately after player declares
-      accepted: false # goes and stays true when the dahai did not cause ron
+      accepted: false # goes and stays true if riichi dahai did not cause ron
       double:   false # goes and stays true if declared during true first tsumo
       ippatsu:  false # true only during ippatsu period; false otherwise
 

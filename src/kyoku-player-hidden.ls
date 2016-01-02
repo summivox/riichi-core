@@ -105,10 +105,12 @@ module.exports = class PlayerHidden
 
   # fuuro interface: count and remove
 
-  # chi/pon: (3n+1) (no tsumohai)
+  # chi/pon: (3n+1)
+  # kakan:   (3n+1)*
   # count given pai in juntehai
   count1: (pai) ->
     s = 0
+    if @tsumohai == pai then s++
     for p in @juntehai => if p == pai then s++
     s
   # remove given 2 pai from juntehai => (3N+2)
