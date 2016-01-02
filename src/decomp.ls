@@ -232,7 +232,7 @@ export !function printDecomp1Lookup
 #   standard form:
 #     mentsu: array of:
 #       type: (see pattern.name)
-#       pai: Pai (pattern origin)
+#       anchor: Pai (pattern origin)
 #     jantou: null or Pai
 #     k7: null
 #   kokushi/chiitoi form:
@@ -304,7 +304,7 @@ function stitch(decomp1s, suites)
         when \shuntsu, \koutsu
           ret.mentsu.push {
             type: name # NOTE: see definition of decomp above
-            pai: P[offset+1]
+            anchor: P[offset+1]
           }
         when \jantou
           ret.jantou = P[offset+1]
@@ -460,8 +460,8 @@ export function decompAgari(bins)
 #   \toitsu             => \minko (ron) or \anko (tsumo)
 #   \kanchan, \ryanmen  => \shuntsu
 #
-# NOTE: after \ryanmen is changed to \shuntsu, its `.pai` might need fixing
-# (e.g. 34m ryanmen => pai = 3m ; +2m => 234m shuntsu => pai = 2m)
+# NOTE: after \ryanmen is changed to \shuntsu, its `.anchor` might need fixing
+# (e.g. 34m ryanmen => anchor = 3m ; +2m => 234m shuntsu => anchor = 2m)
 export function decompAgariFromTenpai({decomps}, agariPai, isRon)
   ret = []
   agariPai .= equivPai
@@ -483,7 +483,7 @@ export function decompAgariFromTenpai({decomps}, agariPai, isRon)
       | \koutsu  => m.type = \anko
       | \toitsu  =>
         wait = \shanpon
-        if m.pai == agariPai and isRon
+        if m.anchor == agariPai and isRon
           m.type = \minko
         else
           m.type = \anko
@@ -491,11 +491,11 @@ export function decompAgariFromTenpai({decomps}, agariPai, isRon)
         wait = \kanchan
         m.type = \shuntsu
       | \ryanmen =>
-        if m.pai.number in [1 8]
+        if m.anchor.number in [1 8]
           wait = \penchan
         else
           wait = \ryanmen
-          if agariPai.succ == m.pai then m.pai = agariPai
+          if agariPai.succ == m.anchor then m.anchor = agariPai
         m.type = \shuntsu
       | _ => throw Error "unknown type"
     decomp.wait = wait

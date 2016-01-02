@@ -145,7 +145,7 @@ function augmentFuuro({fuuro})
     | \daiminkan, \kakan  => fu = 8
     | \ankan              => fu = 16
     | _ => throw Error "unknown type"
-    if f.pai.isYaochuupai then fu *= 2
+    if f.anchor.isYaochuupai then fu *= 2
     f.fu = fu
     fuuroFu += fu
   return fuuroFu
@@ -267,7 +267,7 @@ function getYakuResult(decomp, {
       | \shuntsu => mf = 0
       | \minko => mf = 2
       | \anko => mf = 4
-      if m.pai.isYaochuupai then mf *= 2
+      if m.anchor.isYaochuupai then mf *= 2
       mentsuFu += mf
     switch jantou
     | Pai.FONPAI[bakaze, jikaze], Pai<[5z 6z 7z]> => jantouFu = 2

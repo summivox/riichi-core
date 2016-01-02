@@ -315,7 +315,7 @@ Event.ankan = class Ankan #{{{
       # "okurikan" rule above might still apply even with relaxed "basic"
       d = PH.decompTenpai
       allKoutsu = d.decomps.every -> it.mentsu.some ->
-        it.type == \koutsu and it.pai == pai
+        it.type == \koutsu and it.anchor == pai
       assert allKoutsu, "riichi ankan: hand decomposition must not change"
       if not @rulevar.riichi.okurikan
         assert.equal PH.tsumohai.equivPai, pai,
@@ -374,7 +374,7 @@ Event.kakan = class Kakan #{{{
       if not ..suukantsuCandidate!? then debugger
 
     # find fuuro/minko object to be modified
-    fuuro = PP.fuuro.find -> it.type == \minko and it.pai == equivPai
+    fuuro = PP.fuuro.find -> it.type == \minko and it.anchor == equivPai
     assert.notNull fuuro, "need existing minko of [#equivPai]"
     @[FUURO] = fuuro
 
@@ -567,7 +567,7 @@ Event.chi = class Chi #{{{
     # build fuuro object
     @[FUURO] = {
       type: \minjun
-      pai: p
+      anchor: p
       ownPai: @ownPai
       otherPai: c
       fromPlayer: ..currPlayer

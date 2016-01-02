@@ -282,7 +282,7 @@ export
     peikou = 0
     for m in decomp.mentsu
       if m.type == \shuntsu
-        with m.pai.toString!
+        with m.anchor.toString!
           if shuntsu[..]
             shuntsu[..] = false
             peikou++
@@ -296,12 +296,12 @@ export
   ikkitsuukan: (decomp) ->
     a = [[0 0 0], [0 0 0], [0 0 0]]
     for f in fuuro
-      if f.type == \minjun and f.pai.N in [0 3 6]
-        a[f.pai.S][f.pai.N/3]++
+      if f.type == \minjun and f.anchor.N in [0 3 6]
+        a[f.anchor.S][f.anchor.N/3]++
     # parallel
     for m in decomp.mentsu
-      if m.type == \shuntsu and m.pai.N in [0 3 6]
-        a[m.pai.S][m.pai.N/3]++
+      if m.type == \shuntsu and m.anchor.N in [0 3 6]
+        a[m.anchor.S][m.anchor.N/3]++
     (a.0.0 and a.0.1 and a.0.2) or
     (a.1.0 and a.1.1 and a.1.2) or
     (a.2.0 and a.2.1 and a.2.2)
@@ -311,14 +311,14 @@ export
     a = [[], [], []]
     for f in fuuro
       if f.type == \shuntsu
-        a[f.pai.S][f.pai.N] = true
-        if a[0][f.pai.N] and a[1][f.pai.N] and a[2][f.pai.N]
+        a[f.anchor.S][f.anchor.N] = true
+        if a[0][f.anchor.N] and a[1][f.anchor.N] and a[2][f.anchor.N]
           return true
     # parallel
     for m in decomp.mentsu
       if m.type == \shuntsu
-        a[m.pai.S][m.pai.N] = true
-        if a[0][m.pai.N] and a[1][m.pai.N] and a[2][m.pai.N]
+        a[m.anchor.S][m.anchor.N] = true
+        if a[0][m.anchor.N] and a[1][m.anchor.N] and a[2][m.anchor.N]
           return true
     return false
 
@@ -326,15 +326,15 @@ export
   sanshokudoukou: (decomp, {fuuro}) ->
     a = [[], [], []]
     for f in fuuro
-      if f.type != \shuntsu and f.pai.isSuupai
-        a[f.pai.S][f.pai.N] = true
-        if a[0][f.pai.N] and a[1][f.pai.N] and a[2][f.pai.N]
+      if f.type != \shuntsu and f.anchor.isSuupai
+        a[f.anchor.S][f.anchor.N] = true
+        if a[0][f.anchor.N] and a[1][f.anchor.N] and a[2][f.anchor.N]
           return true
     # parallel
     for m in decomp.mentsu
-      if m.type != \shuntsu and m.pai.isSuupai
-        a[m.pai.S][m.pai.N] = true
-        if a[0][m.pai.N] and a[1][m.pai.N] and a[2][m.pai.N]
+      if m.type != \shuntsu and m.anchor.isSuupai
+        a[m.anchor.S][m.anchor.N] = true
+        if a[0][m.anchor.N] and a[1][m.anchor.N] and a[2][m.anchor.N]
           return true
     return false
 
@@ -346,18 +346,18 @@ export
     if decomp.k7 then return false
     if decomp.jantou.isChunchanpai then return false
     for f in fuuro
-      if f.pai.isTsuupai then continue
+      if f.anchor.isTsuupai then continue
       if f.type == \shuntsu
-        if f.pai.N not in [0 6] then return false
+        if f.anchor.N not in [0 6] then return false
       else
-        if f.pai.N not in [0 8] then return false
+        if f.anchor.N not in [0 8] then return false
     # parallel
     for m in decomp.mentsu
-      if m.pai.isTsuupai then continue
+      if m.anchor.isTsuupai then continue
       if m.type == \shuntsu
-        if m.pai.N not in [0 6] then return false
+        if m.anchor.N not in [0 6] then return false
       else
-        if m.pai.N not in [0 8] then return false
+        if m.anchor.N not in [0 8] then return false
     decomp.honchantaiyaochuu = true
     return binsSum.3 == 0
   honchantaiyaochuu: (decomp) -> !!(decomp.honchantaiyaochuu)
