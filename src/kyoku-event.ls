@@ -11,12 +11,13 @@ require! {
 
 # GLOBAL TODO:
 # - explain doraHyouji piggybacking
-# - refactor 99/tsumo/ron
+# - 99/tsumo/ron/ryoukyoku
 
 
 # helpers for piggy-backing doraHyouji handling on events {{{
+# TODO: merge back to kyoku?
 
-# master: get doraHyouji to be revealed, accounting for minkan delay
+# get doraHyouji to be revealed, accounting for minkan delay
 # previously delayed kan-dora will always be revealed
 function getNewDoraHyouji(kyoku, type) => with kyoku
   if not (rule = ..rulevar.dora.kan) then return
@@ -25,7 +26,7 @@ function getNewDoraHyouji(kyoku, type) => with kyoku
   if hi < lo then return null
   return ..globalHidden.doraHyouji[lo to hi]
 
-# master <replicate>: reveal provided doraHyouji
+# reveal provided doraHyouji
 function addDoraHyouji(kyoku, doraHyouji)
   if doraHyouji?.length > 0
     kyoku.globalPublic.doraHyouji.push ...doraHyouji
@@ -34,10 +35,6 @@ function addDoraHyouji(kyoku, doraHyouji)
 
 
 export Event = {}
-
-# symbols for attaching private unserialized props on events:
-KYOKU = Symbol \kyoku # ref to kyoku
-FUURO = Symbol \fuuro # implicit fuuro object FIXME: use regular field
 
 # 2 categories of event:
 # master-initiated:
@@ -82,7 +79,7 @@ Event.deal = class Deal #{{{
     @wall ?= Pai.shuffleAll ..rulevar.dora.akahai
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     # must be the first event
     assert.equal ..seq, 0
     assert.equal ..phase, \begin
@@ -94,7 +91,7 @@ Event.deal = class Deal #{{{
       assert.lengthOf @initDoraHyouji, 1
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     if not ..isReplicated # master: {[SPLIT]}
       s = @[SPLIT]
       initDoraHyouji = [s.doraHyouji.0]
@@ -118,7 +115,7 @@ Event.tsumo = class Tsumo #{{{
   # minimal: (null)
   # partial:
   #	  player: 0/1/2/3
-  #	  rinshan: bool
+  #	  rinshan: Boolean
   #	  pai: ?Pai -- for current player only
 
   (kyoku) -> with kyoku
@@ -134,14 +131,14 @@ Event.tsumo = class Tsumo #{{{
       @pai = ..globalHidden.piipai[*-1]
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
     assert ..globalPublic.nPiipaiLeft > 0
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     if not ..isReplicated # master
       with ..globalHidden
         if @isRinshan
@@ -161,8 +158,8 @@ Event.dahai = class Dahai #{{{
   # replicate-initiated
   # minimal:
   #   pai: Pai
-  #   tsumokiri: ?bool
-  #   riichi: bool
+  #   tsumokiri: ?Boolean
+  #   riichi: Boolean
   # full:
   #   player: 0/1/2/3
   #   newDoraHyouji: ?[]Pai
@@ -182,7 +179,7 @@ Event.dahai = class Dahai #{{{
       @tsumokiri = true
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert ..phase in <[postTsumo postChiPon]>,
@@ -220,7 +217,7 @@ Event.dahai = class Dahai #{{{
 
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     PP = ..playerPublic[@player]
     PH = ..playerHidden[@player]
 
@@ -236,7 +233,15 @@ Event.dahai = class Dahai #{{{
       PH.dahai @pai
       PP.dahai @pai
 
-    .._updateFuritenDahai @player
+    # furiten caused by dahai
+    if PH instanceof PlayerHidden then with PH
+      # sutehai~: one of your tenpai has been previously discarded
+      ..sutehaiFuriten = ..decompTenpai.wait.some -> PP.sutehaiContains it
+      # doujun~: effective until dahai
+      ..doujunFuriten = false
+      # sum it up (NOTE: we've just set doujunFuriten to false)
+      ..furiten = ..sutehaiFuriten or ..riichiFuriten # or ..doujunFuriten
+
     addDoraHyouji kyoku, @newDoraHyouji
 
     ..rinshan = false
@@ -253,7 +258,7 @@ Event.ankan = class Ankan #{{{
   #   player: 0/1/2/3
   #   newDoraHyouji: ?[]Pai
   # private:
-  #   FUURO
+  #   fuuro
 
   (kyoku, @pai) -> with kyoku
     @type = \ankan
@@ -264,7 +269,7 @@ Event.ankan = class Ankan #{{{
         "cannot construct for others on replicate instance"
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
@@ -287,7 +292,7 @@ Event.ankan = class Ankan #{{{
       ownPai = [akahai]*nAkahai ++ [pai]*(4 - nAkahai)
     else
       ownPai = [pai]*4
-    @[FUURO] = {
+    @fuuro = {
       type: \ankan
       anchor: pai
       ownPai
@@ -322,12 +327,12 @@ Event.ankan = class Ankan #{{{
 
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
     # TODO: impl ryoukyoku in general -- above should be unnecessary
 
     ..playerHidden[@player].removeEquivN pai, 4
-    ..playerPublic[@player].fuuro.push @[FUURO]
+    ..playerPublic[@player].fuuro.push @fuuro
 
     # TODO: unified generalized ippatsu
     addDoraHyouji kyoku, @newDoraHyouji
@@ -346,7 +351,7 @@ Event.kakan = class Kakan #{{{
   #   player: 0/1/2/3
   #   newDoraHyouji: ?[]Pai
   # private:
-  #   FUURO
+  #   fuuro
 
   (kyoku, @pai) -> with kyoku
     @type = \kakan
@@ -357,7 +362,7 @@ Event.kakan = class Kakan #{{{
         "cannot construct for others on replicate instance"
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
@@ -375,7 +380,7 @@ Event.kakan = class Kakan #{{{
     # find fuuro/minko object to be modified
     fuuro = PP.fuuro.find -> it.type == \minko and it.anchor == equivPai
     assert.notNull fuuro, "need existing minko of [#equivPai]"
-    @[FUURO] = fuuro
+    @fuuro = fuuro
 
     # master: try reveal doraHyouji
     if not ..isReplicated
@@ -386,12 +391,12 @@ Event.kakan = class Kakan #{{{
 
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
     # TODO: impl ryoukyoku in general -- above should be unnecessary
 
     ..playerHidden[@player].removeEquivN @pai.equivPai, 1
-    @[FUURO]
+    @fuuro
       ..type = \kakan
       ..kakanPai = @pai
 
@@ -421,7 +426,7 @@ Event.tsumoAgari = class TsumoAgari #{{{
         "cannot construct for others on replicate instance"
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
@@ -438,7 +443,7 @@ Event.tsumoAgari = class TsumoAgari #{{{
 
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     delta = ..globalPublic.delta
     for i til 4 => delta[i] += @agari.delta[i]
     delta[@player] += ..globalPublic.kyoutaku*1000
@@ -461,10 +466,10 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai #{{{
   (kyoku) -> with kyoku
     ...
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     ...
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     ...
 #}}}
 
@@ -481,15 +486,15 @@ Event.declare = class Declare #{{{
     @seq = ..seq
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert @what in <[chi pon daiminkan ron]>
     new Event[@what](kyoku) # verify validity
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     ..lastDecl
-      ..[@what] = ..[@player] = @args ? true
-    ..seq++ # TODO: should we make all decls share seq?
+      ..[@what] = ..[@player] = @args ? @{what, player}
+    ..seq++
 #}}}
 
 Event.chi = class Chi #{{{
@@ -506,14 +511,14 @@ Event.chi = class Chi #{{{
   #       < 0 : e.g. 34m chi 5m
   #       = 0 : e.g. 46m chi 5m
   #       > 0 : e.g. 67m chi 5m
-  #     preferAkahai: bool
+  #     preferAkahai: Boolean
   #       suppose you have the choice of using akahai or normal 5:
   #         true : use akahai
   #         false: use normal 5
   # full:
   #   ownPai: [2]Pai
   # private:
-  #   FUURO
+  #   fuuro
 
   (kyoku, {@player, @ownPai, dir, preferAkahai = true}) -> with kyoku
     @type = \chi
@@ -552,7 +557,7 @@ Event.chi = class Chi #{{{
           if p5n == 0 or (p0n > 0 and preferAkahai) then @ownPai[i] = p0
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.equal @player, (..currPlayer + 1)%4, "can only chi from left/kamicha"
     assert.equal ..phase, \postDahai
@@ -567,7 +572,7 @@ Event.chi = class Chi #{{{
       # NOTE: `equivPai` is shown (not original)
 
     # build fuuro object
-    @[FUURO] = {
+    @fuuro = {
       type: \minjun
       anchor: p
       ownPai: @ownPai
@@ -581,10 +586,10 @@ Event.chi = class Chi #{{{
 
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     ..playerHidden[@player].remove2 @ownPai.0, @ownPai.1
     ..playerPublic[@player]
-      ..fuuro.push @[FUURO]
+      ..fuuro.push @fuuro
       ..menzen = false
     ..playerPublic[..currPlayer].lastSutehai.fuuroPlayer = @player
 
@@ -608,7 +613,7 @@ Event.pon = class Pon #{{{
   # full:
   #   ownPai: [2]Pai
   # private:
-  #   FUURO
+  #   fuuro
 
   (kyoku, {@player, @ownPai, maxAkahai = 2}) -> with kyoku
     @type = \pon
@@ -635,7 +640,7 @@ Event.pon = class Pon #{{{
       | 2 => [akahai, akahai]
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.notEqual @player, ..currPlayer
     assert.equal ..phase, \postDahai
@@ -648,7 +653,7 @@ Event.pon = class Pon #{{{
       "[#a#b#c] is not a valid koutsu"
 
     # build fuuro object
-    @[FUURO] = {
+    @fuuro = {
       type: \minko
       anchor: c.equivPai
       ownPai: @ownPai
@@ -675,7 +680,7 @@ Event.daiminkan = class Daiminkan #{{{
   # full:
   #   newDoraHyouji: ?[]Pai
   # private:
-  #   FUURO
+  #   fuuro
 
   (kyoku, @player) -> with kyoku
     @type = \daiminkan
@@ -685,7 +690,7 @@ Event.daiminkan = class Daiminkan #{{{
         "cannot construct for others on replicate instance"
     @init kyoku
 
-  init: (kyoku) -> with @[KYOKU] = kyoku
+  init: (kyoku) -> with @kyoku = kyoku
     assert.equal @seq, ..seq
     assert.notEqual @player, ..currPlayer
     assert.equal ..phase, \postDahai
@@ -708,7 +713,7 @@ Event.daiminkan = class Daiminkan #{{{
     # exclude sutehai (not own)
     i = ownPai.indexOf pai
     ownPai.splice i, 1
-    @[FUURO] = {
+    @fuuro = {
       type: \daiminkan
       pai, ownPai
       otherPai: ..currPai
@@ -726,13 +731,13 @@ Event.daiminkan = class Daiminkan #{{{
 
     return this
 
-  apply: !-> with kyoku = @[KYOKU]
+  apply: !-> with kyoku = @kyoku
     # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
     # TODO: impl ryoukyoku in general -- above should be unnecessary
 
     ..playerHidden[@player].removeEquivN ..currPai.equivPai, 3
     ..playerPublic[@player]
-      ..fuuro.push @[FUURO]
+      ..fuuro.push @fuuro
       ..menzen = false
     ..playerPublic[..currPlayer].lastSutehai.fuuroPlayer = @player
 
