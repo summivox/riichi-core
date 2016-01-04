@@ -1,4 +1,4 @@
-# agari {win}: everything[1] you wish to know about a winning hand
+# agari : everything[1] you wish to know about a winning hand
 
 require! {
   './pai': Pai
@@ -16,7 +16,7 @@ require! {
 #   `rulevar`
 #
 #   ===== hand =====
-#   `agariPai`: `tsumo` / `ronPai`
+#   `agariPai`
 #   `juntehai`
 #   `decompTenpai`: corresponds to `juntehai`
 #   `fuuro`
@@ -37,9 +37,10 @@ require! {
 #   `nKan`
 #
 #   ===== conditions =====
-#   `isAfterKan`: for \rinshankaihou & \chankan
+#   `rinshan`
+#   `chankan`
 #   `isHaitei`: `nPiipaiLeft == 0` for \haiteiraoyue & \houteiraoyui
-#   `isTrueFirstTsumo`: for \tenhou & \chiihou
+#   `virgin`: for \tenhou & \chiihou
 #
 # OUTPUT:
 #   `isAgari`: true/false
@@ -267,7 +268,7 @@ function getYakuResult(decomp, {
       | \shuntsu => mf = 0
       | \minko => mf = 2
       | \anko => mf = 4
-      if m.anchor.isYaochuupai then mf *= 2
+      if m.anchor.isYaochuupai then mf *= 2 # NOTE: shuntsu is still 0
       mentsuFu += mf
     switch jantou
     | Pai.FONPAI[bakaze, jikaze], Pai<[5z 6z 7z]> => jantouFu = 2

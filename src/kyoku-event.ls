@@ -2,6 +2,7 @@ require! {
   'chai': {assert}
 
   './pai': Pai
+  './decomp': {decompTenpai}
   './wall': splitWall
   './util': {OTHER_PLAYERS}
 
@@ -12,6 +13,10 @@ require! {
 # GLOBAL TODO:
 # - explain doraHyouji piggybacking
 # - 99/tsumo/ron/ryoukyoku
+# - more watertight `init` checks
+# - do `Pai.cloneFix` already
+# - assertion messages even though source is pretty natural language
+# - fix doc of all events
 
 
 # helpers for piggy-backing doraHyouji handling on events {{{
@@ -22,7 +27,7 @@ require! {
 function getNewDoraHyouji(kyoku, type) => with kyoku
   if not (rule = ..rulevar.dora.kan) then return
   lo = ..globalPublic.doraHyouji.length
-  hi = ..globalPublic.nKan - (rule[type] ? 0)
+  hi = ..globalPublic.nKan + (type != \dahai) - (rule[type] ? 0)
   if hi < lo then return null
   return ..globalHidden.doraHyouji[lo to hi]
 
@@ -61,7 +66,7 @@ export Event = {}
 #   "full": sent to replicates (includes "minimal")
 
 
-Event.deal = class Deal #{{{
+Event.deal = class Deal # {{{
   # master-initiated
   # minimal:
   #   wall: ?[136]Pai -- defaults to randomly shuffled
@@ -72,7 +77,7 @@ Event.deal = class Deal #{{{
   #   SPLIT: cached split wall
   SPLIT = Symbol \split
 
-  (kyoku, @wall) -> with kyoku
+  (kyoku, {@wall}) -> with kyoku
     assert not ..isReplicated
     @type = \deal
     @seq = 0
@@ -81,6 +86,7 @@ Event.deal = class Deal #{{{
 
   init: (kyoku) -> with @kyoku = kyoku
     # must be the first event
+    assert.equal @type, \deal
     assert.equal ..seq, 0
     assert.equal ..phase, \begin
     if not ..isReplicated # master
@@ -110,7 +116,7 @@ Event.deal = class Deal #{{{
     ..seq++
 # }}}
 
-Event.tsumo = class Tsumo #{{{
+Event.tsumo = class Tsumo # {{{
   # master-initiated
   # minimal: (null)
   # partial:
@@ -132,6 +138,7 @@ Event.tsumo = class Tsumo #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \tsumo
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
@@ -154,7 +161,7 @@ Event.tsumo = class Tsumo #{{{
     ..seq++
 # }}}
 
-Event.dahai = class Dahai #{{{
+Event.dahai = class Dahai # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai
@@ -180,10 +187,10 @@ Event.dahai = class Dahai #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \dahai
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
-    assert ..phase in <[postTsumo postChiPon]>,
-      "can only dahai after tsumo/chi/pon"
+    assert ..phase in <[postTsumo postChiPon]>#
     PP = ..playerPublic[@player]
     PH = ..playerHidden[@player]
 
@@ -224,14 +231,12 @@ Event.dahai = class Dahai #{{{
     if @riichi
       PP.riichi.declared = true
       if ..isTrueFirstTsumo @player then PP.riichi.double = true
-    else
-      ... # TODO: unified generalized ippatsu
     if @tsumokiri
-      PH.tsumokiri!
       PP.tsumokiri @pai
+      PH.tsumokiri!
     else
-      PH.dahai @pai
       PP.dahai @pai
+      PH.dahai @pai
 
     # furiten caused by dahai
     if PH instanceof PlayerHidden then with PH
@@ -250,7 +255,7 @@ Event.dahai = class Dahai #{{{
     ..seq++
 # }}}
 
-Event.ankan = class Ankan #{{{
+Event.ankan = class Ankan # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai
@@ -260,7 +265,7 @@ Event.ankan = class Ankan #{{{
   # private:
   #   fuuro
 
-  (kyoku, @pai) -> with kyoku
+  (kyoku, {@pai}) -> with kyoku
     @type = \ankan
     @seq = ..seq
     @player = ..currPlayer
@@ -270,6 +275,7 @@ Event.ankan = class Ankan #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \ankan
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
@@ -328,13 +334,10 @@ Event.ankan = class Ankan #{{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
-    # TODO: impl ryoukyoku in general -- above should be unnecessary
-
     ..playerHidden[@player].removeEquivN pai, 4
     ..playerPublic[@player].fuuro.push @fuuro
+    ..globalPublic.nKan++
 
-    # TODO: unified generalized ippatsu
     addDoraHyouji kyoku, @newDoraHyouji
 
     ..rinshan = true
@@ -343,7 +346,7 @@ Event.ankan = class Ankan #{{{
     ..seq++
 # }}}
 
-Event.kakan = class Kakan #{{{
+Event.kakan = class Kakan # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai -- see `kakanPai` in fuuro/kakan
@@ -353,7 +356,7 @@ Event.kakan = class Kakan #{{{
   # private:
   #   fuuro
 
-  (kyoku, @pai) -> with kyoku
+  (kyoku, {@pai}) -> with kyoku
     @type = \kakan
     @seq = ..seq
     @player = ..currPlayer
@@ -363,6 +366,7 @@ Event.kakan = class Kakan #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \kakan
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
@@ -399,6 +403,7 @@ Event.kakan = class Kakan #{{{
     @fuuro
       ..type = \kakan
       ..kakanPai = @pai
+    ..globalPublic.nKan++
 
     # TODO: unified generalized ippatsu
     addDoraHyouji kyoku, @newDoraHyouji
@@ -409,7 +414,7 @@ Event.kakan = class Kakan #{{{
     ..seq++
 # }}}
 
-Event.tsumoAgari = class TsumoAgari #{{{
+Event.tsumoAgari = class TsumoAgari # {{{
   # replicate-initiated:
   # minimal: null
   # full:
@@ -427,6 +432,7 @@ Event.tsumoAgari = class TsumoAgari #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \tsumoAgari
     assert.equal @seq, ..seq
     assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
@@ -456,7 +462,7 @@ Event.tsumoAgari = class TsumoAgari #{{{
     }
 # }}}
 
-Event.kyuushuukyuuhai = class Kyuushuukyuuhai #{{{
+Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
   # replicate-initiated
   # minimal: null
   # full:
@@ -473,33 +479,40 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai #{{{
     ...
 # }}}
 
-Event.declare = class Declare #{{{
-  # replicate-initiated (partial)
+Event.declare = class Declare # {{{
+  # SPECIAL: EVENT WRAPPER
+  # FIXME: doc
+  # minimal:
+  #   what: chi/pon/daiminkan/ron
+  #   args: (constructor args for constructing corresponding event)
   # partial:
   #   player: 0/1/2/3
-  #   what: chi/pon/daiminkan/ron
-  # minimal == full: (includes partial)
-  #   args: (constructor args for constructing corresponding event)
+  #   what
+  # full:
+  #   player
+  #   what
+  #   args
 
-  (kyoku, {@player, @what, @args}) -> with kyoku
+  (kyoku, {@what, @args}) -> with kyoku
     @type = \declare
     @seq = ..seq
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \declare
     assert @what in <[chi pon daiminkan ron]>#
     assert.isNull ..lastDecl[@player], "you can only declare once"
     if @args?
+      @player = @args.player
       new Event[@what](kyoku, @args) # validate only
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..lastDecl
-      ..[@what] = ..[@player] = @args ? @{what, player}
+    ..lastDecl.add @{what, player, args}
     ..seq++
 # }}}
 
-Event.chi = class Chi #{{{
+Event.chi = class Chi # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must be next player of `currPlayer`
@@ -560,6 +573,7 @@ Event.chi = class Chi #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \chi
     assert.equal @seq, ..seq
     assert.equal @player, (..currPlayer + 1)%4, "can only chi from left/kamicha"
     assert.equal ..phase, \postDahai
@@ -589,6 +603,7 @@ Event.chi = class Chi #{{{
     return this
 
   apply: !-> with kyoku = @kyoku
+    .._didNotHoujuu this
     ..playerHidden[@player].remove2 @ownPai.0, @ownPai.1
     ..playerPublic[@player]
       ..fuuro.push @fuuro
@@ -602,7 +617,7 @@ Event.chi = class Chi #{{{
     ..seq++
 # }}}
 
-Event.pon = class Pon #{{{
+Event.pon = class Pon # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -643,6 +658,7 @@ Event.pon = class Pon #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \pon
     assert.equal @seq, ..seq
     assert.notEqual @player, ..currPlayer
     assert.equal ..phase, \postDahai
@@ -675,7 +691,7 @@ Event.pon = class Pon #{{{
   apply: Chi::apply # same object layout -- simply reuse
 # }}}
 
-Event.daiminkan = class Daiminkan #{{{
+Event.daiminkan = class Daiminkan # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -684,7 +700,7 @@ Event.daiminkan = class Daiminkan #{{{
   # private:
   #   fuuro
 
-  (kyoku, @player) -> with kyoku
+  (kyoku, {@player}) -> with kyoku
     @type = \daiminkan
     @seq = ..seq
     if ..isReplicated
@@ -693,6 +709,7 @@ Event.daiminkan = class Daiminkan #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \daiminkan
     assert.equal @seq, ..seq
     assert.notEqual @player, ..currPlayer
     assert.equal ..phase, \postDahai
@@ -734,16 +751,14 @@ Event.daiminkan = class Daiminkan #{{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
-    # TODO: impl ryoukyoku in general -- above should be unnecessary
-
+    .._didNotHoujuu this
     ..playerHidden[@player].removeEquivN ..currPai.equivPai, 3
     ..playerPublic[@player]
       ..fuuro.push @fuuro
       ..menzen = false
     ..playerPublic[..currPlayer].lastSutehai.fuuroPlayer = @player
+    ..globalPublic.nKan++
 
-    # TODO: unified generalized ippatsu
     addDoraHyouji kyoku, @newDoraHyouji
 
     ..rinshan = true
@@ -752,4 +767,74 @@ Event.daiminkan = class Daiminkan #{{{
     ..seq++
 # }}}
 
+Event.ron = class Ron # {{{
+  # replicate-initiated
+  # minimal:
+  #   player: 0/1/2/3
+  # full:
+  #   juntehai: PlayerHidden::juntehai
+  # private:
+  #   decompTenpai: PlayerHidden::decompTempai
+  #   agari: Agari
+
+  (kyoku, {@player, @isLast = true}) -> with kyoku
+    @type = \ron
+    @seq = ..seq
+    if ..isReplicated
+      assert.equal @player, ..me,
+        "cannot construct for others on replicate instance"
+    @init kyoku
+
+  init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \ron
+    assert.equal @seq, ..seq
+    assert.notEqual @player, ..currPlayer
+    assert ..phase in <[postDahai postKan]>#
+
+    with ..playerHidden[@player]
+      if .. instanceof PlayerHidden
+        @{juntehai, decompTenpai} = ..
+        assert not ..furiten
+
+    assert.isArray @juntehai
+    @decompTenpai ?= decompTenpai Pai.binsFromArray @juntehai
+    assert.isArray @decompTenpai?.wait
+    assert ..currPai.equivPai in @decompTempai.wait
+    @agari = ..agari @player, ..currPai, ..currPlayer
+    # FIXME: pass `juntehai` to `Kyoku::agari`
+    assert.isNotNull @agari
+
+    return this
+
+  apply: !-> with kyoku = @kyoku
+    ..result
+      ..type = \ron
+      for i til 4 => ..delta[i] += @agari.delta[i]
+      ..takeKyoutaku @player
+      ..renchan |= @player == ..chancha
+# }}}
+
+Event.nextTurn = class NextTurn # {{{
+  # master-initiated
+  # NOTE: no member
+
+  (kyoku) -> with kyoku
+    @type = \nextTurn
+    @seq = ..seq
+    assert not ..isReplicated
+    @init kyoku
+
+  init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \nextTurn
+    assert.equal @seq, ..seq
+    assert ..phase in <[postDahai postKan]>#
+    return this
+
+  apply: !-> with kyoku = @kyoku
+    .._didNotHoujuu this
+    if ..phase == \postDahai
+      ..currPlayer = (..currPlayer + 1)%4
+    ..phase = \preTsumo
+    ..seq++
+# }}}
 

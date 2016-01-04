@@ -40,6 +40,7 @@ module.exports =
     */
 
   riichi:
+    kyoutaku: 1000
     minPiipaiLeft: 4
     doubleRiichi: yes
 

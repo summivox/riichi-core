@@ -158,20 +158,20 @@ export
     riichi.accepted and riichi.ippatsu
   menzenchintsumohou: (decomp, {menzen, isTsumo}) ->
     menzen and isTsumo
-  rinshankaihou: (decomp, {isAfterKan, isTsumo}) ->
-    isAfterKan and isTsumo
-  chankan: (decomp, {isAfterKan, isRon}) ->
-    isAfterKan and isRon
+  rinshankaihou: (decomp, {rinshan, isTsumo}) ->
+    rinshan and isTsumo
+  chankan: (decomp, {chankan, isRon}) ->
+    chankan and isRon
   haiteiraoyue: (decomp, {isHaitei, isTsumo}) ->
     isHaitei and isTsumo
   houteiraoyui: (decomp, {isHaitei, isRon}) ->
     isHaitei and isRon
   chiitoitsu: (decomp) ->
     decomp.k7 == \chiitoi
-  tenhou: (decomp, {isTsumo, isTrueFirstTsumo, agariPlayer, chancha}) ->
-    isTsumo and isTrueFirstTsumo and agariPlayer == chancha
-  chiihou: (decomp, {isTsumo, isTrueFirstTsumo, agariPlayer, chancha}) ->
-    isTsumo and isTrueFirstTsumo and agariPlayer != chancha
+  tenhou: (decomp, {isTsumo, virgin, agariPlayer, chancha}) ->
+    isTsumo and virgin and agariPlayer == chancha
+  chiihou: (decomp, {isTsumo, virgin, agariPlayer, chancha}) ->
+    isTsumo and virgin and agariPlayer != chancha
 
 
   # tehai-only
