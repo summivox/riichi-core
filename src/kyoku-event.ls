@@ -31,7 +31,7 @@ function addDoraHyouji(kyoku, doraHyouji)
   if doraHyouji?.length > 0
     kyoku.globalPublic.doraHyouji.push ...doraHyouji
 
-#}}}
+# }}}
 
 
 export Event = {}
@@ -108,7 +108,7 @@ Event.deal = class Deal #{{{
 
     ..phase = \preTsumo
     ..seq++
-#}}}
+# }}}
 
 Event.tsumo = class Tsumo #{{{
   # master-initiated
@@ -152,7 +152,7 @@ Event.tsumo = class Tsumo #{{{
     ..currPai = @pai # NOTE: null on replicate-others -- this is okay
     ..phase = \postTsumo
     ..seq++
-#}}}
+# }}}
 
 Event.dahai = class Dahai #{{{
   # replicate-initiated
@@ -187,7 +187,7 @@ Event.dahai = class Dahai #{{{
     PP = ..playerPublic[@player]
     PH = ..playerHidden[@player]
 
-    assert.notNull @pai
+    assert.isNotNull @pai
     pai = @pai
 
     if PP.riichi.accepted
@@ -248,7 +248,7 @@ Event.dahai = class Dahai #{{{
     ..currPai = @pai
     ..phase = \postDahai
     ..seq++
-#}}}
+# }}}
 
 Event.ankan = class Ankan #{{{
   # replicate-initiated
@@ -277,7 +277,7 @@ Event.ankan = class Ankan #{{{
     PP = ..playerPublic[@player]
     PH = ..playerHidden[@player]
 
-    assert.notNull @pai
+    assert.isNotNull @pai
     pai = @pai = @pai.equivPai
 
     assert GP.nPiiPaiLeft > 0, "cannot kan when no piipai left"
@@ -341,7 +341,7 @@ Event.ankan = class Ankan #{{{
     ..currPai = @pai
     ..phase = \postKan
     ..seq++
-#}}}
+# }}}
 
 Event.kakan = class Kakan #{{{
   # replicate-initiated
@@ -370,7 +370,7 @@ Event.kakan = class Kakan #{{{
     PP = ..playerPublic[@player]
     PH = ..playerHidden[@player]
 
-    assert.notNull @pai
+    assert.isNotNull @pai
     {equivPai} = pai = @pai
 
     assert GP.nPiiPaiLeft > 0, "cannot kan when no piipai left"
@@ -379,7 +379,7 @@ Event.kakan = class Kakan #{{{
 
     # find fuuro/minko object to be modified
     fuuro = PP.fuuro.find -> it.type == \minko and it.anchor == equivPai
-    assert.notNull fuuro, "need existing minko of [#equivPai]"
+    assert.isNotNull fuuro, "need existing minko of [#equivPai]"
     @fuuro = fuuro
 
     # master: try reveal doraHyouji
@@ -407,7 +407,7 @@ Event.kakan = class Kakan #{{{
     ..currPai = @pai
     ..phase = \postKan
     ..seq++
-#}}}
+# }}}
 
 Event.tsumoAgari = class TsumoAgari #{{{
   # replicate-initiated:
@@ -434,9 +434,9 @@ Event.tsumoAgari = class TsumoAgari #{{{
 
     if PH instanceof PlayerHidden
       tsumohai = PH.tsumohai
-      assert.notNull tsumohai, "tsumoAgari requires tsumohai"
+      assert.isNotNull tsumohai, "tsumoAgari requires tsumohai"
       @agari = .._agari(@player, tsumohai)
-      assert.notNull @agari
+      assert.isNotNull @agari
     else # PlayerHiddenMock
       assert PH.hasTsumohai, "tsumoAgari requires tsumohai"
       # this is for completeness -- could be redundant
@@ -454,7 +454,7 @@ Event.tsumoAgari = class TsumoAgari #{{{
       renchan: ..chancha == @player
       details: @agari
     }
-#}}}
+# }}}
 
 Event.kyuushuukyuuhai = class Kyuushuukyuuhai #{{{
   # replicate-initiated
@@ -471,7 +471,7 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai #{{{
 
   apply: !-> with kyoku = @kyoku
     ...
-#}}}
+# }}}
 
 Event.declare = class Declare #{{{
   # replicate-initiated (partial)
@@ -487,15 +487,17 @@ Event.declare = class Declare #{{{
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
-    assert @what in <[chi pon daiminkan ron]>
-    new Event[@what](kyoku) # verify validity
+    assert @what in <[chi pon daiminkan ron]>#
+    assert.isNull ..lastDecl[@player], "you can only declare once"
+    if @args?
+      new Event[@what](kyoku, @args) # validate only
     return this
 
   apply: !-> with kyoku = @kyoku
     ..lastDecl
       ..[@what] = ..[@player] = @args ? @{what, player}
     ..seq++
-#}}}
+# }}}
 
 Event.chi = class Chi #{{{
   # replicate-declared
@@ -598,7 +600,7 @@ Event.chi = class Chi #{{{
     ..currPlayer = @player
     ..phase = \postChiPon
     ..seq++
-#}}}
+# }}}
 
 Event.pon = class Pon #{{{
   # replicate-declared
@@ -671,7 +673,7 @@ Event.pon = class Pon #{{{
     return this
 
   apply: Chi::apply # same object layout -- simply reuse
-#}}}
+# }}}
 
 Event.daiminkan = class Daiminkan #{{{
   # replicate-declared
@@ -748,6 +750,6 @@ Event.daiminkan = class Daiminkan #{{{
     ..currPlayer = @player
     ..phase = \preTsumo # NOTE: no need to ask for ron
     ..seq++
-#}}}
+# }}}
 
 
