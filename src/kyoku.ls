@@ -300,18 +300,17 @@ module.exports = class Kyoku implements EventEmitter::
     return null
 
   # TODO: describe
-  agari: (agariPlayer, agariPai, houjuuPlayer) ->
+  agari: (agariPlayer, {juntehai, tsumohai}, houjuuPlayer) ->
     SS = @startState
     GH = @globalHidden
     GP = @globalPublic
-    PH = @playerHidden[agariPlayer] # FIXME
     PP = @playerPublic[agariPlayer]
     input = {
       rulevar: @rulevar
 
-      agariPai: agariPai
-      juntehai: PH.juntehai
-      decompTenpai: PH.decompTenpai
+      agariPai: tsumohai ? @currPai
+      juntehai
+      decompTenpai: decompTenpai Pai.binsFromArray juntehai
       fuuro: PP.fuuro
       menzen: PP.menzen
       riichi: PP.riichi

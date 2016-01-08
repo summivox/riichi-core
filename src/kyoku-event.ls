@@ -2,7 +2,7 @@ require! {
   'chai': {assert}
 
   './pai': Pai
-  './decomp': {decompTenpai}
+  './decomp': {decompTenpai, decompAgari}
   './wall': splitWall
   './util': {OTHER_PLAYERS}
 
@@ -406,6 +406,8 @@ Event.tsumoAgari = class TsumoAgari # {{{
   # full:
   #   juntehai: PlayerHidden::juntehai
   #   tsumohai: PlayerHidden::tsumohai
+  # private:
+  #   agari: Agari
 
   (kyoku) -> with kyoku
     @type = \tsumoAgari
@@ -419,30 +421,25 @@ Event.tsumoAgari = class TsumoAgari # {{{
     assert.equal @type, \tsumoAgari
     assert.equal @seq, ..seq
     assert.equal ..phase, \postTsumo
-    PH = ..playerHidden[..currPlayer]
 
-    if PH instanceof PlayerHidden
-      tsumohai = PH.tsumohai
-      assert.isNotNull tsumohai, "tsumoAgari requires tsumohai"
-      @agari = .._agari(..currPlayer, tsumohai)
-      assert.isNotNull @agari
-    else # PlayerHiddenMock
-      assert PH.hasTsumohai, "tsumoAgari requires tsumohai"
-      # this is for completeness -- could be redundant
+    with ..playerHidden[..player]
+      if .. instanceof PlayerHidden
+        @{juntehai, tsumohai} = ..
+
+    assert.isArray @juntehai
+    assert decompAgari Pai.binsFromArray @juntehai ++ @tsumohai .length > 0
+
+    @agari = .._agari(..currPlayer, @{juntehai, tsumohai})
+    assert.isNotNull @agari
 
     return this
 
   apply: !-> with kyoku = @kyoku
-    delta = ..globalPublic.delta
-    for i til 4 => delta[i] += @agari.delta[i]
-    delta[..currPlayer] += ..globalPublic.kyoutaku*1000
-    .._end {
-      type: \tsumoAgari
-      delta
-      kyoutaku: 0 # taken
-      renchan: ..chancha == ..currPlayer
-      details: @agari
-    }
+    ..result
+      ..type = \tsumoAgari
+      for i til 4 => ..delta[i] += @agari.delta[i]
+      ..takeKyoutaku ..player
+      ..renchan = ..player == ..chancha
 # }}}
 
 Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
