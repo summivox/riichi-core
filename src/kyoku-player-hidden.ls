@@ -156,6 +156,3 @@ module.exports = class PlayerHidden
       @tsumohai = null
       @juntehai.sort Pai.compare
     ret
-
-  # wrapper for `Pai.yaochuuFromBins`
-  yaochuu: -> Pai.yaochuuFromBins @bins

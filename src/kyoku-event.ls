@@ -120,8 +120,6 @@ Event.tsumo = class Tsumo # {{{
   # master-initiated
   # minimal: (null)
   # partial:
-  #	  player: 0/1/2/3
-  #	  rinshan: Boolean
   #	  pai: ?Pai -- for current player only
 
   (kyoku) -> with kyoku
@@ -129,8 +127,6 @@ Event.tsumo = class Tsumo # {{{
     assert ..globalPublic.nPiipaiLeft > 0
     @type = \tsumo
     @seq = ..seq
-    @player = ..currPlayer
-    @rinshan = ..rinshan
     if @rinshan
       @pai = ..globalHidden.rinshan[*-1]
     else
@@ -140,21 +136,20 @@ Event.tsumo = class Tsumo # {{{
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \tsumo
     assert.equal @seq, ..seq
-    assert.equal @player, ..currPlayer
     assert.equal ..phase, \preTsumo
     assert ..globalPublic.nPiipaiLeft > 0
     return this
 
   apply: !-> with kyoku = @kyoku
     if not ..isReplicated # master
-      with ..globalHidden
-        if @isRinshan
-          ..rinshan.pop!
-          # ..piipai.shift! # unnecessary because we check nPiipaiLeft
-        else
-          ..piipai.pop!
+      if ..rinshan
+        ..globalHidden.rinshan.pop!
+      else
+        ..globalHidden.piipai.pop!
     ..globalPublic.nPiipaiLeft--
     ..playerHidden[..currPlayer].tsumo @pai
+    # NOTE: above is correct -- rinshan tsumo also discards last piipai,
+    # which is reflected in `nPiipaiLeft`
 
     ..currPai = @pai # NOTE: null on replicate-others -- this is okay
     ..phase = \postTsumo
@@ -168,13 +163,11 @@ Event.dahai = class Dahai # {{{
   #   tsumokiri: ?Boolean
   #   riichi: Boolean
   # full:
-  #   player: 0/1/2/3
   #   newDoraHyouji: ?[]Pai
 
   (kyoku, {@pai = null, @tsumokiri = false, @riichi = false}) -> with kyoku
     @type = \dahai
     @seq = ..seq
-    @player = ..currPlayer
     if ..isReplicated
       assert.equal @player, ..me,
         "cannot construct for others on replicate instance"
@@ -189,10 +182,9 @@ Event.dahai = class Dahai # {{{
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \dahai
     assert.equal @seq, ..seq
-    assert.equal @player, ..currPlayer
     assert ..phase in <[postTsumo postChiPon]>#
-    PP = ..playerPublic[@player]
-    PH = ..playerHidden[@player]
+    PP = ..playerPublic[..currPlayer]
+    PH = ..playerHidden[..currPlayer]
 
     assert.isNotNull @pai
     pai = @pai
@@ -225,12 +217,12 @@ Event.dahai = class Dahai # {{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    PP = ..playerPublic[@player]
-    PH = ..playerHidden[@player]
+    PP = ..playerPublic[..currPlayer]
+    PH = ..playerHidden[..currPlayer]
 
     if @riichi
       PP.riichi.declared = true
-      if ..isTrueFirstTsumo @player then PP.riichi.double = true
+      if ..isTrueFirstTsumo ..currPlayer then PP.riichi.double = true
     if @tsumokiri
       PP.tsumokiri @pai
       PH.tsumokiri!
@@ -260,7 +252,6 @@ Event.ankan = class Ankan # {{{
   # minimal:
   #   pai: Pai
   # full:
-  #   player: 0/1/2/3
   #   newDoraHyouji: ?[]Pai
   # private:
   #   fuuro
@@ -268,20 +259,18 @@ Event.ankan = class Ankan # {{{
   (kyoku, {@pai}) -> with kyoku
     @type = \ankan
     @seq = ..seq
-    @player = ..currPlayer
     if ..isReplicated
-      assert.equal @player, ..me,
+      assert.equal ..currPlayer, ..me,
         "cannot construct for others on replicate instance"
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \ankan
     assert.equal @seq, ..seq
-    assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
     GP = ..globalPublic
-    PP = ..playerPublic[@player]
-    PH = ..playerHidden[@player]
+    PP = ..playerPublic[..currPlayer]
+    PH = ..playerHidden[..currPlayer]
 
     assert.isNotNull @pai
     pai = @pai = @pai.equivPai
@@ -334,8 +323,8 @@ Event.ankan = class Ankan # {{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..playerHidden[@player].removeEquivN pai, 4
-    ..playerPublic[@player].fuuro.push @fuuro
+    ..playerHidden[..currPlayer].removeEquivN pai, 4
+    ..playerPublic[..currPlayer].fuuro.push @fuuro
     ..globalPublic.nKan++
 
     addDoraHyouji kyoku, @newDoraHyouji
@@ -351,7 +340,6 @@ Event.kakan = class Kakan # {{{
   # minimal:
   #   pai: Pai -- see `kakanPai` in fuuro/kakan
   # full:
-  #   player: 0/1/2/3
   #   newDoraHyouji: ?[]Pai
   # private:
   #   fuuro
@@ -359,20 +347,18 @@ Event.kakan = class Kakan # {{{
   (kyoku, {@pai}) -> with kyoku
     @type = \kakan
     @seq = ..seq
-    @player = ..currPlayer
     if ..isReplicated
-      assert.equal @player, ..me,
+      assert.equal ..currPlayer, ..me,
         "cannot construct for others on replicate instance"
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \kakan
     assert.equal @seq, ..seq
-    assert.equal @player, ..currPlayer
     assert.equal ..phase, \postTsumo
     GP = ..globalPublic
-    PP = ..playerPublic[@player]
-    PH = ..playerHidden[@player]
+    PP = ..playerPublic[..currPlayer]
+    PH = ..playerHidden[..currPlayer]
 
     assert.isNotNull @pai
     {equivPai} = pai = @pai
@@ -399,7 +385,7 @@ Event.kakan = class Kakan # {{{
     # if ++..globalPublic.nKan > 4 then return @_checkRyoukyoku!
     # TODO: impl ryoukyoku in general -- above should be unnecessary
 
-    ..playerHidden[@player].removeEquivN @pai.equivPai, 1
+    ..playerHidden[..currPlayer].removeEquivN @pai.equivPai, 1
     @fuuro
       ..type = \kakan
       ..kakanPai = @pai
@@ -418,30 +404,27 @@ Event.tsumoAgari = class TsumoAgari # {{{
   # replicate-initiated:
   # minimal: null
   # full:
-  #   player: 0/1/2/3
-  #   delta: [4]Integer
-  #   agari: Agari
+  #   juntehai: PlayerHidden::juntehai
+  #   tsumohai: PlayerHidden::tsumohai
 
   (kyoku) -> with kyoku
     @type = \tsumoAgari
     @seq = ..seq
-    @player = ..currPlayer
     if ..isReplicated
-      assert.equal @player, ..me,
+      assert.equal ..currPlayer, ..me,
         "cannot construct for others on replicate instance"
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \tsumoAgari
     assert.equal @seq, ..seq
-    assert.equal @player, ..currPlayer
-    assert.equal ..phase, \preTsumo
-    PH = ..playerHidden[@player]
+    assert.equal ..phase, \postTsumo
+    PH = ..playerHidden[..currPlayer]
 
     if PH instanceof PlayerHidden
       tsumohai = PH.tsumohai
       assert.isNotNull tsumohai, "tsumoAgari requires tsumohai"
-      @agari = .._agari(@player, tsumohai)
+      @agari = .._agari(..currPlayer, tsumohai)
       assert.isNotNull @agari
     else # PlayerHiddenMock
       assert PH.hasTsumohai, "tsumoAgari requires tsumohai"
@@ -452,12 +435,12 @@ Event.tsumoAgari = class TsumoAgari # {{{
   apply: !-> with kyoku = @kyoku
     delta = ..globalPublic.delta
     for i til 4 => delta[i] += @agari.delta[i]
-    delta[@player] += ..globalPublic.kyoutaku*1000
+    delta[..currPlayer] += ..globalPublic.kyoutaku*1000
     .._end {
       type: \tsumoAgari
       delta
       kyoutaku: 0 # taken
-      renchan: ..chancha == @player
+      renchan: ..chancha == ..currPlayer
       details: @agari
     }
 # }}}
@@ -466,17 +449,41 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
   # replicate-initiated
   # minimal: null
   # full:
-  #   player: 0/1/2/3
-  #   delta: [4]Integer
+  #   juntehai: PlayerHidden::juntehai
+  #   tsumohai: PlayerHidden::tsumohai
 
   (kyoku) -> with kyoku
-    ...
+    @type = \kyuushuukyuuhai
+    @seq = ..seq
+    if ..isReplicated
+      assert.equal ..currPlayer, ..me,
+        "cannot construct for others on replicate instance"
+    @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
-    ...
+    assert.equal @type, \kyuushuukyuuhai
+    assert.equal @seq, ..seq
+    assert.equal ..phase, \postTsumo
+
+    assert ..virgin
+    with ..playerHidden[..currPlayer]
+      if .. instanceof PlayerHidden
+        @{juntehai, tsumohai} = ..
+    assert.lengthOf @juntehai, 13
+    assert.isNotNull @tsumohai
+
+    nYaochuu =
+      Pai.yaochuuFromBins Pai.binsFromArray @juntehai ++ @tsumohai
+      .filter (>0) .length
+    assert nYaochuu >= 9
+
+    return this
 
   apply: !-> with kyoku = @kyoku
-    ...
+    ..result
+      ..type = \ryoukyoku
+      ..reason = \kyuushuukyuuhai
+      ..renchan = true
 # }}}
 
 Event.declare = class Declare # {{{
@@ -501,14 +508,14 @@ Event.declare = class Declare # {{{
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \declare
     assert @what in <[chi pon daiminkan ron]>#
-    assert.isNull ..lastDecl[@player], "you can only declare once"
+    assert.isNull ..currDecl[@player], "you can only declare once"
     if @args?
       @player = @args.player
       new Event[@what](kyoku, @args) # validate only
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..lastDecl.add @{what, player, args}
+    ..currDecl.add @{what, player, args}
     ..seq++
 # }}}
 
@@ -770,10 +777,11 @@ Event.daiminkan = class Daiminkan # {{{
 Event.ron = class Ron # {{{
   # replicate-initiated
   # minimal:
-  #   player: 0/1/2/3
+  #   player: 0/1/2/3 -- must not be `currPlayer`
   # full:
   #   juntehai: PlayerHidden::juntehai
   # private:
+  #   houjuuPlayer: kyoku.currPlayer
   #   decompTenpai: PlayerHidden::decompTempai
   #   agari: Agari
 
@@ -811,7 +819,7 @@ Event.ron = class Ron # {{{
       ..type = \ron
       for i til 4 => ..delta[i] += @agari.delta[i]
       ..takeKyoutaku @player
-      ..renchan |= @player == ..chancha
+      ..renchan = ..renchan or @player == ..chancha
 # }}}
 
 Event.nextTurn = class NextTurn # {{{

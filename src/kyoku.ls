@@ -1,8 +1,3 @@
-# Kyoku
-# Implements core game logic
-#
-# A Kyoku instance is both the "table" and the "referee" of one round of game.
-
 require! {
   events: {EventEmitter}
 
@@ -17,6 +12,7 @@ require! {
 
   './kyoku-event': Event
   './kyoku-player-public': PlayerPublic
+  './kyoku-player-hidden': PlayerHidden
 }
 
 module.exports = class Kyoku implements EventEmitter::
@@ -68,8 +64,8 @@ module.exports = class Kyoku implements EventEmitter::
     # table state visible to all
     @globalPublic = {
       nPiipaiLeft: 70 # == 34*4 - 13*4 - 7*2 == piipai.length (at start)
-      nKan: 0
-      doraHyouji: [] # visible ones only (see `@globalPublic.doraHyouji`)
+      nKan: 0 # redundant -- maintained here for easy checks
+      doraHyouji: [] # visible ones only
     }
     @playerPublic = for p til 4
       new PlayerPublic (4 - chancha + p)%4
@@ -88,19 +84,23 @@ module.exports = class Kyoku implements EventEmitter::
     #       chi/pon/daiminkan/ankan: `ownPai`
     #       kakan: `kakanPai`
     #   rinshan: Boolean
-    #     TODO: set flag after kan, clear flag after rinshan tsumo
+    #   virgin: Boolean
+    #     original definition: first 4 tsumo-dahai in natural order,
+    #     uninterrupted by any declarations
+    #     equivalent: ippatsu of chancha's kamicha (previous)
     @seq = 0
     @phase = \begin
     @currPlayer = chancha
     @currPai = null
     @rinshan = false
+    @virgin = true
 
     # conflict resolution for declarations
     # - player may only declare one action
     # - chi can only be declared by one player
     # - pon/daiminkan can only be declared by one player
     # - ron can be declared by multiple players
-    @lastDecl =
+    @currDecl =
       chi: null, pon: null, daiminkan: null, ron: null
       0: null, 1: null, 2: null, 3: null
       add: ({what, player}:x) -> @[what] = @[player] = x
@@ -115,24 +115,29 @@ module.exports = class Kyoku implements EventEmitter::
         @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
         return ret
 
-    # result: null when still playing
-    #   type: tsumoAgari/ron/ryoukyoku
-    #   delta: []Integer -- points increment for each player
-    #   kyoutaku: Integer -- how much kyoutaku should remain on table
-    #   renchan: Boolean
-    # details: switch type
-    #   when \tsumoAgari => Agari
-    #   when \ron => []Agari -- by natural turn order
-    #   when \ryoukyoku => String -- reason for ryoukyoku
+    # result: updated as game progresses
+    #   common:
+    #     type: tsumoAgari/ron/ryoukyoku
+    #     delta: []Integer -- points increment for each player
+    #     kyoutaku: Integer -- how much kyoutaku remains on table
+    #     renchan: Boolean
+    #   tsumoAgari:
+    #     agari: Agari
+    #   ron:
+    #     agari: []Agari -- in natural turn order from `houjuuPlayer`
+    #   ryoukyoku:
+    #     reason: String
     KYOUTAKU_UNIT = rulevar.riichi.kyoutaku
     @result =
       type: null
       delta: [0 0 0 0]
       kyoutaku: startState.kyoutaku
       renchan: false
+      # called when a player declares riichi
       giveKyoutaku: (player) ->
         @delta[player] -= KYOUTAKU_UNIT
         @kyoutaku++
+      # called when a player wins
       takeKyoutaku: (player) ->
         @delta[player] += @kyoutaku * KYOUTAKU_UNIT
         @kyoutaku = 0
@@ -165,7 +170,7 @@ module.exports = class Kyoku implements EventEmitter::
   # resolve declarations after dahai/ankan/kakan
   resolve: !->
     assert @phase in <[postDahai, postKan]>#
-    with @lastDecl.resolve @currPlayer
+    with @currDecl.resolve @currPlayer
       if .. not instanceof Array
         # chi/pon/daiminkan
         @exec new Event[..what](this, ..args)
@@ -299,7 +304,7 @@ module.exports = class Kyoku implements EventEmitter::
     SS = @startState
     GH = @globalHidden
     GP = @globalPublic
-    PH = @playerHidden[agariPlayer]
+    PH = @playerHidden[agariPlayer] # FIXME
     PP = @playerPublic[agariPlayer]
     input = {
       rulevar: @rulevar
@@ -362,7 +367,7 @@ module.exports = class Kyoku implements EventEmitter::
     # if `currPai` belongs to some player's tenpai set, he enters doujun/riichi
     # furiten state until he actively chooses dahai
     for op in OTHER_PLAYERS[@currPlayer]
-      with @playerHidden[op]
+      with @playerHidden[op] => if .. instanceof PlayerHidden
         if @currPai.equivPai in ..decompTenpai.wait
           ..furiten = true
           ..doujunFuriten = true
@@ -371,90 +376,6 @@ module.exports = class Kyoku implements EventEmitter::
   # }}}
 
   # LEGACY METHODS YET TO BE MERGED {{{
-
-  kyuushuukyuuhai: (player) !->
-    {valid, reason, renchan} = @canKyuushuukyuuhai player
-    if not valid
-      throw Error "riichi-core: kyoku: kyuushuukyuuhai: #reason"
-    @_end {
-      type: \ryoukyoku
-      delta: @globalPublic.delta
-      kyoutaku: @globalPublic.kyoutaku # remains on table
-      renchan
-      details: \kyuushuukyuuhai
-    }
-
-  # ron
-  canRon: (player) ->
-    with @_checkQuery player => if not ..valid then return ..
-    if @playerHidden[player].furiten
-      return valid: false, reason: "furiten"
-    pai = @ronPai!
-    equivPai = pai.equivPai
-    houjuuPlayer = @currPlayer
-    {wait} = @playerHidden[player].decompTenpai
-    if equivPai not in wait then return valid: false, reason:
-      "#pai not in your tenpai set #{Pai.stringFromArray[wait]}"
-    # FIXME: kokushiAnkan
-    if not (agari = @_agari player, pai, houjuuPlayer)
-      return valid: false, reason: "no yaku"
-    return valid: true, action: {
-      type: \ron, player
-      details: agari
-    }
-  ron: (player) !->
-    {valid, reason, action} = @canRon player
-    if not valid
-      throw Error "riichi-core: kyoku: ron: #reason"
-    @_declareAction action
-
-  # (multi-)ron resolution
-  # priority of players are decided by natural turn order after houjuu player:
-  #   shimocha{next/right} > toimen{opposite} > kamicha{prev/left}
-  # kyoutaku: all taken by highest priority
-  # double/triple ron:
-  #   atamahane: true => highest priority only
-  #   double/triple: false => double/triple ron results in ryoukyoku instead
-  _resolveRon: !->
-    {atamahane, double, triple} = @rulevar.ron
-
-    nRon = 0
-    ronList = []
-    agariList = []
-
-    {delta, kyoutaku} = @globalPublic # NOTE: delta is modified
-    renchan = false
-    houjuuPlayer = @currPlayer
-
-    for player in OTHER_PLAYERS[houjuuPlayer]
-      with @lastDecl[player]
-        if ..?.type == \ron
-          nRon++
-          ronList.push ..
-          agariList.push (agari = ..details)
-          for i til 4 => delta[i] += agari.delta[i]
-          delta[player] += kyoutaku*1000
-          kyoutaku = 0 # all taken by highest priority
-          if player == @chancha then renchan = true
-          if atamahane then break
-
-    if (nRon == 2 and not double) or (nRon == 3 and not triple)
-      @_end {
-        type: \ryoukyoku
-        delta
-        kyoutaku # remains on table
-        renchan
-        details: if nRon == 2 then \doubleRon else \tripleRon
-      }
-    else
-      @_end {
-        type: \ron
-        delta
-        kyoutaku: 0 # taken
-        renchan
-        details: agariList
-      }
-
 
   # state updates after player action
 
