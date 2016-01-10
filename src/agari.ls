@@ -2,7 +2,7 @@
 
 require! {
   './pai': Pai
-  './decomp': {decompTenpai, decompAgariFromTenpai}
+  './decomp': {tenpaiDecomp, decompAgariFromTenpai}
   './util': {OTHER_PLAYERS, ceilTo, sum, count}
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
@@ -18,7 +18,7 @@ require! {
 #   ===== hand =====
 #   `agariPai`
 #   `juntehai`
-#   `decompTenpai`: corresponds to `juntehai`
+#   `tenpaiDecomp`: corresponds to `juntehai`
 #   `fuuro`
 #   `menzen`
 #   `riichi`: {accepted, double, ippatsu}
@@ -61,9 +61,9 @@ module.exports = class Agari
     import all input
 
     # tenpai and agari decompsition
-    if @decompTenpai.length == 0 then return @isAgari = false
-    @decompAgari = decompAgariFromTenpai @decompTenpai, @agariPai
-    if @decompAgari.length == 0 then return @isAgari = false
+    if @tenpaiDecomp.length == 0 then return @isAgari = false
+    @agariDecomp = decompAgariFromTenpai @tenpaiDecomp, @agariPai
+    if @agariDecomp.length == 0 then return @isAgari = false
 
     # copy and augment fuuro
     @fuuro = Pai.cloneFix @fuuro
@@ -92,7 +92,7 @@ module.exports = class Agari
     # maximize basic points over all decompositions
     maxBasicPoints = 0
     maxDecompResult = null
-    for {wait}:decomp in @decompAgari
+    for {wait}:decomp in @agariDecomp
       # kokushi: exclusive override
       if wait in <[kokushi kokushi13]>
         times = (@rulevar.yakuman[wait] ? 1) <? @rulevar.yakuman.max
