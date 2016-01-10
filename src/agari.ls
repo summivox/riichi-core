@@ -32,7 +32,7 @@ require! {
 #   `honba`
 #   `bakaze`
 #   `jikaze`
-#   `doraHyouji`
+#   `doraHyouji`: revealed only
 #   `uraDoraHyouji`
 #   `nKan`
 #
@@ -159,11 +159,10 @@ function getDora({
   tehai, fuuro, riichi
   doraHyouji, uraDoraHyouji, nKan
 })
-  n = if kan then nKan + 1 else 1
-  m = if kanUra then n else 1
-  dora = doraHyouji[0 til n].map (.succDora)
+  dora = doraHyouji.map (.succDora)
   if ura and riichi.accepted
-    uraDora = uraDoraHyouji[0 til m].map (.succDora)
+    n = if kanUra then doraHyouji.length else 1
+    uraDora = uraDoraHyouji[0 til n].map (.succDora)
   else
     uraDora = []
 
