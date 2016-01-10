@@ -1,7 +1,3 @@
-# PlayerPublic: part of Kyoku logic
-# Encapsulates information of a player visible on the table
-# i.e. sutehai + fuuro + riichi
-
 module.exports = class PlayerPublic
   (@jikaze) ->
     # sutehai {discarded tile}: (maintained by methods)

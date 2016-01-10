@@ -1,6 +1,3 @@
-# PlayerHidden: part of Kyoku logic
-# Encapsulates information involving a player's concealed hand
-
 require! {
   './pai': Pai
   './decomp': {decompTenpai}
@@ -8,13 +5,13 @@ require! {
 
 module.exports = class PlayerHidden
   (haipai) ->
-    # Juntehai and tsumohai: (maintained by methods)
+    # juntehai and tsumohai: (maintained by methods)
     #   tsumohai: null or Pai
     #   juntehai: sorted array of Pai (excl. tsumohai)
     #   bins: counts both `juntehai` and `tsumohai`
-    #   decompTenpai: tenpai decomposition of latest (3n+1) juntehai state
+    #   tenpaiDecomp: tenpai decomposition of latest (3n+1) juntehai state
     #
-    # Juntehai/tsumohai count changes as follows:
+    # juntehai/tsumohai count changes as follows:
     # (* => tsumohai ; n = 0/1/2/3/4 ; N = n or n-1)
     #
     # - (3n+1)   : tsumo      => (3n+1)*
@@ -27,7 +24,7 @@ module.exports = class PlayerHidden
     @tsumohai = null
     @juntehai = haipai.sort Pai.compare
     @bins = bins = Pai.binsFromArray haipai
-    @decompTenpai = decompTenpai bins
+    @tenpaiDecomp = decompTenpai bins
 
     # Furiten status flags: (managed externally by Kyoku logic)
     #
@@ -57,7 +54,7 @@ module.exports = class PlayerHidden
     @tsumohai = pai
 
   # (3n+1)* => (3n+1)
-  # update decompTenpai
+  # update tenpaiDecomp
   canTsumokiri: ->
     if not @tsumohai? then return valid: false, reason: "no tsumohai"
     return valid: true
@@ -67,12 +64,12 @@ module.exports = class PlayerHidden
       throw Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
     pai = @tsumohai
     @bins[pai.S][pai.N]--
-    @decompTenpai = decompTenpai @bins
+    @tenpaiDecomp = tenpaiDecomp @bins
     @tsumohai = null
     return pai
 
   # (3n+1)* or (3n+2) => (3n+1)
-  # update decompTenpai
+  # update tenpaiDecomp
   canDahai: (pai) ->
     i = @juntehai.indexOf pai
     if i == -1 then return valid: false, reason:
@@ -83,7 +80,7 @@ module.exports = class PlayerHidden
     if not valid
       throw Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
     @bins[pai.S][pai.N]--
-    @decompTenpai = decompTenpai @bins
+    @tenpaiDecomp = tenpaiDecomp @bins
     with @juntehai
       if @tsumohai # (3n+1)*
         ..[i] = @tsumohai
@@ -99,7 +96,7 @@ module.exports = class PlayerHidden
     bins = @bins
     if bins[pai.S][pai.N] <= 0 then return null
     bins[pai.S][pai.N]--
-    decomp = decompTenpai bins
+    decomp = tenpaiDecomp bins
     bins[pai.S][pai.N]++
     return decomp
 
@@ -134,13 +131,13 @@ module.exports = class PlayerHidden
   # remove n * given pai in juntehai & tsumohai
   #   daiminkan: (3n+1)  => (3N+1)
   #   an/kakan:  (3n+1)* => (3N+1)
-  # update decompTenpai
+  # update tenpaiDecomp
   # return all removed pai
   removeEquivN: (pai, n) ->
     ret = []
     pai .= equivPai
     @bins[pai.S][pai.N] -= n
-    @decompTenpai = decompTenpai @bins
+    @tenpaiDecomp = tenpaiDecomp @bins
     @juntehai = @juntehai.filter ->
       if it.equivPai == pai && --n >= 0
         ret.push it

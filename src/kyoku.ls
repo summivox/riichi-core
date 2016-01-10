@@ -7,6 +7,7 @@ require! {
   '../package.json': {version: VERSION}
   './pai': Pai
   './agari': Agari
+  './decomp': {decompTenpai}
   './util': {OTHER_PLAYERS}
   './rulevar-default': rulevarDefault
 
@@ -42,9 +43,7 @@ module.exports = class Kyoku implements EventEmitter::
     # NOTE:
     # - immutable
     # - defaults to first kyoku in game
-    # - kyoutaku during this kyoku is not reflected in `.points` due to
-    #   immutability; see `@globalPublic.delta`
-    p0 = rulevar.setup.points.initial
+    p0 = rulevar.points.initial
     @startState = startState ?=
       bakaze: 0
       chancha: 0
@@ -56,44 +55,41 @@ module.exports = class Kyoku implements EventEmitter::
     if forPlayer?
       # replicated instance
       @me = forPlayer
-      @isReplicated = true
+      @isReplicate = true
     else
       # master instance
-      @isReplicated = false
+      @isReplicate = false
 
-    # table state visible to all
-    @globalPublic = {
-      nPiipaiLeft: 70 # == 34*4 - 13*4 - 7*2 == piipai.length (at start)
-      nKan: 0 # redundant -- maintained here for easy checks
-      doraHyouji: [] # visible ones only
-    }
-    @playerPublic = for p til 4
-      new PlayerPublic (4 - chancha + p)%4
-
-    # hidden table state: built by `deal` event
-    @globalHidden = null
-    @playerHidden = null
-
-    # game progression:
+    # game state:
     #   seq: Integer -- number of executed events
-    #   phase: begin/preTsumo/postTsumo/postDahai/postKan/postChiPon/end
+    #   phase: String
+    #     begin/preTsumo/postTsumo/postDahai/
+    #     postAnkan/postKakan/postChiPon/end
+    #     TODO: doc
     #   currPlayer: 0/1/2/3
-    #   currPai: Pai -- most recently touched pai
+    #   currPai: ?Pai -- most recently touched pai
+    #     after tsumo: tsumohai (can be null in replicate)
     #     after dahai: sutehai
     #     after fuuro:
-    #       chi/pon/daiminkan/ankan: `ownPai`
-    #       kakan: `kakanPai`
+    #       chi/pon/daiminkan/ankan: ownPai
+    #       kakan: kakanPai
     #   rinshan: Boolean
     #   virgin: Boolean
     #     original definition: first 4 tsumo-dahai in natural order,
     #     uninterrupted by any declarations
     #     equivalent: ippatsu of chancha's kamicha (previous)
+    #   nTsumoLeft: Integer -- how many times players may still tsumo
+    #   nKan: 0/1/2/3/4 -- total number of kan (cache)
+    #   doraHyouji: []Pai -- currently REVEALED dora-hyoujihai
     @seq = 0
     @phase = \begin
     @currPlayer = chancha
     @currPai = null
     @rinshan = false
     @virgin = true
+    @nTsumoLeft = 70 # == 34*4 - 13*4 - 7*2 == piipai.length (at start)
+    @nKan = 0
+    @doraHyouji = []
 
     # conflict resolution for declarations
     # - player may only declare one action
@@ -115,7 +111,7 @@ module.exports = class Kyoku implements EventEmitter::
         @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
         return ret
 
-    # result: updated as game progresses
+    # result: updated as game proceeds
     #   common:
     #     type: tsumoAgari/ron/ryoukyoku
     #     delta: []Integer -- points increment for each player
@@ -133,6 +129,7 @@ module.exports = class Kyoku implements EventEmitter::
       delta: [0 0 0 0]
       kyoutaku: startState.kyoutaku
       renchan: false
+      points: ~-> [@delta[p] + startState.points[p] for p til 4]
       # called when a player declares riichi
       giveKyoutaku: (player) ->
         @delta[player] -= KYOUTAKU_UNIT
@@ -142,34 +139,61 @@ module.exports = class Kyoku implements EventEmitter::
         @delta[player] += @kyoutaku * KYOUTAKU_UNIT
         @kyoutaku = 0
 
-    # same format as `startState`
+    # same format as `startState` -- see `getEndState` and `_end`
     @endState = null
-
-    # done (call `nextTurn` to start kyoku)
   # }}}
 
-  # execute an event, then run automatic hooks
+  # execute an event
   exec: (event) !->
     if !event.kyoku? then event.init this
     assert.equal event.kyoku, this
+    assert.equal event.seq, @seq
     event.apply!
+    @seq++
     process.nextTick ~> @emit \event, {event}
-    if @phase == \preTsumo
-      if not @_checkRyoukyoku!
-        @exec new Event.tsumo this
-    #switch @phase
-    #| \preTsumo => @exec new Event.tsumo this
-    #| \postDahai => @_checkRyoukyoku!
 
-  # game progress methods on master {{{
+  # game progress methods (master only) {{{
 
   # prepare wall and start game
   #   wall: ?[136]Pai -- defaults to randomly shuffled
-  deal: (wall) -> @exec new Event.deal this, {wall}
+  deal: (wall) ->
+    assert not @isReplicate
+    @exec new Event.deal this, {wall}
+
+  # begin of turn: tsumo or ryoukyoku
+  begin: ->
+    assert not @isReplicate
+    # check for tochuu ryoukyoku
+    for reason in <[suukaikan suuchariichi suufonrenta]>
+      switch @rulevar.ryoukyoku.tochuu[reason]
+      | false => continue
+      | true => renchan = true
+      | _ => renchan = false
+      if @[reason]!
+        return @exec new Event.ryoukyoku this, {renchan, reason}
+    # check for howanpai ryoukyoku
+    if @nTsumoLeft == 0
+      ten = []
+      noTen = []
+      for p til 4
+        if @playerHidden[p].tenpaiDecomp.wait.length then ten.push p
+        else noTen.push p
+      # TODO: nagashimangan
+      if ten.length > 0 and noTen.length > 0
+        HOWANPAI_TOTAL = @rulevar.points.howanpai
+        sTen = HOWANPAI_TOTAL / ten.length
+        sNoTen = HOWANPAI_TOTAL / noTen.length
+        for p in ten => @result.delta[p] += sTen
+        for p in noTen => @result.delta[p] -= sNoTen
+      return @exec new Event.ryoukyoku this,
+        renchan: @chancha in ten
+        reason: \howanpai
+    @exec new Event.tsumo this
 
   # resolve declarations after dahai/ankan/kakan
   resolve: !->
-    assert @phase in <[postDahai, postKan]>#
+    assert not @isReplicate
+    assert @phase in <[postDahai postAnkan postKakan]>#
     with @currDecl.resolve @currPlayer
       if .. not instanceof Array
         # chi/pon/daiminkan
@@ -183,15 +207,22 @@ module.exports = class Kyoku implements EventEmitter::
           return @exec new Event.ryoukyoku this,
             renchan: ..some (.player == chancha)
             reason: if nRon == 2 then \doubleRon else \tripleRon
-            # TODO: ryoukyoku ctor API
-        for {player, args}, i in ..
-          args.isLast = i == nRon - 1
-          @exec new Event.ron this, args
+        for {player, args: {player}}, i in ..
+          @exec new Event.ron this, {player, isLast: i == nRon - 1}
           if atamahane then break
 
   # }}}
 
   # read-only helper methods {{{
+
+  # get doraHyouji to be revealed, accounting for minkan delay (master only)
+  getNewDoraHyouji: ({type}:event) ->
+    assert not @isReplicate
+    if not (rule = @rulevar.dora.kan) then return []
+    lo = @doraHyouji.length
+    hi = @nKan + (rule[type] ? 0)
+    if hi < lo then return null
+    return @wallParts.doraHyouji[lo to hi]
 
   # calculate `endState`:
   #   result: same format as @result
@@ -203,24 +234,20 @@ module.exports = class Kyoku implements EventEmitter::
       points: {origin}
       end
     } = @rulevar
-    {bakaze, chancha, honba, points} = @startState
-    {kyoutaku, delta, renchan} = result
+    {bakaze, chancha, honba} = @startState
+    {kyoutaku, delta, renchan, points} = result
 
     # apply delta to points
-    points = points .= slice!
-    for i til 4
-      if (points[i] += delta[i]) < 0
-        # strictly negative points not allowed
-        return null
+    if points.some (<0) then return null
 
     # determine next bakaze/chancha
     newBakaze = false
     if renchan
-      honba++
       # all-last oya top
-      if end.oyaTop and bakaze == end.bakaze - 1 and chancha == 3
-      and util.max(points) == points[3]
+      if end.oyaALTop and bakaze == end.bakaze - 1 and chancha == 3
+      and points[0 to 2].every (< points[3])
         return null
+      honba++
     else
       honba = 0
       if ++chancha == 4
@@ -232,7 +259,7 @@ module.exports = class Kyoku implements EventEmitter::
     if bakaze < end.bakaze then void
     else if bakaze < end.overtime
       if (newBakaze or end.suddenDeath)
-      and points.some (> origin) then return null
+      and points.some (>= origin) then return null
     else return null
 
     # next kyoku
@@ -248,12 +275,21 @@ module.exports = class Kyoku implements EventEmitter::
       else return false
     return pai.0.isFonpai and pai.0 == pai.1 == pai.2 == pai.3
   suukaikan: ->
-    switch @globalPublic.nKan
+    switch @nKan
     | 0, 1, 2, 3 => false
     | 4 => not @suukantsuCandidate!? # all by the same player => not suukaikan
     | _ => true # one more from another player => suukaikan
   suuchariichi: -> @playerPublic.every (.riichi.accepted)
   # }}}
+
+  # precondition for declaring ron, without regard of yaku
+  # keiten == keishiki-tenpai (tenpai in form)
+  # TODO: pick a better name (this name usually has a narrower connotation)
+  isKeiten: (tenpaiDecomp) ->
+    if @currPai.equivPai not in tenpaiDecomp.wait then return false
+    if @phase == \postAnkan
+      return @rulevar.yaku.kokushiAnkan and tenpaiDecomp.0?.k7 == \kokushi
+    return true
 
   # kuikae: refers to the situation where a player declares chi with two pai in
   # juntehai and then dahai {discards} one, but these three pai alone can be
@@ -292,7 +328,7 @@ module.exports = class Kyoku implements EventEmitter::
 
   # check if one player alone has made 4 kan (see `suukaikan`)
   suukantsuCandidate: ->
-    if @globalPublic.nKan < 4 then return null
+    if @nKan < 4 then return null
     for player til 4
       with @playerPublic[player].fuuro
         if ..length == 4 and ..every (.type not in <[minjun minko]>)
@@ -300,35 +336,45 @@ module.exports = class Kyoku implements EventEmitter::
     return null
 
   # TODO: describe
-  agari: (agariPlayer, {juntehai, tsumohai}, houjuuPlayer) ->
-    SS = @startState
-    GH = @globalHidden
-    GP = @globalPublic
-    PP = @playerPublic[agariPlayer]
+  agari: ({type, player, juntehai, tsumohai, tenpaiDecomp}:event) ->
+    switch type
+    | \ron
+      agariPlayer = player
+      houjuuPlayer = @currPlayer
+      agariPai = @currPai
+    | \tsumoAgari
+      agariPlayer = @currPlayer
+      houjuuPlayer = null
+      agariPai = tsumohai
+    | _ => return null
+
+    {jikaze, fuuro, menzen, riichi} = @playerPublic[agariPlayer]
+    tenpaiDecomp ?= decompTenpai Pai.binsFromArray juntehai
+
     input = {
       rulevar: @rulevar
 
       agariPai: tsumohai ? @currPai
       juntehai
-      decompTenpai: decompTenpai Pai.binsFromArray juntehai
-      fuuro: PP.fuuro
-      menzen: PP.menzen
-      riichi: PP.riichi
+      tenpaiDecomp
+      fuuro
+      menzen
+      riichi
 
       chancha: @chancha
-      agariPlayer: agariPlayer
-      houjuuPlayer: houjuuPlayer
+      agariPlayer
+      houjuuPlayer
 
-      honba: SS.honba
-      bakaze: SS.bakaze
-      jikaze: PP.jikaze
-      doraHyouji: GH.doraHyouji
-      uraDoraHyouji: GH.uraDoraHyouji
-      nKan: GP.nKan
+      honba: @startState.honba
+      bakaze: @startState.bakaze
+      jikaze
+      doraHyouji: @doraHyouji
+      uraDoraHyouji: @wallParts.uraDoraHyouji # NOTE: [] in replicate
+      nKan: @nKan
 
       rinshan: @rinshan
       chankan: @phase == \afterKan
-      isHaitei: GP.nPiipaiLeft == 0
+      isHaitei: @nTsumoLeft == 0
       virgin: @virgin
     }
     a = new Agari input
@@ -337,12 +383,17 @@ module.exports = class Kyoku implements EventEmitter::
 
   AGARI_BLACKLIST = {
     -rulevar
-    -decompTenpai
+    -tenpaiDecomp
   }
 
   # }}}
 
   # state mutating hooks (common building blocks of events) {{{
+
+  # TODO: describe, link to getNewDoraHyouji
+  _addDoraHyouji: (doraHyouji) ->
+    if doraHyouji?.length > 0
+      @doraHyouji.push ...doraHyouji
 
   # always called by an event after conflict resolution if no ron has been
   # declared on dahai/ankan/kakan
@@ -358,65 +409,30 @@ module.exports = class Kyoku implements EventEmitter::
       # fuuro has happened -- all ippatsu broken
       @playerPublic.forEach (.riichi.ippatsu = false)
       @virgin = false
+
     # if riichi was declared, it becomes accepted
     @playerPublic[@currPlayer].riichi
       ..accepted = true
       ..ippatsu = true
     @result.giveKyoutaku @currPlayer
-    # if `currPai` belongs to some player's tenpai set, he enters doujun/riichi
-    # furiten state until he actively chooses dahai
+
+    # maintain furiten state: see `PlayerPublic::furiten`
+    if @phase == \postDahai
+      with @playerHidden[@currPlayer] => if .. instanceof PlayerHidden
+        ..sutehaiFuriten = ..tenpaiDecomp.wait.some -> PP.sutehaiContains it
+        ..doujunFuriten = false
+        ..furiten = ..sutehaiFuriten or ..riichiFuriten # or ..doujunFuriten
     for op in OTHER_PLAYERS[@currPlayer]
       with @playerHidden[op] => if .. instanceof PlayerHidden
-        if @currPai.equivPai in ..decompTenpai.wait
+        if @keiten ..tenpaiDecomp
           ..furiten = true
           ..doujunFuriten = true
           ..riichiFuriten = @playerPublic[op].riichi.accepted
 
-  # }}}
-
-  # LEGACY METHODS YET TO BE MERGED {{{
-
-  # state updates after player action
-
-  # enforce ryoukyoku {abortive/exhaustive draw} rules
-  # see `@suufonrenta` and friends
-  _checkRyoukyoku: !->
-    # tochuu ryoukyoku {abortive draw}
-    # FIXME: security risk?
-    for type, allowed of @rulevar.ryoukyoku.tochuu
-      switch allowed
-      | false => continue
-      | true  => renchan = true
-      | _     => renchan = false
-      # perform check if this rule is implemented
-      if @[type]?! then return @_end {
-        type: \ryoukyoku
-        delta: @globalPublic.delta
-        kyoutaku: @globalPublic.kyoutaku # remains on table
-        renchan
-        details: type
-      }
-    # howanpai ryoukyoku {exhaustive draw}
-    # (*normal* case of ryoukyoku)
-    if @globalPublic.nPiipaiLeft == 0
-      ten = []
-      noTen = []
-      delta = @globalPublic.delta # NOTE: delta is modified
-      for i til 4
-        if @playerHidden[i].decompTenpai.wait.length then ten.push i
-        else noTen.push i
-      # TODO: nagashimangan
-      if ten.length && noTen.length
-        sTen = 3000 / ten.length
-        sNoTen = 3000 / noTen.length
-        for i in ten => delta[i] += sTen
-        for i in noTen => delta[i] -= sNoTen
-      return @_end {
-        type: \ryoukyoku
-        delta
-        kyoutaku: @globalPublic.kyoutaku # remains on table
-        renchan: @chancha in ten # all-no-ten & all-ten => also renchan
-        details: \howanpai
-      }
+  _end: !->
+    @endState = @getEndState @result
+    @phase = \end
+    @seq++
 
   # }}}
+

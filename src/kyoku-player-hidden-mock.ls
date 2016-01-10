@@ -1,10 +1,3 @@
-# PlayerHiddenMock: part of KyokuView logic
-# Imitates the behavior of `PlayerHidden` for other players in KyokuView,
-# without knowing what's actually in their hands.
-#
-# NOTE: all `can`-methods are removed
-# See: `PlayerHidden`, `KyokuView`
-
 module.exports = class PlayerHiddenMock
   (!!@hasTsumohai = false, +@nJuntehai = 13) ->
     # Juntehai and tsumohai: (maintained by methods)

@@ -39,8 +39,8 @@ require! {
 #   ===== conditions =====
 #   `rinshan`
 #   `chankan`
-#   `isHaitei`: `nPiipaiLeft == 0` for \haiteiraoyue & \houteiraoyui
-#   `virgin`: for \tenhou & \chiihou
+#   `isHaitei`: for haiteiraoyue and houteiraoyui
+#   `virgin`: for tenhou and chiihou
 #
 # OUTPUT:
 #   `isAgari`: true/false
@@ -160,12 +160,10 @@ function getDora({
   doraHyouji, uraDoraHyouji, nKan
 })
   n = if kan then nKan + 1 else 1
-  dora = doraHyouji.slice(0, n).map (.succDora)
+  m = if kanUra then n else 1
+  dora = doraHyouji[0 til n].map (.succDora)
   if ura and riichi.accepted
-    if kanUra
-      uraDora = uraDoraHyouji.slice(0, n).map (.succDora)
-    else
-      uraDora = [uraDoraHyouji.0.succDora]
+    uraDora = uraDoraHyouji[0 til m].map (.succDora)
   else
     uraDora = []
 
@@ -188,6 +186,7 @@ function getBasicPoints({han, fu})
 function getBasicPointsYakuman(yakumanTotal) => 8000 * yakumanTotal
 
 function getDelta({
+  rulevar: {points: {honba: HONBA_UNIT}}
   basicPoints, chancha, agariPlayer, houjuuPlayer, isRon, honba
 })
   # distribution {fudangaku} calculation
@@ -199,10 +198,10 @@ function getDelta({
   [tsumoKoKo, tsumoOyaKo, ronKo, ronOya] = [1 2 4 6].map ->
     basicPoints*it |> ceilTo _, 100
 
-  tsumoKoKo += 100 * honba
-  tsumoOyaKo += 100 * honba
-  ronKo += 300 * honba
-  ronOya += 300 * honba
+  tsumoKoKo += HONBA_UNIT * honba
+  tsumoOyaKo += HONBA_UNIT * honba
+  ronKo += HONBA_UNIT * 3 * honba
+  ronOya += HONBA_UNIT * 3 * honba
 
   delta = [0 0 0 0]
   if isRon

@@ -7,18 +7,17 @@ module.exports =
     # kan:
     #   no => no kan-dora
     #   {daiminkan:, kakan:, ankan:} => kan-dora revealed:
-    #     0 => immediately
-    #     1 => after dahai {discard} / more kan
+    #     0 => after dahai / more kan
+    #     1 => immediately
     kan:
-      daiminkan: 1
-      kakan: 1
-      ankan: 0
+      daiminkan: 0
+      kakan: 0
+      ankan: 1
 
     ura: yes
     kanUra: yes
 
   yaku:
-    atotsuke: yes # TODO
     kuitan: yes # if tanyao is valid when not menzen
     kokushiAnkan: no # if ankan can be chankan'd for kokushi-musou
 
@@ -40,7 +39,6 @@ module.exports =
     */
 
   riichi:
-    kyoutaku: 1000
     minPiipaiLeft: 4
     doubleRiichi: yes
 
@@ -55,9 +53,9 @@ module.exports =
     triple: no
 
   banKuikae:
-    moro: yes # e.g. has 34m , chi 0m => cannot dahai 5m
-    suji: yes # e.g. has 34m , chi 0m => cannot dahai 2m
-    pon : no  # e.g. has 333m, pon 3m => cannot dahai 3m
+    moro: yes # e.g. has 345m, 34m chi 0m => cannot dahai 5m
+    suji: yes # e.g. has 234m, 34m chi 0m => cannot dahai 2m
+    pon : no  # e.g. has 333m, 33m pon 3m => cannot dahai 3m
 
   # valid values:
   #   no: cannot ryoukyoku
@@ -71,8 +69,13 @@ module.exports =
       suukaikan: yes
       suuchariichi: yes
 
-  # game-wide rules
-  # - each player starts with `points.initial`
+  points:
+    initial: 25000 # each player starts with `initial` points each kyoku
+    origin: 30000 # game enters overtime if all players have points < `origin`
+    riichi: 1000 # amount of kyoutaku given when riichi gets accepted
+    howanpai: 3000 # total transferred amount at howanpai ryoukyoku
+    honba: 100 # total of bonus points (*3 when ron) awarded for each honba
+
   # - normal game: play until `bakaze == end.normal`
   # - if oya renchan during last kyoku in normal game: game ends
   # - if no player has point at least `points.origin`: enter overtime
@@ -83,7 +86,7 @@ module.exports =
   #     - otherwise: checked at end of a bakaze
   setup:
     points:
-      initial: 25000 # each player starts with this
+      initial: 25000
       origin: 30000 # overtime/sudden death starts if normal game completes but no one has point >= origin
     end:
       normal: 2
