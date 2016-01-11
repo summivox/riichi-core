@@ -22,18 +22,18 @@ export Event = {}
 
 # 2 categories of event:
 # master-initiated:
-# - construct then apply on master (by game logic)
+# - construct then apply on master (by game logic in kyoku methods)
 # - send partial info to replicates
 # - reconstruct then apply on replicates
 # replicate-initiated:
 # - construct on replicate-me (by player decision)
 # - send constructor args to master
-# - construct then apply on master (`doraHyouji` might be tagged on)
+# - construct then apply on master (`newDoraHyouji` might be tagged on)
 # - send full info to replicates
 # - reconstruct then apply on replicates
 #
-# Notice that "constructor args" is also a minimal set of parameters that
-# sufficiently determines the event (at current kyoku state)
+# Notice that constructor args is also a minimal set of parameters that
+# sufficiently determines the event (at current kyoku state on master)
 #
 # Data fields for each event are described in the following manner:
 # common:
@@ -80,7 +80,7 @@ Event.deal = class Deal # {{{
     if not ..isReplicate
       ..wallParts = {haipai} = @wallParts
       ..playerHidden = for p til 4
-        new PlayerHidden haipai[(4 - ..chancha + p) % 4]
+        new PlayerHidden haipai[(4 - ..chancha + p)%4]
     else
       ..wallParts = piipai: [] rinshan: [] doraHyouji: [], uraDoraHyouji: []
       ..playerHidden = for p til 4
@@ -91,6 +91,12 @@ Event.deal = class Deal # {{{
     .._addDoraHyouji @initDoraHyouji
 
     ..phase = \preTsumo
+
+  toPartials: ->
+    assert not @kyoku.isReplicate
+    for p til 4
+      @{type, seq, initDoraHyouji} <<< haipai: @splithaipai[p]
+
 # }}}
 
 Event.tsumo = class Tsumo # {{{
@@ -104,7 +110,7 @@ Event.tsumo = class Tsumo # {{{
     assert ..nTsumoLeft > 0
     @type = \tsumo
     @seq = ..seq
-    if @rinshan
+    if ..rinshan
       @pai = ..wallParts.rinshan[*-1]
     else
       @pai = ..wallParts.piipai[*-1]
@@ -129,13 +135,18 @@ Event.tsumo = class Tsumo # {{{
 
     ..currPai = @pai # NOTE: null on replicate-others -- this is okay
     ..phase = \postTsumo
+
+  toPartials: ->
+    assert not @kyoku.isReplicate
+    for p til 4
+      if p == @kyoku.currPlayer then @{type, seq, pai} else @{type, seq}
 # }}}
 
 Event.dahai = class Dahai # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai
-  #   tsumokiri: ?Boolean
+  #   tsumokiri: Boolean
   #   riichi: Boolean
   # full:
   #   newDoraHyouji: ?[]Pai
@@ -147,7 +158,6 @@ Event.dahai = class Dahai # {{{
       assert.equal ..currPlayer, ..me,
         "cannot construct for others on replicate instance"
     # constructor shortcut: null `pai` implies tsumokiri
-    # by definition: `pai = tsumohai`
     if !@pai? or @tsumokiri
       @pai = ..playerHidden[..currPlayer].tsumohai
       assert.isNotNull @pai, "tsumokiri requires tsumohai"
@@ -209,6 +219,9 @@ Event.dahai = class Dahai # {{{
     ..rinshan = false
     ..currPai = @pai
     ..phase = \postDahai
+
+  toPartials: -> for til 4
+    @{type, seq, pai, tsumokiri, riichi, newDoraHyouji}
 # }}}
 
 Event.ankan = class Ankan # {{{
@@ -291,6 +304,8 @@ Event.ankan = class Ankan # {{{
     ..rinshan = true
     ..currPai = @pai
     ..phase = \postAnkan
+
+  toPartials: -> for til 4 => @{type, seq, pai, newDoraHyouji}
 # }}}
 
 Event.kakan = class Kakan # {{{
@@ -347,6 +362,8 @@ Event.kakan = class Kakan # {{{
     ..rinshan = true
     ..currPai = @pai
     ..phase = \postKakan
+
+  toPartials: -> for til 4 => @{type, seq, pai, newDoraHyouji}
 # }}}
 
 Event.tsumoAgari = class TsumoAgari # {{{
@@ -385,10 +402,12 @@ Event.tsumoAgari = class TsumoAgari # {{{
   apply: !-> with kyoku = @kyoku
     ..result
       ..type = \tsumoAgari
-      for i til 4 => ..delta[i] += @agari.delta[i]
+      for p til 4 => ..delta[p] += @agari.delta[p]
       ..takeKyoutaku ..player
       ..renchan = ..player == ..chancha
     .._end!
+
+  toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai}
 # }}}
 
 Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
@@ -430,6 +449,8 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
       ..reason = \kyuushuukyuuhai
       ..renchan = true
     .._end!
+
+  toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai}
 # }}}
 
 Event.declare = class Declare # {{{
@@ -437,6 +458,7 @@ Event.declare = class Declare # {{{
   # minimal:
   #   what: chi/pon/daiminkan/ron
   #   args: (constructor args for constructing corresponding event)
+  #     args.player: 0/1/2/3
   # partial:
   #   player: 0/1/2/3
   #   what
@@ -453,20 +475,27 @@ Event.declare = class Declare # {{{
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \declare
     assert @what in <[chi pon daiminkan ron]>#
-    assert.isNull ..currDecl[@player], "you can only declare once"
     if @args?
-      @player = @args.player
-      new Event[@what](kyoku, @args) # validate only
+      @player ?= new Event[@what](kyoku, @args) .player
+    assert.isNull ..currDecl[@player],
+      "a player can only declare once during one turn"
     return this
 
   apply: !-> with kyoku = @kyoku
     ..currDecl.add @{what, player, args}
+
+  toPartials: ->
+    for p til 4
+      if p == @player
+        @{type, seq, what, player, args}
+      else
+        @{type, seq, what, player}
 # }}}
 
 Event.chi = class Chi # {{{
   # replicate-declared
   # minimal:
-  #   player: 0/1/2/3 -- must be next player of `currPlayer`
+  #   player: `(currPlayer + 1)%4` -- implicit, may be omitted
   #   option 1:
   #     ownPai: [2]Pai -- should satisfy the following:
   #       both must exist in juntehai
@@ -478,7 +507,7 @@ Event.chi = class Chi # {{{
   #       = 0 : e.g. 46m chi 5m
   #       > 0 : e.g. 67m chi 5m
   #     preferAkahai: Boolean
-  #       suppose you have the choice of using akahai or normal 5:
+  #       when you can use either akahai or normal 5 to chi:
   #         true : use akahai
   #         false: use normal 5
   # full:
@@ -489,6 +518,10 @@ Event.chi = class Chi # {{{
   (kyoku, {@player, @ownPai, dir, preferAkahai = true}) -> with kyoku
     @type = \chi
     @seq = ..seq
+    if @player?
+      assert.equal @player, (..currPlayer + 1)%4
+    else
+      @player = (..currPlayer + 1)%4
     if ..isReplicate
       assert.equal @player, ..me,
         "cannot construct for others on replicate instance"
@@ -499,19 +532,17 @@ Event.chi = class Chi # {{{
       with ..currPai # sutehai
         n = ..equivNumber # number
         P = Pai[..S] # suite
-      # properties of ownPai:
-      #
       switch
-      | dir <  0 => assert n not in [1 2] ; op0 = P[n - 2] ; op1 = P[n - 1]
-      | dir == 0 => assert n not in [1 9] ; op0 = P[n - 1] ; op1 = P[n + 1]
-      | dir >  0 => assert n not in [8 9] ; op0 = P[n + 1] ; op1 = P[n + 2]
-      @ownPai = [op0, op1]
+      | dir <  0 => assert n not in [1 2] ; a = P[n - 2] ; b = P[n - 1]
+      | dir == 0 => assert n not in [1 9] ; a = P[n - 1] ; b = P[n + 1]
+      | dir >  0 => assert n not in [8 9] ; a = P[n + 1] ; b = P[n + 2]
+      @ownPai = [a, b]
       with ..playerHidden[@player]
-        assert (..countEquiv op0 and ..countEquiv op1),
-          "you must have [#{op0}#{op1}] in juntehai"
+        assert (..countEquiv a and ..countEquiv b),
+          "you must have [#a#b] in juntehai"
         # check whether we replace one of @ownPai with corresponding akahai
-        if op0.number == 5 then i = 0 ; p5 = op0
-        if op1.number == 5 then i = 1 ; p5 = op1
+        if a.number == 5 then i = 0 ; p5 = a
+        if b.number == 5 then i = 1 ; p5 = b
         if p5?
           p0 = p5.akahai
           p5n = ..count1 p5
@@ -525,8 +556,11 @@ Event.chi = class Chi # {{{
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \chi
-    assert.equal @player, (..currPlayer + 1)%4, "can only chi from left/kamicha"
     assert.equal ..phase, \postDahai
+    if @player?
+      assert.equal @player, (..currPlayer + 1)%4
+    else
+      @player = (..currPlayer + 1)%4
 
     assert.lengthOf @ownPai, 2
     [a, b] = @ownPai
@@ -546,7 +580,6 @@ Event.chi = class Chi # {{{
       fromPlayer: ..currPlayer
       kakanPai: null
     }
-
     with ..playerHidden[@player] => if .. instanceof PlayerHidden
       assert (..count1 a and ..count1 b), "you must have [#a#b] in juntehai"
 
@@ -562,6 +595,8 @@ Event.chi = class Chi # {{{
 
     ..currPlayer = @player
     ..phase = \postChiPon
+
+  toPartials: -> for til 4 => @{type, seq, ownPai}
 # }}}
 
 Event.pon = class Pon # {{{
@@ -634,7 +669,10 @@ Event.pon = class Pon # {{{
 
     return this
 
-  apply: Chi::apply # same object layout -- simply reuse
+  apply: Chi::apply
+
+  toPartials: -> for til 4 => @{type, seq, player, ownPai}
+  # NOTE: can't reuse here: `player` is implicit in `chi` but not in `pon`
 # }}}
 
 Event.daiminkan = class Daiminkan # {{{
@@ -671,8 +709,7 @@ Event.daiminkan = class Daiminkan # {{{
     else
       ownPai = [pai]*4
     # exclude sutehai (not own)
-    i = ownPai.indexOf pai
-    ownPai.splice i, 1
+    ownPai.splice(ownPai.indexOf(pai), 1)
     @fuuro = {
       type: \daiminkan
       pai, ownPai
@@ -705,6 +742,8 @@ Event.daiminkan = class Daiminkan # {{{
     ..rinshan = true
     ..currPlayer = @player
     ..phase = \preTsumo # NOTE: no need to ask for ron
+
+  toPartials: -> for til 4 => @{type, seq, player, newDoraHyouji}
 # }}}
 
 Event.ron = class Ron # {{{
@@ -748,11 +787,13 @@ Event.ron = class Ron # {{{
   apply: !-> with kyoku = @kyoku
     ..result
       ..type = \ron
-      for i til 4 => ..delta[i] += @agari.delta[i]
+      for p til 4 => ..delta[p] += @agari.delta[p]
       ..takeKyoutaku @player
       ..renchan = ..renchan or @player == ..chancha
       ..[]agari.push @agari
     if @isLast then .._end!
+
+  toPartials: -> for til 4 => @{type, seq, player, isLast, juntehai}
 # }}}
 
 Event.nextTurn = class NextTurn # {{{
@@ -775,6 +816,8 @@ Event.nextTurn = class NextTurn # {{{
     if ..phase == \postDahai
       ..currPlayer = (..currPlayer + 1)%4
     ..phase = \preTsumo
+
+  toPartials: -> for til 4 => @{type, seq}
 # }}}
 
 Event.ryoukyoku = class Ryoukyoku # {{{
@@ -797,7 +840,9 @@ Event.ryoukyoku = class Ryoukyoku # {{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..result{type, renchan, reason} = @
+    ..result{type, renchan, reason} = this
     .._end!
+
+  toPartials: -> for til 4 => @{type, seq, renchan, reason}
 # }}}
 
