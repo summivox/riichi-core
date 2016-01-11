@@ -99,7 +99,7 @@ module.exports = class Kyoku implements EventEmitter::
     @currDecl =
       chi: null, pon: null, daiminkan: null, ron: null
       0: null, 1: null, 2: null, 3: null
-      add: ({what, player}:x) -> @[what] = @[player] = x
+      add: ({what, player}:decl) -> @[what] = @[player] = decl
       resolve: (player) ->
         switch
         | (@ron)?
@@ -115,6 +115,7 @@ module.exports = class Kyoku implements EventEmitter::
     #   common:
     #     type: tsumoAgari/ron/ryoukyoku
     #     delta: []Integer -- points increment for each player
+    #     points: []Integer -- current points for each player (read-only)
     #     kyoutaku: Integer -- how much kyoutaku remains on table
     #     renchan: Boolean
     #   tsumoAgari:
@@ -164,7 +165,7 @@ module.exports = class Kyoku implements EventEmitter::
   begin: ->
     assert not @isReplicate
     # check for tochuu ryoukyoku
-    for reason in <[suukaikan suuchariichi suufonrenta]>
+    for reason in <[suufonrenta suukaikan suuchariichi]>
       switch @rulevar.ryoukyoku.tochuu[reason]
       | false => continue
       | true => renchan = true
@@ -230,10 +231,7 @@ module.exports = class Kyoku implements EventEmitter::
   #     null: game over
   #     same format as `startState`: `startState` of next kyoku in game
   getEndState: (result) ->
-    {setup:
-      points: {origin}
-      end
-    } = @rulevar
+    {points: {origin}, end} = @rulevar
     {bakaze, chancha, honba} = @startState
     {kyoutaku, delta, renchan, points} = result
 
@@ -269,9 +267,9 @@ module.exports = class Kyoku implements EventEmitter::
   # NOTE: assuming pre-tsumo
   suufonrenta: ->
     pai = new Array 4
-    for i til 4 => with @playerPublic[i]
+    for p til 4 => with @playerPublic[p]
       if ..fuuro.length == 0 and ..sutehai.length == 1
-        pai[i] = ..sutehai[0].pai
+        pai[p] = ..sutehai.0.pai
       else return false
     return pai.0.isFonpai and pai.0 == pai.1 == pai.2 == pai.3
   suukaikan: ->
