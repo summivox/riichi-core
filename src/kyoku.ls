@@ -60,6 +60,10 @@ module.exports = class Kyoku implements EventEmitter::
       # master instance
       @isReplicate = false
 
+    # TODO: doc
+    @wallParts = null
+    @playerHidden = null
+
     # game state:
     #   seq: Integer -- number of executed events
     #   phase: String
@@ -100,6 +104,7 @@ module.exports = class Kyoku implements EventEmitter::
       chi: null, pon: null, daiminkan: null, ron: null
       0: null, 1: null, 2: null, 3: null
       add: ({what, player}:decl) -> @[what] = @[player] = decl
+      clear: -> @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
       resolve: (player) ->
         switch
         | (@ron)?
@@ -108,7 +113,7 @@ module.exports = class Kyoku implements EventEmitter::
         | (ret = @pon)? => void
         | (ret = @chi)? => void
         | _ => ret = {what: \nextTurn}
-        @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
+        @clear!
         return ret
 
     # result: updated as game proceeds

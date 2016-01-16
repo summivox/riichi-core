@@ -593,6 +593,7 @@ Event.chi = class Chi # {{{
       ..menzen = false
     ..playerPublic[..currPlayer].lastSutehai.fuuroPlayer = @player
 
+    ..currDecl.clear!
     ..currPlayer = @player
     ..phase = \postChiPon
 
@@ -740,6 +741,7 @@ Event.daiminkan = class Daiminkan # {{{
     .._addDoraHyouji @newDoraHyouji
 
     ..rinshan = true
+    ..currDecl.clear!
     ..currPlayer = @player
     ..phase = \preTsumo # NOTE: no need to ask for ron
 
@@ -785,6 +787,7 @@ Event.ron = class Ron # {{{
     return this
 
   apply: !-> with kyoku = @kyoku
+    ..currDecl.clear!
     ..result
       ..type = \ron
       for p til 4 => ..delta[p] += @agari.delta[p]
@@ -815,6 +818,7 @@ Event.nextTurn = class NextTurn # {{{
     .._didNotHoujuu this
     if ..phase == \postDahai
       ..currPlayer = (..currPlayer + 1)%4
+    ..currDecl.clear!
     ..phase = \preTsumo
 
   toPartials: -> for til 4 => @{type, seq}
