@@ -15,7 +15,6 @@ require! {
 # - more watertight `init` checks
 # - assertion messages even though source is pretty natural language
 # - fix doc of all events
-# - event conversion and serialization
 
 
 export Event = {}
@@ -97,6 +96,7 @@ Event.deal = class Deal # {{{
     for p til 4
       @{type, seq, initDoraHyouji} <<< haipai: @splithaipai[p]
 
+  toMinimal: -> @{type, seq, wall}
 # }}}
 
 Event.tsumo = class Tsumo # {{{
@@ -120,6 +120,8 @@ Event.tsumo = class Tsumo # {{{
     assert.equal @type, \tsumo
     assert.equal ..phase, \preTsumo
     assert ..nTsumoLeft > 0
+    if not ..isReplicate or ..me == ..currPlayer
+      assert.isNotNull @pai
     return this
 
   apply: !-> with kyoku = @kyoku
@@ -140,16 +142,23 @@ Event.tsumo = class Tsumo # {{{
     assert not @kyoku.isReplicate
     for p til 4
       if p == @kyoku.currPlayer then @{type, seq, pai} else @{type, seq}
+
+  toMinimal: -> @{type, seq}
 # }}}
 
 Event.dahai = class Dahai # {{{
   # replicate-initiated
   # minimal:
-  #   pai: Pai
+  #   pai: ?Pai
   #   tsumokiri: Boolean
   #   riichi: Boolean
   # full:
   #   newDoraHyouji: ?[]Pai
+  #
+  # NOTE: tsumokiri is implied by either:
+  # - pai: null
+  # - tsumokiri: true
+  # consistency must be ensured (see `init`)
 
   (kyoku, {@pai = null, @tsumokiri = false, @riichi = false}) -> with kyoku
     @type = \dahai
@@ -157,11 +166,6 @@ Event.dahai = class Dahai # {{{
     if ..isReplicate
       assert.equal ..currPlayer, ..me,
         "cannot construct for others on replicate instance"
-    # constructor shortcut: null `pai` implies tsumokiri
-    if !@pai? or @tsumokiri
-      @pai = ..playerHidden[..currPlayer].tsumohai
-      assert.isNotNull @pai, "tsumokiri requires tsumohai"
-      @tsumokiri = true
     @init kyoku
 
   init: (kyoku) -> with @kyoku = kyoku
@@ -170,7 +174,15 @@ Event.dahai = class Dahai # {{{
     PP = ..playerPublic[..currPlayer]
     PH = ..playerHidden[..currPlayer]
 
-    assert.isNotNull @pai
+    # tsumokiri shorthand handling
+    tsumohai = PH.tsumohai
+    if !@pai?
+      assert.isNotFalse @tsumokiri
+      assert.isNotNull tsumohai
+      @tsumokiri = true
+      @pai = tsumohai
+    if @tsumokiri
+      assert.equal @pai, tsumohai
     pai = @pai
 
     if PP.riichi.accepted
@@ -207,12 +219,9 @@ Event.dahai = class Dahai # {{{
     if @riichi
       PP.riichi.declared = true
       if ..isTrueFirstTsumo ..currPlayer then PP.riichi.double = true
-    if @tsumokiri
-      PP.tsumokiri @pai
-      PH.tsumokiri!
-    else
-      PP.dahai @pai
-      PH.dahai @pai
+
+    PP.dahai @ # {pai, tsumokiri, riichi}
+    if @tsumokiri then PH.tsumokiri! else PH.dahai @pai
 
     .._addDoraHyouji @newDoraHyouji
 
@@ -222,6 +231,8 @@ Event.dahai = class Dahai # {{{
 
   toPartials: -> for til 4
     @{type, seq, pai, tsumokiri, riichi, newDoraHyouji}
+
+  toMinimal: -> @{type, seq, pai, tsumokiri, riichi}
 # }}}
 
 Event.ankan = class Ankan # {{{
@@ -306,6 +317,8 @@ Event.ankan = class Ankan # {{{
     ..phase = \postAnkan
 
   toPartials: -> for til 4 => @{type, seq, pai, newDoraHyouji}
+
+  toMinimal: -> @{type, seq, pai}
 # }}}
 
 Event.kakan = class Kakan # {{{
@@ -364,6 +377,8 @@ Event.kakan = class Kakan # {{{
     ..phase = \postKakan
 
   toPartials: -> for til 4 => @{type, seq, pai, newDoraHyouji}
+
+  toMinimal: -> @{type, seq, pai}
 # }}}
 
 Event.tsumoAgari = class TsumoAgari # {{{
@@ -408,6 +423,8 @@ Event.tsumoAgari = class TsumoAgari # {{{
     .._end!
 
   toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai}
+
+  toMinimal: -> @{type, seq}
 # }}}
 
 Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
@@ -416,6 +433,9 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
   # full:
   #   juntehai: PlayerHidden::juntehai
   #   tsumohai: PlayerHidden::tsumohai
+  #
+  # NOTE: this is the only replicate-initiated ryoukyoku; completely
+  # disjoint from `ryoukyoku` event which covers master-initiated ryoukyoku
 
   (kyoku) -> with kyoku
     @type = \kyuushuukyuuhai
@@ -451,6 +471,8 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
     .._end!
 
   toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai}
+
+  toMinimal: -> @{type, seq}
 # }}}
 
 Event.declare = class Declare # {{{
@@ -458,9 +480,9 @@ Event.declare = class Declare # {{{
   # minimal:
   #   what: chi/pon/daiminkan/ron
   #   args: (constructor args for constructing corresponding event)
-  #     args.player: 0/1/2/3
+  #     player: 0/1/2/3
   # partial:
-  #   player: 0/1/2/3
+  #   player: 0/1/2/3 -- `args.player`
   #   what
   # full:
   #   player
@@ -482,7 +504,7 @@ Event.declare = class Declare # {{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..currDecl.add @{what, player, args}
+    ..currDecl.add @{what, player, args} # NOTE: `args` can be null
 
   toPartials: ->
     for p til 4
@@ -490,18 +512,20 @@ Event.declare = class Declare # {{{
         @{type, seq, what, player, args}
       else
         @{type, seq, what, player}
+
+  toMinimal: -> @{type, seq, what, args}
 # }}}
 
 Event.chi = class Chi # {{{
   # replicate-declared
   # minimal:
   #   player: `(currPlayer + 1)%4` -- implicit, may be omitted
-  #   option 1:
+  #   <canonical>
   #     ownPai: [2]Pai -- should satisfy the following:
   #       both must exist in juntehai
   #       ownPai.0.equivNumber < ownPai.1.equivNumber
   #       `ownPai ++ kyoku.currPai` should form a shuntsu
-  #   option 2:
+  #   <convenience constructor>
   #     dir: Number
   #       < 0 : e.g. 34m chi 5m
   #       = 0 : e.g. 46m chi 5m
@@ -598,17 +622,19 @@ Event.chi = class Chi # {{{
     ..phase = \postChiPon
 
   toPartials: -> for til 4 => @{type, seq, ownPai}
+
+  toMinimal: -> @{type, seq, ownPai}
 # }}}
 
 Event.pon = class Pon # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
-  #   option 1:
+  #   <canonical>
   #     ownPai: [2]Pai -- should satisfy the following:
   #       both must exist in juntehai
   #       `ownPai ++ kyoku.currPai` should form a koutsu (i.e. same `equivPai`)
-  #   option 2:
+  #   <convenience constructor>
   #     maxAkahai: Integer -- max number of akahai to use as ownPai
   # full:
   #   ownPai: [2]Pai
@@ -670,10 +696,12 @@ Event.pon = class Pon # {{{
 
     return this
 
-  apply: Chi::apply
+  apply: Chi::apply # exactly the same code
 
   toPartials: -> for til 4 => @{type, seq, player, ownPai}
   # NOTE: can't reuse here: `player` is implicit in `chi` but not in `pon`
+
+  toMinimal: -> @{type, seq, player, ownPai}
 # }}}
 
 Event.daiminkan = class Daiminkan # {{{
@@ -746,6 +774,8 @@ Event.daiminkan = class Daiminkan # {{{
     ..phase = \preTsumo # NOTE: no need to ask for ron
 
   toPartials: -> for til 4 => @{type, seq, player, newDoraHyouji}
+
+  toMinimal: -> @{type, seq, player}
 # }}}
 
 Event.ron = class Ron # {{{
@@ -797,6 +827,8 @@ Event.ron = class Ron # {{{
     if @isLast then .._end!
 
   toPartials: -> for til 4 => @{type, seq, player, isLast, juntehai}
+
+  toMinimal: -> @{type, seq, isLast}
 # }}}
 
 Event.nextTurn = class NextTurn # {{{
@@ -822,6 +854,8 @@ Event.nextTurn = class NextTurn # {{{
     ..phase = \preTsumo
 
   toPartials: -> for til 4 => @{type, seq}
+
+  toMinimal: -> @{type, seq}
 # }}}
 
 Event.ryoukyoku = class Ryoukyoku # {{{
@@ -830,7 +864,7 @@ Event.ryoukyoku = class Ryoukyoku # {{{
   #   renchan: Boolean -> kyoku.result.renchan
   #   reason: String -> kyoku.result.reason
   #
-  # NOTE: checks are all performed by master
+  # NOTE: checks are all performed by master; see also `kyuushuukyuuhai`
 
   (kyoku, {@renchan, @reason}) -> with kyoku
     @type = \ryoukyoku
@@ -848,5 +882,6 @@ Event.ryoukyoku = class Ryoukyoku # {{{
     .._end!
 
   toPartials: -> for til 4 => @{type, seq, renchan, reason}
-# }}}
 
+  toMinimal: -> @{type, seq, renchan, reason}
+# }}}
