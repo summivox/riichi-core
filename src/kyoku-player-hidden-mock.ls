@@ -1,13 +1,16 @@
 module.exports = class PlayerHiddenMock
-  (!!@hasTsumohai = false, +@nJuntehai = 13) ->
+  (@hasTsumohai = false, @nJuntehai = 13) ->
     # Juntehai and tsumohai: (maintained by methods)
     #   hasTsumohai <=> `PlayerHidden::tsumohai?`
     #   nJuntehai   <=> `PlayerHidden::juntehai.length`
     #
     # see: juntehai/tsumohai state transition diagram in `PlayerHidden`
 
+  # TODO: assert
+
   # (3n+1) => (3n+1)*
-  tsumo: !-> @hasTsumohai = true
+  tsumo: !->
+    @hasTsumohai = true
 
   # (3n+1)* => (3n+1)
   tsumokiri: !->
