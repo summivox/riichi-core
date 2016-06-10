@@ -23,5 +23,11 @@
     "lodash.clonedeep": "^3.0.1",
     "lodash.merge": "^3.3.2",
     "performance-now": "^0.2.0"
+  },
+  "devDependencies": {
+    "app-root-path": "^1.0.0"
+  },
+  "scripts": {
+    "test": "mocha --compilers ls:livescript --recursive"
   }
 }
