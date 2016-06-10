@@ -26,12 +26,13 @@ module.exports = class Kyoku implements EventEmitter::
   ({rulevar, startState, forPlayer}) ->
     @VERSION = VERSION
 
-    # events: always emitted asynchronously (see `@_emit`)
+    # events: always emitted asynchronously (see `@exec`)
     #   only one event type: `kyoku.on 'event', (e) -> ...`
     #   TODO: specify event feed format (log, [4]partial)
     EventEmitter.call @
 
     # rulevar: use default for missing entries
+    # XXX: consider using  `_.defaultsDeep` (mutates `rulevar`)
     @rulevar = rulevar = merge {}, rulevarDefault, rulevar
 
     # startState: initial condition for this kyoku
@@ -62,9 +63,8 @@ module.exports = class Kyoku implements EventEmitter::
 
     # TODO: doc
     @wallParts = null
-    @playerHidden = null
 
-    # game state:
+    # common state:
     #   seq: Integer -- number of executed events
     #   phase: String
     #     begin/preTsumo/postTsumo/postDahai/
@@ -95,32 +95,40 @@ module.exports = class Kyoku implements EventEmitter::
     @nKan = 0
     @doraHyouji = []
 
+    # player state: placeholder; initialized by `Event.deal::apply`
+    @playerHidden = null
+    @playerPublic = null
+
     # conflict resolution for declarations
-    # - player may only declare one action
+    # after a particular event:
+    # - one player may at most declare once
     # - chi can only be declared by one player
-    # - pon/daiminkan can only be declared by one player
-    # - ron can be declared by multiple players
+    # - pon/daiminkan can only be declared once
+    # - ron can be declared by multiple players (multi-ron)
+    # - if no one declares, default to next natural turn
+    #
+    # NOTE: ron resolution order is natural turn order after current player
+    kyoku = this # for reference to `currPlayer`
     @currDecl =
       chi: null, pon: null, daiminkan: null, ron: null
       0: null, 1: null, 2: null, 3: null
       add: ({what, player}:decl) -> @[what] = @[player] = decl
       clear: -> @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
-      resolve: (player) ->
-        switch
-        | (@ron)?
-          ret = [@[..] for OTHER_PLAYERS[player] when @[..]?.what == \ron]
-        | (ret = @daiminkan)? => void
-        | (ret = @pon)? => void
-        | (ret = @chi)? => void
-        | _ => ret = {what: \nextTurn}
-        @clear!
-        return ret
+      resolve: ->
+        | @ron?
+          for p in OTHER_PLAYERS[kyoku.currPlayer]
+            if @[p]?.what == \ron then @[p]
+        | @daiminkan? => that
+        | @pon? => that
+        | @chi? => that
+        | _ => {what: \nextTurn, args: null}
+        # NOTE: no need to call `clear` (Event::apply will)
 
     # result: updated as game proceeds
     #   common:
     #     type: tsumoAgari/ron/ryoukyoku
     #     delta: []Integer -- points increment for each player
-    #     points: []Integer -- current points for each player (read-only)
+    #     points: []Integer -- current points for each player (derived)
     #     kyoutaku: Integer -- how much kyoutaku remains on table
     #     renchan: Boolean
     #   tsumoAgari:
@@ -156,7 +164,7 @@ module.exports = class Kyoku implements EventEmitter::
     assert.equal event.seq, @seq
     event.apply!
     @seq++
-    process.nextTick ~> @emit \event, {event}
+    process.nextTick ~> @emit \event, event
 
   # game progress methods (master only) {{{
 
@@ -169,6 +177,7 @@ module.exports = class Kyoku implements EventEmitter::
   # begin of turn: tsumo or ryoukyoku
   begin: ->
     assert not @isReplicate
+    assert @phase != \end
     # check for tochuu ryoukyoku
     for reason in <[suufonrenta suukaikan suuchariichi]>
       switch @rulevar.ryoukyoku.tochuu[reason]
@@ -194,18 +203,20 @@ module.exports = class Kyoku implements EventEmitter::
       return @exec new Event.ryoukyoku this,
         renchan: @chancha in ten
         reason: \howanpai
+    # nothing happens; go on with tsumo
     @exec new Event.tsumo this
 
   # resolve declarations after dahai/ankan/kakan
   resolve: !->
     assert not @isReplicate
     assert @phase in <[postDahai postAnkan postKakan]>#
-    with @currDecl.resolve @currPlayer
+    with @currDecl.resolve!
       if .. not instanceof Array
-        # chi/pon/daiminkan
+        # chi/pon/daiminkan/nextTurn
         @exec new Event[..what](this, ..args)
       else
         # (multi-)ron
+        # NOTE: ordering handled by `@currDecl.resolve`
         {atamahane, double, triple} = @rulevar.ron
         nRon = ..length
         chancha = @chancha
@@ -213,9 +224,10 @@ module.exports = class Kyoku implements EventEmitter::
           return @exec new Event.ryoukyoku this,
             renchan: ..some (.player == chancha)
             reason: if nRon == 2 then \doubleRon else \tripleRon
-        for {player, args: {player}}, i in ..
+        if atamahane
+          @exec new Event.ron this, {player, isLast: true}
+        else for {player, args: {player}}, i in ..
           @exec new Event.ron this, {player, isLast: i == nRon - 1}
-          if atamahane then break
 
   # }}}
 
