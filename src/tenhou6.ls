@@ -1,15 +1,17 @@
 require! {
-  assert
+  'chai': {assert}
+  'lodash.merge': merge
+
   './pai': Pai
   './wall': splitWall
   './util': {OTHER_PLAYERS, invert, ceilTo}
   './agari': {getBasicPoints, getBasicPointsYakuman}
+  './rulevar-default': rulevarDefault
 }
 
 
-# one entry in incoming/outgoing array
-
-# building blocks
+########################################
+# main paifu entries
 
 const PAI = with {
   11:\1m 12:\2m 13:\3m 14:\4m 15:\5m 16:\6m 17:\7m 18:\8m 19:\9m 51:\0m
@@ -28,6 +30,8 @@ export function parseRiichi(x)
   m = x.match /r(\d\d)/
   if (p = m?.1) then PAI[p] else null
 
+
+# TODO: doc examples
 export FUURO_RE = //
   ([cpmk])?(\d\d)  # 1 2 chi/pon/daiminkan/kakan
    ([pmk])?(\d\d)? # 3 4 pon/daiminkan/kakan
@@ -36,138 +40,106 @@ export FUURO_RE = //
 //
 export function parseFuuro(player, x)
   m = x.match FUURO_RE
+  # NOTE:
+  # - daiminkan from next player: type indicator placed before 4th pai
+  # - Not all info is needed for a minimal representation. They could in theory
+  #   be used to check for consistency but this is not done during parsing.
   switch
-  | type = m.1 => otherPai = m.2 ; ownPai = m[4 6 8] ; rel = 3
-  | type = m.3 => otherPai = m.4 ; ownPai = m[2 6 8] ; rel = 2
-  | type = m.5 => otherPai = m.6 ; ownPai = m[2 4 8] ; rel = 1
-  | type = m.7 => otherPai = m.8 ; ownPai = m[2 4 6] ; rel = 1 # NOT TYPO
+  | (type = m.1) => otherPai = m.2 ; ownPai = m[4 6 8] ; rel = 3
+  | (type = m.3) => otherPai = m.4 ; ownPai = m[2 6 8] ; rel = 2
+  | (type = m.5) => otherPai = m.6 ; ownPai = m[2 4 8] ; rel = 1
+  | (type = m.7) => otherPai = m.8 ; ownPai = m[2 4 6] ; rel = 1 # NOT TYPO
   | _ => return null
   ownPai = ownPai .filter (?) .map (PAI.)
   otherPai = PAI[otherPai]
   fromPlayer = (player + rel)%4
+  anchor = ownPai.0.equivPai
   switch type
-  | \c =>
-    if otherPai.succ.equivPai == ownPai.0.equivPai
-      pai = otherPai.equivPai
-    else
-      pai = ownPai.0.equivPai
+  | \c
+    # fix chi anchor
+    if anchor == otherPai.succ.equivPai
+      anchor = otherPai.equivPai
     {
-      type: \chi, player
-      details: {
-        type: \minjun
-        pai, ownPai, otherPai, fromPlayer
-      }
+      type: \chi, player, ownPai
+      fuuro: {type: \minjun, anchor, ownPai, otherPai, fromPlayer}
     }
-  | \p =>
+  | \p
     {
-      type: \pon, player
-      details: {
-        type: \minko
-        pai: otherPai.equivPai, ownPai, otherPai, fromPlayer
-      }
+      type: \pon, player, ownPai
+      fuuro: {type: \minko, anchor, ownPai, otherPai, fromPlayer}
     }
-  | \m =>
+  | \m
     {
-      type: \kan, player
-      details: {
-        type: \daiminkan
-        pai: otherPai.equivPai, ownPai, otherPai, fromPlayer
-      }
+      type: \daiminkan, player
+      fuuro: {type: \daiminkan, anchor, ownPai, otherPai, fromPlayer}
     }
-  | \k =>
-    kakanPai = otherPai # meh
+  | \k
+    # tenhou6 notation slightly different from ours
+    kakanPai = otherPai
     otherPai = ownPai.splice(3 - rel, 1).0
     {
-      type: \kan, player
-      details: {
-        type: \kakan
-        pai: otherPai.equivPai, ownPai, otherPai, fromPlayer, kakanPai
-      }
+      type: \kakan, pai: kakanPai
+      fuuro: {type: \kakan, anchor, ownPai, otherPai, fromPlayer, kakanPai}
     }
-  | \a =>
-    ownPai
-      ..push otherPai
-      ..sort Pai.compare
+  | \a
     {
-      type: \kan, player
-      details: {
-        type: \ankan
-        pai: otherPai.equivPai, ownPai
-      }
+      type: \ankan, pai: otherPai.equivPai
+      fuuro: {type: \ankan, anchor, ownPai, otherPai: null, fromPlayer}
     }
   | _ => null
 
-export FUURO_INV =
-  minjun: \c, minko: \p
-  daiminkan: \m, kakan: \k, ankan: \a
-export makeFuuro = ({type: aType, player, details: {
-  type, pai, ownPai, otherPai, fromPlayer, kakanPai
-}}) ->
-  ownPai .= map (PAI_INV.)
-  otherPai = PAI_INV[otherPai] ? ''
-  kakanPai = PAI_INV[kakanPai] ? ''
-  rel = (fromPlayer - player + 4)%4
-  if type == \ankan or (aType == \kan and rel == 1) then rel = 0
+export FUURO_INV = chi: \c, pon: \p, daiminkan: \m, kakan: \k, ankan: \a
+export makeFuuro = ({player, fuuro}) ->
+  ownPai = fuuro.ownPai .map (PAI_INV.)
+  otherPai = PAI_INV[fuuro.otherPai] ? ''
+  kakanPai = PAI_INV[fuuro.kakanPai] ? ''
+  rel = (fuuro.fromPlayer - player + 4)%4
+  if (fuuro.type == \daiminkan and rel == 1)
+  or fuuro.type == \ankan
+  then rel = 0
   i = 3 - rel
   ownPai[0 til i]*'' + FUURO_INV[type] + kakanPai + otherPai + ownPai[i til]*''
 
 
-# entry => action (might be incomplete)
 export parseIncoming = (player, x) -->
   switch
-  | pai = parsePai x =>
-    {type: \tsumo, player, details: {pai, -rinshan}}
-    # incomplete: cannot tell rinshan yet
-  | a = parseFuuro player, x => a
-  | _ => null
+  | pai = parsePai x => {type: \tsumo, pai}
+  | fuuro = parseFuuro player, x => fuuro
+  | _ => throw Error "unrecognized incoming entry '#x'"
 export parseOutgoing = (player, x) -->
   switch
-  | pai = parsePai x =>
+  | (pai = parsePai x)
     switch pai
-    | \daiminkan =>
-      {type: \daiminkan} # dummy entry (next should be rinshan tsumo)
-    | \tsumokiri =>
-      {type: \dahai, player, details: {+tsumokiri, -riichi}}
-      # incomplete: cannot tell what pai
-    | _ =>
-      {type: \dahai, player, details: {-tsumokiri, -riichi, pai}}
-  | pai = parseRiichi x =>
+    | \daiminkan => {type: \daiminkan} # daiminkan dummy entry
+    | \tsumokiri => {type: \dahai, player, +tsumokiri, -riichi}
+    | _ => {type: \dahai, player, pai, -tsumokiri, -riichi}
+  | (pai = parseRiichi x)
     switch pai
-    | \tsumokiri =>
-      {type: \dahai, player, details: {+tsumokiri, +riichi}}
-      # incomplete: cannot tell what pai
-    | _ =>
-      {type: \dahai, player, details: {-tsumokiri, +riichi, pai}}
-  | a = parseFuuro player, x => a
-  | _ => null
+    | \tsumokiri => {type: \dahai, player, +tsumokiri, +riichi}
+    | _ => {type: \dahai, player, pai, -tsumokiri, +riichi}
+  | (e = parseFuuro player, x) => e
+  | _ => throw Error "unrecognized outgoing entry '#x'"
 
-# action => entry
-# NOTE:
-export function makeIncoming(action)
-  switch action.type
-  | \tsumo => PAI_INV[action.details.pai]
-  | \chi, \pon => makeFuuro action
-  | \kan =>
-    switch action.details.type
-    | \daiminkan => makeFuuro action
-    | _ => null
+export function makeIncoming(event)
+  switch event.type
+  | \tsumo => PAI_INV[event.pai]
+  | \chi, \pon, \daiminkan => makeFuuro event
   | _ => null
-export function makeOutgoing(action)
-  switch action.type
-  | \dahai =>
-    {pai, tsumokiri, riichi} = action.details
+export function makeOutgoing(event)
+  switch event.type
+  | \dahai
+    {pai, tsumokiri, riichi} = event
     if tsumokiri then pai = \tsumokiri
     x = PAI_INV[pai]
     if riichi then "r#x" else x
-  | \kan =>
-    switch action.details.type
-    | \daiminkan => 0 # dummy entry (see above)
-    | \ankan, \kakan => makeFuuro action
-    | _ => null
+  | \daiminkan => 0 # daiminkan dummy entry
+  | \ankan, \kakan => makeFuuro event
   | _ => null
 
 
-# metadata (lots of hard-coded strings and regexps ahead!)
+
+########################################
+# metadata: rule and result
 
 # rule array/string <=> riichi-core rulevar override object
 const RULE_RE = /(東|南)(喰)?/
@@ -177,6 +149,7 @@ export function parseRule({disp, aka, aka51, aka52, aka53})
     akahai = [aka, aka, aka]
   else
     akahai = [aka51, aka52, aka53].map parseInt
+    if akahai.some isNaN then akahai = null
   if (m = disp.match RULE_RE)
     switch m.1
     | '東' => end = {normal: 1, overtime: 2} # east only
@@ -222,7 +195,7 @@ const AGARI_YAKU_DICT =
   '平和'          : \pinfu
   '断幺九'        : \tanyaochuu
   '一盃口'        : \iipeikou
-  '自風 東'       : \jikazehai
+  '自風 東'       : \jikazehai # disambiguation needed for kazehai
   '自風 南'       : \jikazehai
   '自風 西'       : \jikazehai
   '自風 北'       : \jikazehai
@@ -271,11 +244,11 @@ export function parseAgari(delta, details)
   if y == z
     isTsumo = true
     isRon = false
-    player = z
+    agariPlayer = z
   else
     isTsumo = false
     isRon = true
-    player = z
+    agariPlayer = z
     houjuuPlayer = y
 
   dora = {dora: 0, akaDora: 0, uraDora: 0}
@@ -292,15 +265,16 @@ export function parseAgari(delta, details)
       if (d = AGARI_DORA_DICT[name])
         dora[d] += han
         doraTotal += han
-      else
-        name = AGARI_YAKU_DICT[name]
+      else if (name = AGARI_YAKU_DICT[name])
         yaku.push {name, han}
         yakuTotal += han
+      else throw Error "unrecognized yaku '#yakuStr'"
     else if (m = yakuStr.match AGARI_YAKUMAN_STR_RE)
       name = m.1
       name = AGARI_YAKU_DICT[name]
       yakuman.push {name, times: 1}
       yakumanTotal++
+    else throw Error "unrecognized yaku '#yakuStr'"
 
   # TODO: cap yakumanTotal according to rulevar
 
@@ -320,7 +294,7 @@ export function parseAgari(delta, details)
 
   return {
     isTsumo, isRon, delta
-    player, houjuuPlayer
+    agariPlayer, houjuuPlayer
     han, fu, basicPoints
     dora, doraTotal
     yaku, yakuTotal, yakuman, yakumanTotal
@@ -334,12 +308,12 @@ export function makeAgari({
   chancha, bakaze
 }:startState, {
   isTsumo, isRon, delta
-  player, houjuuPlayer
+  agariPlayer, houjuuPlayer
   han, fu, basicPoints, dora
   yaku, yakuman, yakumanTotal
 }:agari)
 
-  jikaze = (4 + player - chancha)%4
+  jikaze = (4 + agariPlayer - chancha)%4
 
   if basicPoints < 2000
     pointStr = "#{fu}符#{han}飜"
@@ -352,14 +326,14 @@ export function makeAgari({
   [tsumoKoKo, tsumoOyaKo, ronKo, ronOya] = [1 2 4 6].map ->
     basicPoints*it |> ceilTo _, 100
   if isRon
-    x = z = player ; y = houjuuPlayer
-    if player == chancha
+    x = z = agariPlayer ; y = houjuuPlayer
+    if agariPlayer == chancha
       pointStr += "#{ronOya}点"
     else # ko
       pointStr += "#{ronKo}点"
   else # tsumo
-    x = y = z = player
-    if player == chancha
+    x = y = z = agariPlayer
+    if agariPlayer == chancha
       pointStr += "#{tsumoOyaKo}点∀" # \u2200 'for all'
     else # ko
       pointStr += "#{tsumoKoKo}-#{tsumoOyaKo}点"
@@ -382,10 +356,11 @@ export function makeAgari({
   ret
 
 # result array <=> riichi-core result object
-# NOTE: the following cannot be inferred from log:
-# - delta due to kyoutaku
-# - kyoutaku
-# - renchan
+# NOTE:
+# - renchan cannot be inferred directly from log
+# - definition of delta: (point after result) - (point before result)
+#   e.g. if player 0 riichi and then ron 12000 points from player 1,
+#   delta[0] = +13000, delta[1] = -12000
 const RYOUKYOKU_DICT =
   '流局'    : \howanpai
   '流し満貫': \nagashiMangan
@@ -401,7 +376,7 @@ export function parseResult([type]:result)
       return {
         type: \tsumoAgari
         delta: agari1.delta
-        details: agari1
+        agari: agari1
       }
     else # ron
       agariList = [agari1]
@@ -409,42 +384,42 @@ export function parseResult([type]:result)
       if (agari2 = parseAgari result.3, result.4)
         agariList.push agari2
         for i til 4 => delta[i] += agari2.delta[i]
-      if (agari3 = parseAgari result.5, result.6)
-        agariList.push agari3
-        for i til 4 => delta[i] += agari3.delta[i]
+        if (agari3 = parseAgari result.5, result.6)
+          agariList.push agari3
+          for i til 4 => delta[i] += agari3.delta[i]
       return {
         type: \ron
         delta
-        details: agariList
+        agari: agariList
       }
   else if (reason = RYOUKYOKU_DICT[type])
     return {
       type: \ryoukyoku
       delta: result.1 ? [0 0 0 0]
-      details: reason
+      reason
     }
-  else
-    ... # TODO: lack of result
+  else return null # no result
 
 const RYOUKYOKU_DICT_INV = invert RYOUKYOKU_DICT
-export function makeResult(startState, {type, delta, details})
+export function makeResult(startState, {type, delta}:result)
   switch type
-  | \tsumoAgari =>
-    details = makeAgari startState, details
+  | \tsumoAgari
+    details = makeAgari startState, result.agari
     ['和了', delta, details]
-  | \ron =>
+  | \ron
     with ['和了']
-      for a in details
+      for a in result.agari
         ..push a.delta, makeAgari startState, a
-  | \ryoukyoku =>
-    switch details
-    | \howanpai, \nagashiMangan =>
-      [RYOUKYOKU_DICT_INV[details], delta]
-    | _ =>
-      [RYOUKYOKU_DICT_INV[details]]
+  | \ryoukyoku
+    switch reason = result.reason
+    | \howanpai, \nagashiMangan
+      [RYOUKYOKU_DICT_INV[reason], delta]
+    | _
+      [RYOUKYOKU_DICT_INV[reason]]
 
 
-# whole kyoku (one entry in `.log`)
+########################################
+# one kyoku (one entry in `.log`)
 
 export function parseKyoku([
   [nKyoku, honba, kyoutaku]
@@ -459,11 +434,13 @@ export function parseKyoku([
   # extra metadata embedded by riichi-core:
   #   wall: actual wall (all tiles known)
   extra
-], {rulevar, seq})
+], rulevar)
 
-  bakaze = nKyoku.>>.2 # floor div 4
-  chancha = nKyoku%4
-  startState = {seq, bakaze, chancha, honba, kyoutaku, points}
+  rulevar = merge {}, rulevarDefault, rulevar
+
+  bakaze = nKyoku.>>.2 # div 4
+  chancha = nKyoku.&.3 # mod 4
+  startState = {bakaze, chancha, honba, kyoutaku, points}
 
   # parse each component
   doraHyouji .= map (PAI.)
@@ -515,63 +492,95 @@ export function parseKyoku([
 
   # replay the log
   p = chancha
-  lastAction = {type: null}
-  actionLog = []
-  publishAction = (action) ->
-    action.seq = ++seq
-    lastAction := action
-    actionLog.push action
+  lastEvent = null
+  events = []
+  addEvent = (event) ->
+    lastEvent := event
+    events.push event
+
+  # placeholder for deal event
+  addEvent {type: \deal, wall: null}
 
   loop
     i = inc[p].shift!
     if !i? then break
     if i.type == \tsumo
-      tsumohai = i.details.pai
-      if lastAction.type != \kan
-        wall.push tsumohai
-        i.details.rinshan = false
-      else
+      tsumohai = i.pai
+      if lastEvent.type in <[ankan kakan daiminkan]>#
         rinshan.push tsumohai
-        i.details.rinshan = true
-    publishAction i
+      else
+        wall.push tsumohai
+    addEvent i
 
     o = out[p].shift!
     if !o? then break
     switch o.type
-    | \daiminkan => continue # dummy -- don't publish
-    | \dahai =>
-      with o.details
-        if ..tsumokiri then ..pai = tsumohai
-        if ..riichi
-          delta[p] -= 1000
-          kyoutaku++
+    | \daiminkan => continue # daiminkan dummy entry
+    | \dahai
+      if o.tsumokiri then o.pai = tsumohai
+      if o.riichi
+        delta[p] -= 1000
+        kyoutaku++
       p2 = (p + 1)%4
+      # find out if this is fuuro'd
       for q in OTHER_PLAYERS[p]
-        with inc[q][0]
-          if ..? and ..type != \tsumo
-          and ..details.fromPlayer == p
-          and ..details.otherPai == o.details.pai
+        with inc[q].0
+          if ..?
+          and ..type != \tsumo
+          and ..fuuro.fromPlayer == p
+          and ..fuuro.otherPai == o.pai
             p2 = q
             break
       p = p2
-    publishAction o
+    addEvent o
 
-  # special: check for unsuccessful riichi
-  if lastAction.type == \dahai and lastAction.details.riichi
-  and result.type == \ron
-    delta[lastAction.player] += 1000
-    kyoutaku--
+  # handle result
+  switch result.type
+  | \tsumoAgari
+    result.renchan = false
+    kyoutaku = 0 # NOTE: delta should not be changed (see `parseResult`)
+    addEvent {type: \tsumoAgari}
+  | \ron
+    result.renchan = false
+    kyoutaku = 0 # (ditto)
+    # check for unsuccessful riichi
+    if lastEvent.riichi
+      delta[lastEvent.player] += 1000
+    for a in result.agari
+      addEvent {type: \ron, player: a.agariPlayer, -isLast}
+    lastEvent.isLast = true
+  | \ryoukyoku
+    {reason, delta} = result
+    r = rulevar.ryoukyoku
+    if reason of r then renchan = (r[reason] == true)
+    else if reason of r.tochuu then renchan = (r.tochuu[reason] == true)
+    else
+      # howanpai
+      # FIXME: we are in a dilemma here:
+      # - check delta: directly derived from log (what we want), but cannot
+      #   tell apart "all no-ten" vs "all-ten"
+      # - simulate game: can handle all cases, but loses the point of tracking
+      if delta[chancha] > 0
+        renchan = true
+      else if delta.every (== 0)
+        renchan = null
+        ... # cannot decide
+    result.renchan = renchan
+    addEvent {type: \ryoukyoku, reason, renchan}
+
+  result.kyoutaku = kyoutaku
 
   # complete the wall
-  wall[134 135 132 133 ] = rinshan # NOTE: different from `./wall`
+  wall[134 135 132 133 ] = rinshan # NOTE: different from `./wall`; not typo
   wall[130 to 122 by -2] = doraHyouji
   wall[131 to 123 by -2] = uraDoraHyouji
 
   if (origWall = extra?.wall)
-    # check inferred against actual wall
+    # check inferred/recovered wall against attached real wall
     for p, i in wall when p
       assert.equal p, origWall[i],
         'provided/reconstructed wall should be consistent'
+    # now that they match, use the real wall
     wall = origWall
   else
     # find and fill in unknown pai
@@ -582,25 +591,25 @@ export function parseKyoku([
     unknown = [.. for all when .. != known[i] or (++i and 0)]
     wall = [.. ? unknown.pop! for wall]
 
-  if result.type != \ryoukyoku then kyoutaku = 0
-  result.kyoutaku = kyoutaku
+  # fill in placeholder deal event
+  events.0.wall = wall
 
   return {
     startState
-    wall
-    actionLog
+    events
     result
   }
+
 export function makeKyoku({
   startState
-  wall
-  actionLog
+  events
   result
 })
   # mostly borrowed from `./kyoku`:`Kyoku::constructor`
-  {seq, bakaze, chancha, honba, kyoutaku, points} = startState
+  {bakaze, chancha, honba, kyoutaku, points} = startState
   nKyoku = bakaze*4 + chancha
-  {haipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall wall
+  # TODO: assert
+  {haipai, rinshan, doraHyouji, uraDoraHyouji} = splitWall events.0.wall
   doraHyouji .= map (PAI_INV.)
   uraDoraHyouji .= map (PAI_INV.)
   jikaze = [(4 + i - chancha)%4 for i til 4]
@@ -608,12 +617,12 @@ export function makeKyoku({
 
   inc = [[] [] [] []]
   out = [[] [] [] []]
-  for {player}:action in actionLog
-    if (i = makeIncoming action)? then inc[player].push i
-    if (o = makeOutgoing action)? then out[player].push o
+  for {player}:event in events
+    if (i = makeIncoming event)? then inc[player].push i
+    if (o = makeOutgoing event)? then out[player].push o
   rawResult = makeResult startState, result
 
-  [
+  return [
     [nKyoku, honba, kyoutaku]
     points
     doraHyouji
@@ -623,7 +632,7 @@ export function makeKyoku({
     hai.2, inc.2, out.2
     hai.3, inc.3, out.3
     rawResult
-    extra: {wall}
+    {wall}
   ]
 
 
@@ -635,16 +644,14 @@ export function parseGame({
   rulevar
 })
   rulevar ?= parseRule rule
-  log = for k, i in log
-    parseKyoku k, {rulevar, seq: i*10000}
-  return {handles, rulevar, log}
+  kyokus = for l in log => parseKyoku l, rulevar
+  return {handles, rulevar, kyokus}
 
 export function makeGame({
   handles: name
   rulevar
-  log
+  kyokus
 })
   rule = makeRule rulevar
-  log = for k in log
-    makeKyoku k
+  log = for k in kyokus => makeKyoku k
   return {title: ['', ''], name, rule, rulevar, log}
