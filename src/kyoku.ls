@@ -376,12 +376,10 @@ module.exports = class Kyoku implements EventEmitter::
       agariPlayer = player
       houjuuPlayer = @currPlayer
       agariPai = @currPai
-      # NOTE: honba is only counted for 1st player in a multi-ron series
-      # http://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q1254114337
-      if event.isFirst
-        honba = @startState.honba
-      else
+      if @rulevar.ron.honbaAtamahane and not event.isFirst
         honba = 0
+      else
+        honba = @startState.honba
     | \tsumoAgari
       agariPlayer = @currPlayer
       houjuuPlayer = null

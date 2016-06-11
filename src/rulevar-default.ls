@@ -48,8 +48,27 @@ module.exports =
     ankan: yes
     okurikan: no
 
+  # regarding multiple declared ron (multi-ron): declarations are first ordered
+  # by natural turn order from houjuuPlayer, then:
+  #
+  # if `atamahane`
+  #   only 1st player's ron is valid
+  # else
+  #   if (2 players declared and `double`)
+  #   or (3 players declared and `triple`)
+  #     all valid
+  #   else
+  #     ryoukyoku
+  #
+  # kyoutaku is taken by the 1st player if valid
+  # honba bonus:
+  #   if `honbaAtamahane`
+  #     apply honba bonus to only 1st player
+  #   else
+  #     apply honba bonus to all
   ron:
-    atamahane: no # only first player in natural turn order valid
+    atamahane: no
+    honbaAtamahane: yes
     double: yes
     triple: no
 
