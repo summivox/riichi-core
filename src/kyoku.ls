@@ -23,11 +23,11 @@ module.exports = class Kyoku implements EventEmitter::
   #   forPlayer: ?Integer
   #     null: master
   #     0/1/2/3: replicate player id
-  ({rulevar, startState, forPlayer}) ->
+  ({rulevar, startState, forPlayer} = {}) ->
     @VERSION = VERSION
 
-    # events: always emitted asynchronously (see `@exec`)
-    #   only one event type: `kyoku.on 'event', (e) -> ...`
+    # events:
+    #   only one event type: `kyoku.on \event, (e) -> ...`
     #   TODO: specify event feed format (log, [4]partial)
     EventEmitter.call @
 
@@ -85,6 +85,7 @@ module.exports = class Kyoku implements EventEmitter::
     #   nTsumoLeft: Integer -- how many times players may still tsumo
     #   nKan: 0/1/2/3/4 -- total number of kan (cache)
     #   doraHyouji: []Pai -- currently REVEALED dora-hyoujihai
+    #   uraDoraHyouji: []Pai -- currently REVEALED uradora-hyoujihai
     @seq = 0
     @phase = \begin
     @currPlayer = chancha
@@ -94,6 +95,7 @@ module.exports = class Kyoku implements EventEmitter::
     @nTsumoLeft = 70 # == 34*4 - 13*4 - 7*2 == piipai.length (at start)
     @nKan = 0
     @doraHyouji = []
+    @uraDoraHyouji = []
 
     # player state: placeholder; initialized by `Event.deal::apply`
     @playerHidden = null
@@ -164,7 +166,11 @@ module.exports = class Kyoku implements EventEmitter::
     assert.equal event.seq, @seq
     event.apply!
     @seq++
-    process.nextTick ~> @emit \event, event
+    @emit \event, event
+
+  # execute an (unserialized) event
+  execImported: (event) !->
+    @exec (Event.import event).init(this)
 
   # game progress methods (master only) {{{
 
@@ -225,9 +231,13 @@ module.exports = class Kyoku implements EventEmitter::
             renchan: ..some (.player == chancha)
             reason: if nRon == 2 then \doubleRon else \tripleRon
         if atamahane
-          @exec new Event.ron this, {player, isLast: true}
+          @exec new Event.ron this, {player, +isFirst, +isLast}
         else for {player, args: {player}}, i in ..
-          @exec new Event.ron this, {player, isLast: i == nRon - 1}
+          @exec new Event.ron this, {
+            player
+            isFirst: i == 0
+            isLast: i == nRon - 1
+          }
 
   # }}}
 
@@ -242,17 +252,26 @@ module.exports = class Kyoku implements EventEmitter::
     if hi < lo then return null
     return @wallParts.doraHyouji[lo to hi]
 
+  # get all revealed uraDoraHyouji after agari under riichi (master only)
+  getUraDoraHyouji: (player) ->
+    {ura, kanUra} = @rulevar.dora
+    switch
+    | not @playerPublic[player].riichi.accepted => []
+    | not ura => []
+    | not kanUra => [@wallParts.uraDoraHyouji.0]
+    | _ => @wallParts.uraDoraHyouji[0 to @nKan]
+
   # calculate `endState`:
   #   result: same format as @result
   #   return:
   #     null: game over
   #     same format as `startState`: `startState` of next kyoku in game
   getEndState: (result) ->
-    {points: {origin}, end} = @rulevar
+    {points: {origin}, end} = @rulevar.setup
     {bakaze, chancha, honba} = @startState
-    {kyoutaku, delta, renchan, points} = result
+    {kyoutaku, renchan, points} = result
 
-    # apply delta to points
+    # negative points means game over
     if points.some (<0) then return null
 
     # determine next bakaze/chancha
@@ -357,10 +376,17 @@ module.exports = class Kyoku implements EventEmitter::
       agariPlayer = player
       houjuuPlayer = @currPlayer
       agariPai = @currPai
+      # NOTE: honba is only counted for 1st player in a multi-ron series
+      # http://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q1254114337
+      if event.isFirst
+        honba = @startState.honba
+      else
+        honba = 0
     | \tsumoAgari
       agariPlayer = @currPlayer
       houjuuPlayer = null
       agariPai = tsumohai
+      honba = @startState.honba
     | _ => return null
 
     {jikaze, fuuro, menzen, riichi} = @playerPublic[agariPlayer]
@@ -380,15 +406,16 @@ module.exports = class Kyoku implements EventEmitter::
       agariPlayer
       houjuuPlayer
 
-      honba: @startState.honba
+      honba
       bakaze: @startState.bakaze
       jikaze
       doraHyouji: @doraHyouji
-      uraDoraHyouji: @wallParts.uraDoraHyouji # NOTE: [] in replicate
+      uraDoraHyouji: @uraDoraHyouji
       nKan: @nKan
 
       rinshan: @rinshan
-      chankan: @phase == \afterKan
+      chankan: @phase in <[postKakan postAnkan]>#
+      # NOTE: kokushiAnkan already handled in `isKeiten`
       isHaitei: @nTsumoLeft == 0
       virgin: @virgin
     }
@@ -425,21 +452,23 @@ module.exports = class Kyoku implements EventEmitter::
       @playerPublic.forEach (.riichi.ippatsu = false)
       @virgin = false
 
-    # if riichi was declared, it becomes accepted
-    @playerPublic[@currPlayer].riichi
-      ..accepted = true
-      ..ippatsu = true
-    @result.giveKyoutaku @currPlayer
+    # if riichi was just declared, it becomes accepted
+    with @playerPublic[@currPlayer].riichi
+      if ..declared and not ..accepted
+        ..accepted = true
+        ..ippatsu = true
+        @result.giveKyoutaku @currPlayer
 
     # maintain furiten state: see `PlayerPublic::furiten`
     if @phase == \postDahai
+      PP = @playerPublic[@currPlayer]
       with @playerHidden[@currPlayer] => if .. instanceof PlayerHidden
         ..sutehaiFuriten = ..tenpaiDecomp.wait.some -> PP.sutehaiContains it
         ..doujunFuriten = false
         ..furiten = ..sutehaiFuriten or ..riichiFuriten # or ..doujunFuriten
     for op in OTHER_PLAYERS[@currPlayer]
       with @playerHidden[op] => if .. instanceof PlayerHidden
-        if @keiten ..tenpaiDecomp
+        if @isKeiten ..tenpaiDecomp
           ..furiten = true
           ..doujunFuriten = true
           ..riichiFuriten = @playerPublic[op].riichi.accepted
@@ -447,7 +476,6 @@ module.exports = class Kyoku implements EventEmitter::
   _end: !->
     @endState = @getEndState @result
     @phase = \end
-    @seq++
 
   # }}}
 

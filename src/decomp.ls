@@ -495,7 +495,7 @@ export function decompAgariFromTenpai({decomps}, agariPai, isRon)
           wait = \penchan
         else
           wait = \ryanmen
-          if agariPai.succ == m.anchor then m.anchor = agariPai
+        if agariPai.succ == m.anchor then m.anchor = agariPai
         m.type = \shuntsu
       | _ => throw Error "unknown type"
     decomp.wait = wait

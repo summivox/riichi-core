@@ -3,7 +3,7 @@ require! {
   'lodash.merge': merge
 
   './pai': Pai
-  './wall': splitWall
+  './split-wall': splitWall
   './util': {OTHER_PLAYERS, invert, ceilTo}
   './agari': {getBasicPoints, getBasicPointsYakuman}
   './rulevar-default': rulevarDefault
@@ -57,7 +57,7 @@ export function parseFuuro(player, x)
   switch type
   | \c
     # fix chi anchor
-    if anchor == otherPai.succ.equivPai
+    if anchor == otherPai.succ?.equivPai
       anchor = otherPai.equivPai
     {
       type: \chi, player, ownPai
@@ -245,6 +245,7 @@ export function parseAgari(delta, details)
     isTsumo = true
     isRon = false
     agariPlayer = z
+    houjuuPlayer = null
   else
     isTsumo = false
     isRon = true
@@ -375,7 +376,7 @@ export function parseResult([type]:result)
     if agari1.isTsumo
       return {
         type: \tsumoAgari
-        delta: agari1.delta
+        delta: agari1.delta.slice!
         agari: agari1
       }
     else # ron
@@ -409,7 +410,8 @@ export function makeResult(startState, {type, delta}:result)
   | \ron
     with ['和了']
       for a in result.agari
-        ..push a.delta, makeAgari startState, a
+        ..push a.delta
+        ..push makeAgari startState, a
   | \ryoukyoku
     switch reason = result.reason
     | \howanpai, \nagashiMangan
@@ -494,12 +496,32 @@ export function parseKyoku([
   p = chancha
   lastEvent = null
   events = []
+  seq = 0
   addEvent = (event) ->
+    event.seq = seq
     lastEvent := event
     events.push event
+    seq++
 
   # placeholder for deal event
   addEvent {type: \deal, wall: null}
+
+  # NOTE: handling of kyoutaku in results is different:
+  #
+  #         | overall delta     | agari-local delta |
+  # ======= | ================= | ================= |
+  # tenhou6 | +(taken kyoutaku) | +(taken kyoutaku) |
+  # ------- | ----------------- | ----------------- |
+  # r-core  | +(taken kyoutaku) | 0                 |
+  #         | -(given kyoutaku) |                   |
+  # ======= | ================= | ==================|
+  # *diff*  | -(given kyoutaku) | -(taken kyoutaku) |
+  #
+  # When translating from tenhou6 to riichi-core:
+  # - upon accepted riichi, deduct "given kyoutaku" from overall delta
+  # - after agari, deduct "taken kyoutaku" from (first) agari delta
+  #
+  # (see also `parseResult`)
 
   loop
     i = inc[p].shift!
@@ -522,6 +544,7 @@ export function parseKyoku([
         delta[p] -= 1000
         kyoutaku++
       p2 = (p + 1)%4
+      next = true
       # find out if this is fuuro'd
       for q in OTHER_PLAYERS[p]
         with inc[q].0
@@ -530,24 +553,42 @@ export function parseKyoku([
           and ..fuuro.fromPlayer == p
           and ..fuuro.otherPai == o.pai
             p2 = q
+            next = false
             break
       p = p2
+    | \ankan, \kakan
+      next = true # assume this -- ron is handled later
     addEvent o
+    if next then addEvent {type: \nextTurn}
 
   # handle result
   switch result.type
   | \tsumoAgari
-    result.renchan = false
-    kyoutaku = 0 # NOTE: delta should not be changed (see `parseResult`)
+    result.renchan = delta[chancha] > 0
+    # account for kyoutaku inclusion
+    with result.agari
+      ..delta[..agariPlayer] -= kyoutaku * 1000
+    kyoutaku = 0
     addEvent {type: \tsumoAgari}
   | \ron
-    result.renchan = false
-    kyoutaku = 0 # (ditto)
+    result.renchan = delta[chancha] > 0
+    # FIXME: hacky remove final `nextTurn`
+    events.pop!
+    seq--
+    lastEvent = events[*-1]
     # check for unsuccessful riichi
     if lastEvent.riichi
       delta[lastEvent.player] += 1000
-    for a in result.agari
-      addEvent {type: \ron, player: a.agariPlayer, -isLast}
+      kyoutaku--
+    # then account for kyoutaku inclusion
+    with result.agari.0
+      ..delta[..agariPlayer] -= kyoutaku * 1000
+    kyoutaku = 0
+    for a, i in result.agari
+      addEvent {
+        type: \ron, player: a.agariPlayer
+        isFirst: i == 0, isLast: false
+      }
     lastEvent.isLast = true
   | \ryoukyoku
     {reason, delta} = result
@@ -559,14 +600,16 @@ export function parseKyoku([
       # FIXME: we are in a dilemma here:
       # - check delta: directly derived from log (what we want), but cannot
       #   tell apart "all no-ten" vs "all-ten"
-      # - simulate game: can handle all cases, but loses the point of tracking
+      # - simulate game: can handle all cases but loses value in testing
       if delta[chancha] > 0
         renchan = true
       else if delta.every (== 0)
-        renchan = null
-        ... # cannot decide
+        renchan = null # signals "cannot decide"
     result.renchan = renchan
-    addEvent {type: \ryoukyoku, reason, renchan}
+    if reason == \kyuushuukyuuhai
+      addEvent {type: \kyuushuukyuuhai}
+    else
+      addEvent {type: \ryoukyoku, reason, renchan}
 
   result.kyoutaku = kyoutaku
 
@@ -637,7 +680,7 @@ export function makeKyoku({
 
 
 export function parseGame({
-  name: handles
+  title, name
   rule
   log
   # extra metadata embedded by riichi-core
@@ -645,10 +688,10 @@ export function parseGame({
 })
   rulevar ?= parseRule rule
   kyokus = for l in log => parseKyoku l, rulevar
-  return {handles, rulevar, kyokus}
+  return {title, name, rulevar, kyokus}
 
 export function makeGame({
-  handles: name
+  name
   rulevar
   kyokus
 })

@@ -270,7 +270,7 @@ export
   # toitoi
   toitoihou: (decomp, {fuuro}) ->
     !decomp.k7? and
-    fuuro.every (.type != \shuntsu) and
+    fuuro.every (.type != \minjun) and
     decomp.mentsu.every (.type != \shuntsu)
 
 
@@ -293,7 +293,7 @@ export
   iipeikou: (decomp) -> decomp.peikou == 1
 
   # 1-tsuu: 123, 456, 789 in one of the suites
-  ikkitsuukan: (decomp) ->
+  ikkitsuukan: (decomp, {fuuro}) ->
     a = [[0 0 0], [0 0 0], [0 0 0]]
     for f in fuuro
       if f.type == \minjun and f.anchor.N in [0 3 6]
@@ -310,7 +310,7 @@ export
   sanshokudoujun: (decomp, {fuuro}) ->
     a = [[], [], []]
     for f in fuuro
-      if f.type == \shuntsu
+      if f.type == \minjun
         a[f.anchor.S][f.anchor.N] = true
         if a[0][f.anchor.N] and a[1][f.anchor.N] and a[2][f.anchor.N]
           return true
@@ -326,7 +326,7 @@ export
   sanshokudoukou: (decomp, {fuuro}) ->
     a = [[], [], []]
     for f in fuuro
-      if f.type != \shuntsu and f.anchor.isSuupai
+      if f.type != \minjun  and f.anchor.isSuupai
         a[f.anchor.S][f.anchor.N] = true
         if a[0][f.anchor.N] and a[1][f.anchor.N] and a[2][f.anchor.N]
           return true
@@ -347,7 +347,7 @@ export
     if decomp.jantou.isChunchanpai then return false
     for f in fuuro
       if f.anchor.isTsuupai then continue
-      if f.type == \shuntsu
+      if f.type == \minjun
         if f.anchor.N not in [0 6] then return false
       else
         if f.anchor.N not in [0 8] then return false

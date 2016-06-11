@@ -52,6 +52,7 @@ class PaiClass
   N: -> @equivNumber! - 1
 
   # test if tile belongs to a category
+  # https://ja.wikipedia.org/wiki/%E9%BA%BB%E9%9B%80%E7%89%8C#.E7.89.8C.E3.81.AE.E7.A8.AE.E9.A1.9E
   isSuupai: -> @suite! != 'z'
   isManzu: -> @suite! == 'm'
   isPinzu: -> @suite! == 'p'

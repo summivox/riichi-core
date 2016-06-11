@@ -6,6 +6,7 @@ require! {
   './split-wall': splitWall
   './util': {OTHER_PLAYERS}
 
+  './kyoku-player-public': PlayerPublic
   './kyoku-player-hidden': PlayerHidden
   './kyoku-player-hidden-mock': PlayerHiddenMock
 }
@@ -17,7 +18,15 @@ require! {
 # - fix doc of all events
 
 
-export Event = {}
+module.exports = Event = {}
+
+# utility function for reconstructing event object with correct class
+# from e.g. serialized event
+Event.import = ({type}:e) ->
+  ctor = Event[type]
+  if !ctor? then throw Error "invalid event '#type'"
+  ctor:: with e
+
 
 # 2 categories of event:
 # master-initiated:
@@ -93,8 +102,10 @@ Event.deal = class Deal # {{{
 
   toPartials: ->
     assert not @kyoku.isReplicate
+    chancha = @kyoku.chancha
     for p til 4
-      @{type, seq, initDoraHyouji} <<< haipai: @splithaipai[p]
+      @{type, seq, initDoraHyouji} <<<
+        haipai: @wallParts.haipai[(4 - chancha + p)%4]
 
   toMinimal: -> @{type, seq, wall}
 # }}}
@@ -120,7 +131,9 @@ Event.tsumo = class Tsumo # {{{
     assert.equal @type, \tsumo
     assert.equal ..phase, \preTsumo
     assert ..nTsumoLeft > 0
-    if not ..isReplicate or ..me == ..currPlayer
+    if ..isReplicate and ..me != ..currPlayer
+      @pai ?= null # NOTE: eliminates `void`
+    else
       assert.isNotNull @pai
     return this
 
@@ -130,7 +143,7 @@ Event.tsumo = class Tsumo # {{{
         ..wallParts.rinshan.pop!
       else
         ..wallParts.piipai.pop!
-    ..nPiipaiLeft--
+    ..nTsumoLeft--
     ..playerHidden[..currPlayer].tsumo @pai
     # NOTE: above is correct -- rinshan tsumo also discards last piipai,
     # which is reflected in `nTsumoLeft`
@@ -175,14 +188,21 @@ Event.dahai = class Dahai # {{{
     PH = ..playerHidden[..currPlayer]
 
     # tsumokiri shorthand handling
-    tsumohai = PH.tsumohai
-    if !@pai?
-      assert.isNotFalse @tsumokiri
-      assert.isNotNull tsumohai
-      @tsumokiri = true
-      @pai = tsumohai
-    if @tsumokiri
-      assert.equal @pai, tsumohai
+    if not ..isReplicate or ..me == ..currPlayer
+      # can actually fill in @pai
+      tsumohai = PH.tsumohai
+      if !@pai?
+        assert.isNotFalse @tsumokiri
+        assert.isNotNull tsumohai
+        @tsumokiri = true
+        @pai = tsumohai
+      if @tsumokiri
+        assert.equal @pai, tsumohai
+    else
+      # tsumohai unknown (PlayerHiddenMock); only check basic consistency
+      if !@pai?
+        assert.isNotFalse @tsumokiri
+        @tsumokiri = true
     pai = @pai
 
     if PP.riichi.accepted
@@ -194,7 +214,10 @@ Event.dahai = class Dahai # {{{
 
     # master: try reveal doraHyouji
     if not ..isReplicate
-      @newDoraHyouji ?= ..getNewDoraHyouji this
+      if @newDoraHyouji?
+        assert.deepEqual @newDoraHyouji, ..getNewDoraHyouji(this)
+      else
+        @newDoraHyouji = ..getNewDoraHyouji this
 
     if PH not instanceof PlayerHidden then return this
     with (if @tsumokiri then PH.canTsumokiri! else PH.canDahai pai)
@@ -202,7 +225,7 @@ Event.dahai = class Dahai # {{{
     if @riichi
       assert.isTrue PP.menzen, "can only riichi when menzen"
       n = ..nTsumoLeft
-      m = ..rulevar.riichi.minPiipaiLeft
+      m = ..rulevar.riichi.minTsumoLeft
       assert n >= m, "need at least #m piipai left (only #n now)"
       if @tsumokiri
         decomp = PH.tenpaiDecomp # maintained by PlayerHidden
@@ -218,7 +241,7 @@ Event.dahai = class Dahai # {{{
 
     if @riichi
       PP.riichi.declared = true
-      if ..isTrueFirstTsumo ..currPlayer then PP.riichi.double = true
+      if ..virgin then PP.riichi.double = true
 
     PP.dahai @ # {pai, tsumokiri, riichi}
     if @tsumokiri then PH.tsumokiri! else PH.dahai @pai
@@ -258,7 +281,7 @@ Event.ankan = class Ankan # {{{
     PP = ..playerPublic[..currPlayer]
     PH = ..playerHidden[..currPlayer]
 
-    assert ..nPiiPaiLeft > 0, "cannot kan when no piipai left"
+    assert ..nTsumoLeft > 0, "cannot kan when no piipai left"
     assert.isNotNull @pai
     pai = @pai = @pai.equivPai
 
@@ -281,13 +304,16 @@ Event.ankan = class Ankan # {{{
 
     # master: try reveal doraHyouji
     if not ..isReplicate
-      @newDoraHyouji ?= ..getNewDoraHyouji this
+      if @newDoraHyouji?
+        assert.deepEqual @newDoraHyouji, ..getNewDoraHyouji(this)
+      else
+        @newDoraHyouji = ..getNewDoraHyouji this
 
     if PH not instanceof PlayerHidden then return this
     assert.equal PH.countEquiv(pai), 4,
       "need 4 [#pai] in juntehai"
     if PP.riichi.accepted
-      assert.isTrue @rulevar.riichi.ankan, "riichi ankan: not allowed by rule"
+      assert.isTrue ..rulevar.riichi.ankan, "riichi ankan: not allowed by rule"
       # riichi ankan condition (simplified)
       #   basic: all tenpai decomps must have `pai` as koutsu
       #   okurikan: can only use tsumohai for ankan
@@ -299,14 +325,14 @@ Event.ankan = class Ankan # {{{
       allKoutsu = d.decomps.every -> it.mentsu.some ->
         it.type == \koutsu and it.anchor == pai
       assert allKoutsu, "riichi ankan: hand decomposition must not change"
-      if not @rulevar.riichi.okurikan
+      if not ..rulevar.riichi.okurikan
         assert.equal PH.tsumohai.equivPai, pai,
           "riichi ankan: okurikan not allowed by rule"
 
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..playerHidden[..currPlayer].removeEquivN pai, 4
+    ..playerHidden[..currPlayer].removeEquivN @pai.equivPai, 4
     ..playerPublic[..currPlayer].fuuro.push @fuuro
     ..nKan++
 
@@ -347,7 +373,7 @@ Event.kakan = class Kakan # {{{
     assert.isNotNull @pai
     {equivPai} = pai = @pai
 
-    assert ..nPiiPaiLeft > 0, "cannot kan when no piipai left"
+    assert ..nTsumoLeft > 0, "cannot kan when no piipai left"
 
     # find fuuro/minko object to be modified
     fuuro = PP.fuuro.find -> it.type == \minko and it.anchor == equivPai
@@ -356,7 +382,10 @@ Event.kakan = class Kakan # {{{
 
     # master: try reveal doraHyouji
     if not ..isReplicate
-      @newDoraHyouji ?= ..getNewDoraHyouji this
+      if @newDoraHyouji?
+        assert.deepEqual @newDoraHyouji, ..getNewDoraHyouji(this)
+      else
+        @newDoraHyouji = ..getNewDoraHyouji this
 
     if PH instanceof PlayerHidden
       assert.equal PH.count1(pai), 1, "need [#pai] in juntehai"
@@ -387,6 +416,7 @@ Event.tsumoAgari = class TsumoAgari # {{{
   # full:
   #   juntehai: PlayerHidden::juntehai
   #   tsumohai: PlayerHidden::tsumohai
+  #   uraDoraHyouji: ?[]Pai -- only revealed ones if riichi
   # private:
   #   agari: Agari
 
@@ -402,24 +432,30 @@ Event.tsumoAgari = class TsumoAgari # {{{
     assert.equal @type, \tsumoAgari
     assert.equal ..phase, \postTsumo
 
-    with ..playerHidden[..player]
+    with ..playerHidden[..currPlayer]
       if .. instanceof PlayerHidden
         @{juntehai, tsumohai} = ..
+    if not ..isReplicate
+      @uraDoraHyouji = ..getUraDoraHyouji ..currPlayer
 
     assert.isArray @juntehai
     assert (decompAgari Pai.binsFromArray @juntehai ++ @tsumohai .length > 0)
 
-    @agari = .._agari this
+    @agari = ..agari this
     assert.isNotNull @agari
 
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..result
-      ..type = \tsumoAgari
-      for p til 4 => ..delta[p] += @agari.delta[p]
-      ..takeKyoutaku ..player
-      ..renchan = ..player == ..chancha
+    # TODO: for replicate, also reconstruct PlayerHidden (ron too)
+    if @uraDoraHyouji?.length
+      ..uraDoraHyouji = @uraDoraHyouji
+      @agari = ..agari this # recalculate agari due to changed uraDoraHyouji
+    ..result.type = \tsumoAgari
+    for p til 4 => ..result.delta[p] += @agari.delta[p]
+    ..result.takeKyoutaku ..currPlayer
+    ..result.renchan = ..currPlayer == ..chancha
+    ..result.agari = @agari
     .._end!
 
   toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai}
@@ -562,15 +598,15 @@ Event.chi = class Chi # {{{
       | dir >  0 => assert n not in [8 9] ; a = P[n + 1] ; b = P[n + 2]
       @ownPai = [a, b]
       with ..playerHidden[@player]
-        assert (..countEquiv a and ..countEquiv b),
+        assert (..countEquiv(a) and ..countEquiv(b)),
           "you must have [#a#b] in juntehai"
         # check whether we replace one of @ownPai with corresponding akahai
         if a.number == 5 then i = 0 ; p5 = a
         if b.number == 5 then i = 1 ; p5 = b
         if p5?
           p0 = p5.akahai
-          p5n = ..count1 p5
-          p0n = ..count1 p0
+          p5n = ..count1(p5)
+          p0n = ..count1(p0)
           # truth table: (has normal), (has akahai, prefer akahai) -> use akahai
           # |   | 00 | 01 | 11 | 10 |
           # | 0 | X  | X  | 1  | 1  |
@@ -605,7 +641,7 @@ Event.chi = class Chi # {{{
       kakanPai: null
     }
     with ..playerHidden[@player] => if .. instanceof PlayerHidden
-      assert (..count1 a and ..count1 b), "you must have [#a#b] in juntehai"
+      assert (..count1(a) and ..count1(b)), "you must have [#a#b] in juntehai"
 
     return this
 
@@ -652,11 +688,11 @@ Event.pon = class Pon # {{{
       assert.isNumber maxAkahai
       pai = ..currPai
       with ..playerHidden[@player]
-        nAll = ..countEquiv pai
+        nAll = ..countEquiv(pai)
         assert nAll >= 2, "not enough [#pai] (you have #nAll, need 2)"
         if pai.number == 5
           akahai = Pai[pai.S][0]
-          nAkahai = ..count1 akahai
+          nAkahai = ..count1(akahai)
           nAkahai <?= maxAkahai <? 2
         else
           nAkahai = 0
@@ -690,9 +726,9 @@ Event.pon = class Pon # {{{
 
     with ..playerHidden[@player] => if .. instanceof PlayerHidden
       if a == b
-        assert ..count1 a >= 2, "you must have [#a#b] in juntehai"
+        assert (..count1(a) >= 2), "you must have [#a#b] in juntehai"
       else
-        assert (..count1 a and ..count1 b), "you must have [#a#b] in juntehai"
+        assert (..count1(a) and ..count1(b)), "you must have [#a#b] in juntehai"
 
     return this
 
@@ -725,41 +761,45 @@ Event.daiminkan = class Daiminkan # {{{
     assert.equal @type, \daiminkan
     assert.notEqual @player, ..currPlayer
     assert.equal ..phase, \postDahai
-    assert ..nPiiPaiLeft > 0, "cannot kan when no piipai left"
+    assert ..nTsumoLeft > 0, "cannot kan when no piipai left"
     pai = ..currPai
+    anchor = pai.equivPai
 
     # build fuuro object
-    # list all 4 pai
-    if pai.isSuupai and pai.number == 5
+    # ownPai: list all 4 pai (e.g. 3 normal 1 aka) then exclude sutehai
+    if anchor.isSuupai and anchor.number == 5
       # include all akahai
-      akahai = pai.akahai
-      nAkahai = ..rulevar.dora.akahai[pai.S]
-      ownPai = [akahai]*nAkahai ++ [pai]*(4 - nAkahai)
+      akahai = anchor.akahai
+      nAkahai = ..rulevar.dora.akahai[anchor.S]
+      ownPai = [akahai]*nAkahai ++ [anchor]*(4 - nAkahai)
     else
-      ownPai = [pai]*4
-    # exclude sutehai (not own)
-    ownPai.splice(ownPai.indexOf(pai), 1)
+      ownPai = [anchor]*4
+    ownPai.splice(ownPai.indexOf(pai), 1) # NOTE: not `anchor`
     @fuuro = {
       type: \daiminkan
-      pai, ownPai
-      otherPai: ..currPai
+      anchor
+      ownPai
+      otherPai: pai
       fromPlayer: ..currPlayer
       kakanPai: null
     }
 
     # master: try reveal doraHyouji
     if not ..isReplicate
-      @newDoraHyouji ?= ..getNewDoraHyouji this
+      if @newDoraHyouji?
+        assert.deepEqual @newDoraHyouji, ..getNewDoraHyouji(this)
+      else
+        @newDoraHyouji = ..getNewDoraHyouji this
 
     with ..playerHidden[@player] => if .. instanceof PlayerHidden
-      assert.equal ..countEquiv(..currPai), 3,
-        "need 3 [#pai] in juntehai"
+      assert.equal ..countEquiv(anchor), 3,
+        "need 3 [#anchor] in juntehai"
 
     return this
 
   apply: !-> with kyoku = @kyoku
     .._didNotHoujuu this
-    ..playerHidden[@player].removeEquivN ..currPai.equivPai, 3
+    ..playerHidden[@player].removeEquivN @fuuro.anchor, 3
     ..playerPublic[@player]
       ..fuuro.push @fuuro
       ..menzen = false
@@ -782,15 +822,16 @@ Event.ron = class Ron # {{{
   # replicate-initiated
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
-  #   isLast: ?Boolean -- added by master during resolve
+  #   isFirst, isLast: ?Boolean -- added by master during resolve
   # full:
   #   juntehai: PlayerHidden::juntehai
+  #   uraDoraHyouji: ?[]Pai -- only revealed ones if riichi
   # private:
   #   houjuuPlayer: kyoku.currPlayer
   #   tenpaiDecomp: PlayerHidden::tenpaiDecomp
   #   agari: Agari
 
-  (kyoku, {@player, @isLast = true}) -> with kyoku
+  (kyoku, {@player, @isFirst = true, @isLast = true}) -> with kyoku
     @type = \ron
     @seq = ..seq
     if ..isReplicate
@@ -810,6 +851,8 @@ Event.ron = class Ron # {{{
     assert.isArray @juntehai
     @tenpaiDecomp ?= decompTenpai Pai.binsFromArray @juntehai
     assert ..isKeiten @tenpaiDecomp
+    if not ..isReplicate
+      @uraDoraHyouji = ..getUraDoraHyouji @player
 
     @agari = ..agari this
     assert.isNotNull @agari
@@ -818,17 +861,20 @@ Event.ron = class Ron # {{{
 
   apply: !-> with kyoku = @kyoku
     ..currDecl.clear!
-    ..result
-      ..type = \ron
-      for p til 4 => ..delta[p] += @agari.delta[p]
-      ..takeKyoutaku @player
-      ..renchan = ..renchan or @player == ..chancha
-      ..[]agari.push @agari
+    if @uraDoraHyouji?.length
+      ..uraDoraHyouji = @uraDoraHyouji
+      @agari = ..agari this # recalculate agari due to changed uraDoraHyouji
+    ..result.type = \ron
+    for p til 4 => ..result.delta[p] += @agari.delta[p]
+    ..result.takeKyoutaku @player
+    ..result.renchan = ..result.renchan or @player == ..chancha
+    ..result.[]agari.push @agari
     if @isLast then .._end!
 
-  toPartials: -> for til 4 => @{type, seq, player, isLast, juntehai}
+  toPartials: -> for til 4
+    @{type, seq, player, isFirst, isLast, juntehai, uraDoraHyouji}
 
-  toMinimal: -> @{type, seq, isLast}
+  toMinimal: -> @{type, seq, player, isFirst, isLast}
 # }}}
 
 Event.nextTurn = class NextTurn # {{{
@@ -874,7 +920,7 @@ Event.ryoukyoku = class Ryoukyoku # {{{
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \ryoukyoku
-    assert ..phase in <[postDahai postAnkan postKakan]>#
+    assert ..phase in <[preTsumo postAnkan postKakan]>#
     return this
 
   apply: !-> with kyoku = @kyoku

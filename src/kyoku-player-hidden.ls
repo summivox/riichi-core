@@ -22,7 +22,7 @@ module.exports = class PlayerHidden
     #            : an/kakan   => (3N+1)   -> tsumo  => (3N+1)*
     #
     @tsumohai = null
-    @juntehai = haipai.sort Pai.compare
+    @juntehai = haipai.slice!sort Pai.compare
     @bins = bins = Pai.binsFromArray haipai
     @tenpaiDecomp = decompTenpai bins
 
@@ -64,7 +64,7 @@ module.exports = class PlayerHidden
       throw Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
     pai = @tsumohai
     @bins[pai.S][pai.N]--
-    @tenpaiDecomp = tenpaiDecomp @bins
+    @tenpaiDecomp = decompTenpai @bins
     @tsumohai = null
     return pai
 
@@ -80,7 +80,7 @@ module.exports = class PlayerHidden
     if not valid
       throw Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
     @bins[pai.S][pai.N]--
-    @tenpaiDecomp = tenpaiDecomp @bins
+    @tenpaiDecomp = decompTenpai @bins
     with @juntehai
       if @tsumohai # (3n+1)*
         ..[i] = @tsumohai
@@ -96,7 +96,7 @@ module.exports = class PlayerHidden
     bins = @bins
     if bins[pai.S][pai.N] <= 0 then return null
     bins[pai.S][pai.N]--
-    decomp = tenpaiDecomp bins
+    decomp = decompTenpai bins
     bins[pai.S][pai.N]++
     return decomp
 
@@ -137,7 +137,7 @@ module.exports = class PlayerHidden
     ret = []
     pai .= equivPai
     @bins[pai.S][pai.N] -= n
-    @tenpaiDecomp = tenpaiDecomp @bins
+    @tenpaiDecomp = decompTenpai @bins
     @juntehai = @juntehai.filter ->
       if it.equivPai == pai && --n >= 0
         ret.push it

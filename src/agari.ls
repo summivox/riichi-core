@@ -98,7 +98,7 @@ module.exports = class Agari
         times = (@rulevar.yakuman[wait] ? 1) <? @rulevar.yakuman.max
         maxBasicPoints = getBasicPointsYakuman times
         maxDecompResult = {
-          yakuman: {name: wait, times}
+          yakuman: [{name: wait, times}]
           yakumanTotal: times
           basicPoints: maxBasicPoints
         }
@@ -116,6 +116,7 @@ module.exports = class Agari
         maxDecompResult = yakuResult
 
     if maxBasicPoints == 0 then return @isAgari = false
+    else @isAgari = true
     import all maxDecompResult
     @delta = getDelta @
 
@@ -170,8 +171,8 @@ function getDora({
   for p in tehai
     if p.isAkahai then ret.akaDora++
     p .= equivPai
-    ret.dora += count dora, p
-    ret.uraDora += count uraDora, p
+    ret.dora += count dora, (== p)
+    ret.uraDora += count uraDora, (== p)
   ret
 
 function getBasicPoints({han, fu})

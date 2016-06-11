@@ -6,5 +6,8 @@ module.exports = {
   Event: require('./src/kyoku-event'),
   rule: require('./src/rulevar-default'),
 
-  init: function() { module.exports.decomp.init(); }
+  //init: function() { module.exports.decomp.init(); }
 };
+
+//module.exports.init(); // just do it!
+module.exports.decomp.init();

@@ -1,0 +1,6 @@
+--compilers ls:livescript
+--recursive
+--colors
+--inline-diffs
+--bail
+--timeout 1000000000

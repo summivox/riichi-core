@@ -39,7 +39,8 @@ module.exports =
     */
 
   riichi:
-    minPiipaiLeft: 4
+    kyoutaku: 1000
+    minTsumoLeft: 4
     doubleRiichi: yes
 
     # ankan while riichi: extra rules even when allowed
