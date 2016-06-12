@@ -16,6 +16,7 @@ require! {
 # - more watertight `init` checks
 # - assertion messages even though source is pretty natural language
 # - fix doc of all events
+#   - separate "ctor" from "minimal"/"canonical"
 
 
 module.exports = Event = {}
@@ -921,7 +922,7 @@ Event.ryoukyoku = class Ryoukyoku # {{{
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \ryoukyoku
-    assert ..phase in <[preTsumo postAnkan postKakan]>#
+    assert ..phase in <[preTsumo postDahai]>#
     return this
 
   apply: !-> with kyoku = @kyoku
@@ -948,7 +949,7 @@ Event.howanpai = class Howanpai # {{{
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \howanpai
-    assert ..phase == \preTsumo
+    assert.equal ..phase, \preTsumo
     assert.equal ..nTsumoLeft, 0
     if not ..isReplicate
       ten = []
