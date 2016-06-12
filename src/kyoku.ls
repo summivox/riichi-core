@@ -278,7 +278,7 @@ module.exports = class Kyoku implements EventEmitter::
     newBakaze = false
     if renchan
       # all-last oya top
-      if end.oyaALTop and bakaze == end.bakaze - 1 and chancha == 3
+      if end.oyaALTop and bakaze == end.normal - 1 and chancha == 3
       and points[0 to 2].every (< points[3])
         return null
       honba++
@@ -290,7 +290,7 @@ module.exports = class Kyoku implements EventEmitter::
         newBakaze = true
 
     # handle overtime / sudden-death
-    if bakaze < end.bakaze then void
+    if bakaze < end.normal then void
     else if bakaze < end.overtime
       if (newBakaze or end.suddenDeath)
       and points.some (>= origin) then return null

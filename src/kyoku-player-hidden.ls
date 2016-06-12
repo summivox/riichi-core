@@ -120,14 +120,9 @@ module.exports = class PlayerHidden
 
   # kan: (3n+1) [daiminkan] or (3n+1)* [ankan/kakan]
   # here akahai {red 5} == normal 5 (i.e. 0m/0p/0s == 5m/5p/5s)
-  # count/return given pai in juntehai & tsumohai
+  # count given pai in juntehai & tsumohai
   countEquiv: (pai) ->
     @bins[pai.S][pai.N]
-  getAllEquiv: (pai) ->
-    pai .= equivPai
-    ret = @juntehai.filter (.equivPai == pai)
-    if @tsumohai then ret.push @tsumohai
-    ret
   # remove n * given pai in juntehai & tsumohai
   #   daiminkan: (3n+1)  => (3N+1)
   #   an/kakan:  (3n+1)* => (3N+1)
