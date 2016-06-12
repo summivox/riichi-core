@@ -523,6 +523,9 @@ export function parseKyoku([
   #
   # (see also `parseResult`)
 
+  # keep a copy of original tenhou6 delta for renchan condition
+  deltaOrig = delta.slice!
+
   loop
     i = inc[p].shift!
     if !i? then break
@@ -564,14 +567,14 @@ export function parseKyoku([
   # handle result
   switch result.type
   | \tsumoAgari
-    result.renchan = delta[chancha] > 0
+    result.renchan = deltaOrig[chancha] > 0
     # account for kyoutaku inclusion
     with result.agari
       ..delta[..agariPlayer] -= kyoutaku * 1000
     kyoutaku = 0
     addEvent {type: \tsumoAgari}
   | \ron
-    result.renchan = delta[chancha] > 0
+    result.renchan = deltaOrig[chancha] > 0
     # FIXME: hacky remove final `nextTurn`
     events.pop!
     seq--
@@ -601,9 +604,9 @@ export function parseKyoku([
       # - check delta: directly derived from log (what we want), but cannot
       #   tell apart "all no-ten" vs "all-ten"
       # - simulate game: can handle all cases but loses value in testing
-      if delta[chancha] > 0
+      if deltaOrig[chancha] > 0
         renchan = true
-      else if delta.every (== 0)
+      else if deltaOrig.every (== 0)
         renchan = null # signals "cannot decide"
     result.renchan = renchan
     if reason == \kyuushuukyuuhai
