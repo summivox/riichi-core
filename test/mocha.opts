@@ -1,5 +1,4 @@
 --compilers ls:livescript
---recursive
 --colors
 --inline-diffs
 --bail
