@@ -60,9 +60,12 @@ module.exports = class Agari
   (input) ->
     import all input
 
+    @isRon = @houjuuPlayer?
+    @isTsumo = not @isRon
+
     # tenpai and agari decompsition
     if @tenpaiDecomp.length == 0 then return @isAgari = false
-    @agariDecomp = decompAgariFromTenpai @tenpaiDecomp, @agariPai
+    @agariDecomp = decompAgariFromTenpai @tenpaiDecomp, @agariPai, @isRon
     if @agariDecomp.length == 0 then return @isAgari = false
 
     # copy and augment fuuro
@@ -85,9 +88,6 @@ module.exports = class Agari
     # dora
     @dora = getDora @
     @doraTotal = @dora.dora + @dora.uraDora + @dora.akaDora
-
-    @isRon = @houjuuPlayer?
-    @isTsumo = not @isRon
 
     # maximize basic points over all decompositions
     maxBasicPoints = 0
