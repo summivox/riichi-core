@@ -948,7 +948,7 @@ Event.howanpai = class Howanpai # {{{
 
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \howanpai
-    assert ..phase in <[preTsumo postAnkan postKakan]>#
+    assert ..phase == \preTsumo
     assert.equal ..nTsumoLeft, 0
     if not ..isReplicate
       ten = []

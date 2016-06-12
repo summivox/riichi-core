@@ -607,7 +607,7 @@ export function parseKyoku([
       if deltaOrig[chancha] > 0
         renchan = true
       else if deltaOrig.every (== 0)
-        renchan = null # signals "cannot decide"
+        renchan = void # "cannot decide"
     result.renchan = renchan
     switch reason
     | \kyuushuukyuuhai

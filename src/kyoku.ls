@@ -264,7 +264,7 @@ module.exports = class Kyoku implements EventEmitter::
     if renchan
       # all-last oya top
       if end.oyaALTop and bakaze == end.normal - 1 and chancha == 3
-        if points[0 to 2].every (< points[3])
+      and points[0 to 2].every (< points[3])
           return null
       honba++
     else

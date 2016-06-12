@@ -37,11 +37,3 @@ export function randomShuffle(arr, rand = Math.random)
     j = ~~(rand! * (i + 1))
     t = arr[j] ; arr[j] = arr[i] ; arr[i] = t
   arr
-
-# providing defaults for a nested options object
-require! {
-  'lodash.cloneDeep': cloneDeep
-  'lodash.merge': merge
-}
-export function addDefaultsTo(def, obj)
-  merge cloneDeep(def), obj
