@@ -241,7 +241,7 @@ Event.dahai = class Dahai # {{{
 
     if @riichi
       PP.riichi.declared = true
-      if ..virgin then PP.riichi.double = true
+      if ..virgin and ..rulevar.riichi.double then PP.riichi.double = true
 
     PP.dahai @ # {pai, tsumokiri, riichi}
     if @tsumokiri then PH.tsumokiri! else PH.dahai @pai
@@ -458,7 +458,7 @@ Event.tsumoAgari = class TsumoAgari # {{{
     ..result.agari = @agari
     .._end!
 
-  toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai}
+  toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai, uraDoraHyouji}
 
   toMinimal: -> @{type, seq}
 # }}}

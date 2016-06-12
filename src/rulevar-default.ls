@@ -41,7 +41,7 @@ module.exports =
   riichi:
     kyoutaku: 1000
     minTsumoLeft: 4
-    doubleRiichi: yes
+    double: yes
 
     # ankan while riichi: extra rules even when allowed
     # see `Kyoku::canAnkan`
