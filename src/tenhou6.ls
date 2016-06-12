@@ -148,8 +148,8 @@ export function parseRule({disp, aka, aka51, aka52, aka53})
   if not isNaN(aka = parseInt aka)
     akahai = [aka, aka, aka]
   else
-    akahai = [aka51, aka52, aka53].map parseInt
-    if akahai.some isNaN then akahai = null
+    akahai = [aka51, aka52, aka53].map -> parseInt it
+    if akahai.some isNaN then akahai = void
   if (m = disp.match RULE_RE)
     switch m.1
     | '東' => end = {normal: 1, overtime: 2} # east only
