@@ -526,6 +526,9 @@ export function parseKyoku([
   # keep a copy of original tenhou6 delta for renchan condition
   deltaOrig = delta.slice!
 
+  # for generating nextTurn events
+  next = false
+
   loop
     i = inc[p].shift!
     if !i? then break
@@ -535,6 +538,7 @@ export function parseKyoku([
         rinshan.push tsumohai
       else
         wall.push tsumohai
+    if next then addEvent {type: \nextTurn}
     addEvent i
 
     o = out[p].shift!
@@ -562,7 +566,6 @@ export function parseKyoku([
     | \ankan, \kakan
       next = true # assume this -- ron is handled later
     addEvent o
-    if next then addEvent {type: \nextTurn}
 
   # handle result
   switch result.type
@@ -575,10 +578,6 @@ export function parseKyoku([
     addEvent {type: \tsumoAgari}
   | \ron
     result.renchan = deltaOrig[chancha] > 0
-    # FIXME: hacky remove final `nextTurn`
-    events.pop!
-    seq--
-    lastEvent = events[*-1]
     # check for unsuccessful riichi
     if lastEvent.riichi
       delta[lastEvent.player] += 1000
@@ -596,10 +595,11 @@ export function parseKyoku([
   | \ryoukyoku
     {reason, delta} = result
     r = rulevar.ryoukyoku
+    # infer renchan
     if reason of r then renchan = (r[reason] == true)
     else if reason of r.tochuu then renchan = (r.tochuu[reason] == true)
-    else
-      # howanpai
+    else if reason == \tripleRon then renchan = void # cannot decide
+    else if reason == \howanpai
       # FIXME: we are in a dilemma here:
       # - check delta: directly derived from log (what we want), but cannot
       #   tell apart "all no-ten" vs "all-ten"
@@ -607,14 +607,22 @@ export function parseKyoku([
       if deltaOrig[chancha] > 0
         renchan = true
       else if deltaOrig.every (== 0)
-        renchan = void # "cannot decide"
+        renchan = void # cannot decide
+    else renchan = void # cannot decide
     result.renchan = renchan
+    # generate events
     switch reason
     | \kyuushuukyuuhai
       addEvent {type: \kyuushuukyuuhai}
     | \howanpai
+      addEvent {type: \nextTurn}
       addEvent {type: \howanpai}
+    | \tripleRon
+      p0 = lastEvent.player # should be dahai
+      for p, i in OTHER_PLAYERS[p0]
+        addEvent {type: \ron, player: p, isFirst: i == 0, isLast: i == 2}
     | _
+      addEvent {type: \nextTurn}
       addEvent {type: \ryoukyoku, reason, renchan}
 
   result.kyoutaku = kyoutaku

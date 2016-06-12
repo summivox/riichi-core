@@ -50,8 +50,8 @@ replayGame = ({rulevar, kyokus}) !->
   for let {startState, events, result: retB}, i in kyokus
     if endState then assert.deepEqual startState, endState
     {master} = stepper = new KyokuStepper {rulevar, startState}
-    for eRaw in events
-      e = Event.import eRaw
+    for e in events
+      e = Event.import e
       master.exec e.init master
     assert.equal master.seq, events.length
     assert.equal master.phase, \end
@@ -72,8 +72,51 @@ replayGame = ({rulevar, kyokus}) !->
       assert.equal retA.reason, retB.reason
     endState = master.endState
 
-simGame = (filename, {title, rulevar, kyokus}) ->
-  ...
+simGame = ({rulevar, kyokus}) ->
+  endState = null
+  for let {startState, events, result: retB}, i in kyokus
+    if endState then assert.deepEqual startState, endState
+    {master} = stepper = new KyokuStepper {rulevar, startState}
+
+    for e in events
+      switch e.type
+      | \deal => master.deal e.wall
+      | \tsumo, \ryoukyoku, \howanpai => master.begin!
+      | \dahai
+        stepper.play master.currPlayer, that, e{pai, tsumokiri, riichi}
+      | \ankan, \kakan
+        stepper.play master.currPlayer, that, e{pai}
+      | \tsumoAgari, \kyuushuukyuuhai
+        stepper.play master.currPlayer, that
+      | \chi, \pon, \daiminkan
+        stepper.play e.player, that, e{player, ownPai}
+        master.resolve!
+      | \ron
+        stepper.play e.player, that, e{player}
+        if e.isLast then master.resolve!
+      | \nextTurn
+        master.resolve!
+
+    # assert.equal master.seq, events.length
+    # NOTE: this does not apply anymore due to extra declare events
+
+    assert.equal master.phase, \end
+    retA = master.result
+    switch retA.type
+    | \tsumoAgari
+      assert.equal retA.renchan, retB.renchan
+      assert.deepEqual do
+        canonicalAgari retA.agari
+        canonicalAgari retB.agari
+    | \ron
+      assert.equal retA.renchan, retB.renchan
+      assert.deepEqual do
+        retA.agari.map canonicalAgari
+        retB.agari.map canonicalAgari
+    | \ryoukyoku
+      if retB.renchan? then assert.equal retA.renchan, retB.renchan
+      assert.equal retA.reason, retB.reason
+    endState = master.endState
 
 function globAndRead(pattern)
   glob.sync pattern .map (filename) ->
@@ -84,4 +127,5 @@ D 'tenhou6', ->
   files = globAndRead "#base/*/*.json"
   for let {filename, file} in files
     I path.relative(base, filename), ->
-      replayGame tenhou6.parseGame file
+      #replayGame tenhou6.parseGame file
+      simGame tenhou6.parseGame file
