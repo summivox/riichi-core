@@ -9,6 +9,9 @@ require! {
   './rulevar-default': rulevarDefault
 }
 
+# FIXME: `make` functions (convert from riichi to tenhou6) are obsolete and
+# should not be used until fixed
+
 
 ########################################
 # main paifu entries
