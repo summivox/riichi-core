@@ -193,22 +193,7 @@ module.exports = class Kyoku implements EventEmitter::
       if @[reason]!
         return @exec new Event.ryoukyoku this, {renchan, reason}
     # check for howanpai ryoukyoku
-    if @nTsumoLeft == 0
-      ten = []
-      noTen = []
-      for p til 4
-        if @playerHidden[p].tenpaiDecomp.wait.length then ten.push p
-        else noTen.push p
-      # TODO: nagashimangan
-      if ten.length > 0 and noTen.length > 0
-        HOWANPAI_TOTAL = @rulevar.points.howanpai
-        sTen = HOWANPAI_TOTAL / ten.length
-        sNoTen = HOWANPAI_TOTAL / noTen.length
-        for p in ten => @result.delta[p] += sTen
-        for p in noTen => @result.delta[p] -= sNoTen
-      return @exec new Event.ryoukyoku this,
-        renchan: @chancha in ten
-        reason: \howanpai
+    if @nTsumoLeft == 0 then return @exec new Event.howanpai this
     # nothing happens; go on with tsumo
     @exec new Event.tsumo this
 
@@ -279,8 +264,8 @@ module.exports = class Kyoku implements EventEmitter::
     if renchan
       # all-last oya top
       if end.oyaALTop and bakaze == end.normal - 1 and chancha == 3
-      and points[0 to 2].every (< points[3])
-        return null
+        if points[0 to 2].every (< points[3])
+          return null
       honba++
     else
       honba = 0

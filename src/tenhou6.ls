@@ -609,9 +609,12 @@ export function parseKyoku([
       else if deltaOrig.every (== 0)
         renchan = null # signals "cannot decide"
     result.renchan = renchan
-    if reason == \kyuushuukyuuhai
+    switch reason
+    | \kyuushuukyuuhai
       addEvent {type: \kyuushuukyuuhai}
-    else
+    | \howanpai
+      addEvent {type: \howanpai}
+    | _
       addEvent {type: \ryoukyoku, reason, renchan}
 
   result.kyoutaku = kyoutaku

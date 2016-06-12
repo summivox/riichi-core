@@ -907,10 +907,11 @@ Event.nextTurn = class NextTurn # {{{
 Event.ryoukyoku = class Ryoukyoku # {{{
   # master-initiated
   # full:
-  #   renchan: Boolean -> kyoku.result.renchan
-  #   reason: String -> kyoku.result.reason
+  #   renchan: Boolean -- assigned to kyoku.result.renchan
+  #   reason: String -- assigned to kyoku.result.reason
   #
-  # NOTE: checks are all performed by master; see also `kyuushuukyuuhai`
+  # NOTE: checks are all performed by master
+  # see also `kyuushuukyuuhai`, `howanpai`
 
   (kyoku, {@renchan, @reason}) -> with kyoku
     @type = \ryoukyoku
@@ -930,4 +931,57 @@ Event.ryoukyoku = class Ryoukyoku # {{{
   toPartials: -> for til 4 => @{type, seq, renchan, reason}
 
   toMinimal: -> @{type, seq, renchan, reason}
+# }}}
+
+Event.howanpai = class Howanpai # {{{
+  # master-initiated
+  # full:
+  #   renchan: Boolean
+  #   delta: [4]Number
+  #   juntehai: [4]?[]Pai -- reveals juntehai of only tenpai players
+
+  (kyoku) -> with kyoku
+    @type = \howanpai
+    @seq = ..seq
+    assert not ..isReplicate
+    @init kyoku
+
+  init: (kyoku) -> with @kyoku = kyoku
+    assert.equal @type, \howanpai
+    assert ..phase in <[preTsumo postAnkan postKakan]>#
+    assert.equal ..nTsumoLeft, 0
+    if not ..isReplicate
+      ten = []
+      noTen = []
+      @juntehai = new Array 4
+      for p til 4
+        if ..playerHidden[p].tenpaiDecomp.wait.length
+          ten.push p
+          @juntehai[p] = ..playerHidden[p].juntehai.slice!
+        else
+          noTen.push p
+      # TODO: nagashimangan
+      @delta = [0 0 0 0]
+      if ten.length > 0 and noTen.length > 0
+        HOWANPAI_TOTAL = ..rulevar.points.howanpai
+        sTen = HOWANPAI_TOTAL / ten.length
+        sNoTen = HOWANPAI_TOTAL / noTen.length
+        for p in ten   => @delta[p] += sTen
+        for p in noTen => @delta[p] -= sNoTen
+      @renchan = ..chancha in ten
+    else # replicate
+      assert.lengthOf @delta, 4
+      assert.lengthOf @juntehai, 4
+    return this
+
+  apply: !-> with kyoku = @kyoku
+    ..result{type, renchan} = this
+    ..result.reason = \howanpai
+    for p til 4 => ..result.delta[p] += @delta[p]
+    # TODO: playerHidden (like agari)
+    .._end!
+
+  toPartials: -> for til 4 => @{type, seq, renchan, delta, juntehai}
+
+  toMinimal: -> @{type, seq}
 # }}}
