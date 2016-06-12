@@ -11,6 +11,7 @@
 #   no need to list as conflict in mentsu-specific yaku
 # - any yakuman overrides all normal yaku
 # - some names contain extra 'n' -- this agrees with Japanese IME input rules
+# - conflict list is incomplete (but this is okay)
 
 require! {
   './pai': Pai
@@ -20,19 +21,20 @@ require! {
 export YAKU_LIST =
   # == 6 han ==
   * name: \chinniisou
-    conflict: <[honniisou]> #
+    conflict: <[honniisou sanshokudoujun sanshokudoukou honchantaiyaochuu]> #
     menzenHan: 6, kuiHan: 5
 
   # == 3 han ==
   * name: \ryanpeikou
-    conflict: <[iipeikou]> #
+    conflict: <[iipeikou sanshokudoukou toitoihou]> #
     menzenHan: 3, kuiHan: 0
 
   * name: \junchantaiyaochuu
-    conflict: <[honchantaiyaochuu]> #
+    conflict: <[honchantaiyaochuu ikkitsuukan tanyaochuu]> #
     menzenHan: 3, kuiHan: 2
 
   * name: \honniisou
+    conflict: <[sanshokudoujun sanshokudoukou]> #
     menzenHan: 3, kuiHan: 2
 
   # == 2 han ==
@@ -47,22 +49,26 @@ export YAKU_LIST =
     menzenHan: 2, kuiHan: 2
 
   * name: \sanshokudoukou
+    conflict: <[sanshokudoujun ikkitsuukan]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \honraotou # NOTE: agrees with `Pai::isRaotoupai`
-    conflict: <[honchantaiyaochuu]> #
+    conflict: <[honchantaiyaochuu tanyaochuu]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \sannankou
+    conflict: <[sanshokudoujun ikkitsuukan]> #
     menzenHan: 2, kuiHan: 2 # NOTE: okay to chi (only once)
 
   * name: \toitoihou
+    conflict: <[sanshokudoujun ikkitsuukan]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \chiitoitsu
     menzenHan: 2, kuiHan: 0
 
   * name: \honchantaiyaochuu
+    conflict: <[ikkitsuukan]> #
     menzenHan: 2, kuiHan: 1
 
   * name: \ikkitsuukan
