@@ -26,9 +26,7 @@ module.exports = class Kyoku implements EventEmitter::
   ({rulevar, startState, forPlayer} = {}) ->
     @VERSION = VERSION
 
-    # events:
-    #   only one event type: `kyoku.on \event, (e) -> ...`
-    #   TODO: specify event feed format (log, [4]partial)
+    # subscribe to executed events: `kyoku.on \event, (event) -> ...`
     EventEmitter.call @
 
     # rulevar: use default for missing entries
