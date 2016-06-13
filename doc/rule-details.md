@@ -19,6 +19,7 @@ According to [arcturus.su][karaten-arcturus]:
 Summarized:
 
 Tenpai is sometimes valid (i.e. you can riichi and there is no penalty for no-ten) even when you cannot win:
+
 *   Lack of yaku: **YES**
 *   All waits visible: depends, see table below
 
@@ -39,6 +40,7 @@ Your own juntehai {concealed part of hand} | **NO**
 ## Ron
 
 <!-- TODO -->
+
 *   Atamahane
 *   Double
 *   Triple

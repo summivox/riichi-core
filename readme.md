@@ -25,11 +25,7 @@
 * [Free software](https://www.gnu.org/philosophy/free-sw.en.html)
 
 
-## Full Documentation
-
-(TBD)
-
-<!-- [...](doc/index.md) -->
+## [Full Documentation](doc/index.md)
 
 
 ## Contributing

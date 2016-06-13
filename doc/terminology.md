@@ -69,9 +69,9 @@ Main hierarchy:
         *   __Bakazehai__ {圏/荘/場風牌, chanfonpai, prevailing/round wind}
         *   __Jikazehai__ {門/自風牌, menfonpai, seat wind}
     *   `/[5-7]z|[BGRPFCZ]/` __Sangenpai__ {三元牌, dragons}
-        *   `/5z|[BP]/` __Haku__ {白板, パイパン, white, blank, blue, frame}
-        *   `/6z|[GF]/` __Hatsu__ {緑發, リューファ, green}
-        *   `/7z|[RCZ]/` __Chun__ {紅中, ホンチュン, red}
+        *   `/5z|[BP]/` __Haku__ {**白**板, パイパン, white, blank, blue, frame}
+        *   `/6z|[GF]/` __Hatsu__ {緑**發**, リューファ, green}
+        *   `/7z|[RCZ]/` __Chun__ {紅**中**, ホンチュン, red}
 
 Other categories:
 *   `/[19][mps]|[1-7]z/` __Yaochuupai__ {么九牌, 幺九牌, terminals and honors}
@@ -148,21 +148,21 @@ Japanese terms regarding "point"-related concepts are potentially confusing espe
 
 ## Misc Concepts
 
-*   __True First Tsumo__ {純粋な初巡+第1ツモ}
+*   __Virgin__ {純粋な初巡+第1ツモ}
 
 
 # References
 
-*   https://ja.wikipedia.org/wiki/麻雀
-*   https://ja.wikipedia.org/wiki/麻雀牌
-*   https://ja.wikipedia.org/wiki/麻雀のルール
-*   https://ja.wikipedia.org/wiki/手牌
-*   https://ja.wikipedia.org/wiki/面子
-*   https://ja.wikipedia.org/wiki/副露
-*   https://ja.wikipedia.org/wiki/槓
-*   https://ja.wikipedia.org/wiki/聴牌
-*   https://ja.wikipedia.org/wiki/振聴
-*   https://ja.wikipedia.org/wiki/麻雀用語一覧
-*   https://ja.wikipedia.org/wiki/連荘
-*   https://ja.wikipedia.org/wiki/流局
-*   https://en.wikipedia.org/wiki/Mahjong_tiles
+*   <https://ja.wikipedia.org/wiki/麻雀>
+*   <https://ja.wikipedia.org/wiki/麻雀牌>
+*   <https://ja.wikipedia.org/wiki/麻雀のルール>
+*   <https://ja.wikipedia.org/wiki/手牌>
+*   <https://ja.wikipedia.org/wiki/面子>
+*   <https://ja.wikipedia.org/wiki/副露>
+*   <https://ja.wikipedia.org/wiki/槓>
+*   <https://ja.wikipedia.org/wiki/聴牌>
+*   <https://ja.wikipedia.org/wiki/振聴>
+*   <https://ja.wikipedia.org/wiki/麻雀用語一覧>
+*   <https://ja.wikipedia.org/wiki/連荘>
+*   <https://ja.wikipedia.org/wiki/流局>
+*   <https://en.wikipedia.org/wiki/Mahjong_tiles>
