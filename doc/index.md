@@ -41,7 +41,7 @@ kyoku.exec(new Event.declare(kyoku, {
 # Motivation
 
 * Riichi Mahjong is predominantly played offline (on table) in Japan, and online on sites offering only Japanese UI. Most reference material (e.g. on rules) are in Japanese.
-* While open-source implementations of riichi mahjong exists, what I found are all rigidly coupled to a particular UI, not a generic library
+* While open-source implementations of riichi mahjong exist, what I found are all rigidly coupled to a particular UI, not a generic library
 * There lacks a publicly available algorithmic description of standard Riichi Mahjong, let alone implementation.
 
 # The Game
