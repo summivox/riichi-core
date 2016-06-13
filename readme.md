@@ -3,7 +3,7 @@
 <!-- badges -->
 <!-- depends on shields.io -->
 
-[![npm](https://img.shields.io/npm/v/riichi-core.svg?maxAge=86400?style=plastic)](https://www.npmjs.com/package/riichi-core) [![GitHub license](https://img.shields.io/badge/license-GPLv3-lightgrey.svg?style=plastic)](https://raw.githubusercontent.com/summivox/riichi-core/master/LICENSE) [![GitHub stars](https://img.shields.io/github/stars/summivox/riichi-core.svg?style=social&label=Star&maxAge=86400)](https://github.com/summivox/riichi-core) [![Twitter URL](https://img.shields.io/twitter/url/http/github.com/summivox/riichi-core.svg?style=social&maxAge=86400?style=plastic)](http://twitter.com/share?text=riichi-core%3A%20open%20source%20%23javascript%20riichi%20%23mahjong%20game%20engine&url=https%3A%2F%2Fgithub.com%2Fsummivox%2Friichi-core&via=summivox&hashtags=nodejs,npm)
+[![npm](https://img.shields.io/npm/v/riichi-core.svg?style=plastic&maxAge=86400)](https://www.npmjs.com/package/riichi-core) [![GitHub license](https://img.shields.io/badge/license-GPLv3-lightgrey.svg?style=plastic)](https://raw.githubusercontent.com/summivox/riichi-core/master/LICENSE) [![GitHub stars](https://img.shields.io/github/stars/summivox/riichi-core.svg?style=social&label=Star&maxAge=86400)](https://github.com/summivox/riichi-core) [![Twitter URL](https://img.shields.io/twitter/url/http/github.com/summivox/riichi-core.svg?style=social&maxAge=86400?style=plastic)](http://twitter.com/share?text=riichi-core%3A%20open%20source%20%23javascript%20riichi%20%23mahjong%20game%20engine&url=https%3A%2F%2Fgithub.com%2Fsummivox%2Friichi-core&via=summivox&hashtags=nodejs,npm)
 
 <!-- /badges -->
 
