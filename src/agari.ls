@@ -58,6 +58,7 @@ require! {
 
 module.exports = class Agari
   (input) ->
+    debugger
     import all input
 
     @isRon = @houjuuPlayer?
@@ -68,26 +69,21 @@ module.exports = class Agari
     @agariDecomp = decompAgariFromTenpai @tenpaiDecomp, @agariPai, @isRon
     if @agariDecomp.length == 0 then return @isAgari = false
 
-    # copy and augment fuuro
-    @fuuro = Pai.cloneFix @fuuro
-    @fuuroFu = augmentFuuro @
+    # fu from fuuro: count once and cache
+    @fuuroFu = countFuuroFu @
 
-    # juntehai: now also includes agariPai
+    # juntehai: input juntehai + agariPai
     # tehai: juntehai + fuuro
     # NOTE: tehai.length not always 14 (due to kan)
-    @juntehai = with @juntehai.slice!
-      ..push @agariPai
-      ..sort Pai.compare
-    @tehai = with @juntehai.slice!
-      for f in @fuuro => [].push.apply .., f.allPai
-      ..sort Pai.compare
+    @juntehai = (@juntehai ++ [@agariPai]).sort Pai.compare
+    @tehai = (@juntehai ++ (allPaiFromFuuro @)).sort Pai.compare
     # bins: correspond to full tehai
     @bins = Pai.binsFromArray @tehai
     @binsSum = @bins.map sum
 
     # dora
-    @dora = getDora @
-    @doraTotal = @dora.dora + @dora.uraDora + @dora.akaDora
+    with @dora = getDora @
+      @doraTotal = ..dora + ..uraDora + ..akaDora
 
     # maximize basic points over all decompositions
     maxBasicPoints = 0
@@ -120,37 +116,36 @@ module.exports = class Agari
     import all maxDecompResult
     @delta = getDelta @
 
-  import all {
-    augmentFuuro
+  import {
     getDora
     getBasicPoints, getBasicPointsYakuman
     getDelta
     getYakuResult, getYakumanResult
   }
 
-# add fields for each fuuro object:
-#   allPai: sorted Pai array
-#   fu: mentsu fu value (see also `getYakuResult`)
-# convert enums of fuuro type to lower-case strings
-#
-# return: sum of all fuuro.fu
-function augmentFuuro({fuuro})
-  fuuroFu = 0
+
+# count all pai from all fuuro (for @tehai)
+function allPaiFromFuuro({fuuro})
+  ret = []
   for f in fuuro
-    f.allPai = with f.ownPai.slice!
-      if f.otherPai => ..push f.otherPai
-      if f.kakanPai => ..push f.kakanPai
-      ..sort Pai.compare
+    [].push.apply ret, f.ownPai
+    if f.otherPai then ret.push that
+    if f.kakanPai then ret.push that
+  ret
+
+# count all fu awarded for fuuro (see `yakuResult`)
+function countFuuroFu({fuuro})
+  ret = 0
+  for f in fuuro
     switch f.type
     | \minjun             => fu = 0
     | \minko              => fu = 2
     | \daiminkan, \kakan  => fu = 8
     | \ankan              => fu = 16
-    | _ => throw Error "unknown type"
+    | _ => throw Error "unknown fuuro '#that'"
     if f.anchor.isYaochuupai then fu *= 2
-    f.fu = fu
-    fuuroFu += fu
-  return fuuroFu
+    ret += fu
+  ret
 
 # count all 3 kinds of dora: {dora, uraDora, akaDora}
 # rule variations:
@@ -257,8 +252,6 @@ function getYakuResult(decomp, {
     # The reason why Pinfu (the yaku) is not considered together with other
     # yaku is by its very original definition: "the yaku of no fu", and other
     # (modern) special rules effectively coupling pinfu and fu together.
-    #
-    # see also `augmentFuuro` for minko/minkan/ankan parts
 
     # calculate 3 main parts: mentsu, jantou, machi/wait
     mentsuFu = fuuroFu
