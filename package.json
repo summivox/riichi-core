@@ -34,6 +34,8 @@
     "mocha": "^2.5.3"
   },
   "scripts": {
+    "watch": "lsc -cw src/",
+    "prepublish": "lsc -c src/ && npm test",
     "test": "mocha",
     "test-debug": "node-debug node_modules/mocha/bin/_mocha",
     "coverage": "istanbul cover node_modules/mocha/bin/_mocha"
