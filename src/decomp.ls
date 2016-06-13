@@ -54,7 +54,7 @@ const nPatterns = patterns.length
 const TARGET_ID = shuntsu: 0, koutsu: 1, jantou: 2
 const TARGET_N = 3
 
-# completes infered properties for patterns
+# completes inferred properties for patterns
 for pattern, id in patterns
   pattern.id = id
   pattern.targetId = TARGET_ID[pattern.target]
@@ -171,9 +171,9 @@ export init = function makeDecomp1Lookup
 
   # check for invalid case of pure void wait (juntehai karaten)
   function isKaraten(pattern, offset)
-    {machiAbs} = pattern
-    if !machiAbs? then return false
-    for m in machiAbs[offset]
+    {waitAbs} = pattern
+    if !waitAbs? then return false
+    for m in waitAbs[offset]
       if state.bin[m] < M
         return false
     return true
@@ -405,7 +405,7 @@ export function decompTenpai(bins)
   # NOTE: 1 wait (tanki) by definition (see `tenpai7`)
   if (w = tenpai7 bins)
     ret.decomps.push {mentsu: [], jantou: null, k7: \chiitoi, wait: w}
-    if -1 == ret.wait.indexOf w.0 then ret.wait.push w.0
+    if w.0 not in ret.wait then ret.wait.push w.0
 
   ret
 
@@ -465,7 +465,7 @@ export function decompAgari(bins)
 export function decompAgariFromTenpai({decomps}, agariPai, isRon)
   ret = []
   agariPai .= equivPai
-  for decomp in Pai.cloneFix decomps
+  for decomp in Pai.cloneFix decomps # FIXME: can't we do better?
     if agariPai not in decomp.wait then continue
     ret.push decomp
     switch decomp.k7
