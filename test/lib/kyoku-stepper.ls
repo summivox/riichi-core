@@ -140,7 +140,7 @@ module.exports = class KyokuStepper
   # - send to master
   # - reconstruct on master and apply
   #
-  # see `./kyoku-event` description on replicate-initiated events
+  # see `src/kyoku-event` description on replicate-initiated events
   play: (player, type, args) ->
     e = new Event[type] @replicate[player], args
     if type in <[chi pon daiminkan ron]>#
