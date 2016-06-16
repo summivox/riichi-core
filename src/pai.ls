@@ -20,7 +20,7 @@
 
 require! {
   './util': {randomShuffle}
-  'lodash.cloneDeep': cloneDeep
+  'lodash.clonedeep': cloneDeep
 }
 
 SUUPAI = /([0-9])([mps])/

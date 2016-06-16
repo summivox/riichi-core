@@ -1,6 +1,6 @@
 {
   "name": "riichi-core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Riichi Mahjong game engine",
   "main": "index.js",
   "repository": {
