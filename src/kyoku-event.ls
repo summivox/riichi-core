@@ -1,3 +1,7 @@
+/**
+@module kyoku-event
+*/
+
 require! {
   'chai': {assert}
 
@@ -11,36 +15,129 @@ require! {
   './kyoku-player-hidden-mock': PlayerHiddenMock
 }
 
-# GLOBAL TODO:
-# - explain doraHyouji piggybacking
-# - more watertight `init` checks
-# - assertion messages even though source is pretty natural language
-# - fix doc of all events
-#   - separate "ctor" from "minimal"/"canonical"
+/**
+Global TODO
+- explain doraHyouji piggybacking
+- more watertight `init` checks
+- assertion messages even though source is pretty natural language
+  - separate "ctor" from "minimal"/"canonical"
+- fix doc of all events
+*/
 
 
-module.exports = Event = {}
+/**
+@interface Event
+@desc
 
-# utility function for reconstructing event object with correct class
-# from e.g. serialized event
-Event.import = ({type}:e) ->
-  ctor = Event[type]
-  if !ctor? then throw Error "invalid event '#type'"
-  ctor:: with e
+All events implicitly implement a common interface.
+
+# Hierarchy
+
+Events can be grouped into the following categories based on how information
+flows during the lifetime of the event.
+
+## Master-initiated Events
+
+Complete list:
+
+- `deal`
+- `tsumo`
+- `dahai`
+- `nextTurn`
+- `ryoukyoku`
+- `howanpai`
+
+1. construct then apply on master (by game logic in kyoku methods)
+2. send partial info to replicates
+3. reconstruct then apply on replicates
+
+## Replicate-initiated Events
+
+Complete list:
+
+- `dahai`
+- `ankan`
+- `kakan`
+- `tsumoAgari`
+- `kyuushuukyuuhai`
+
+## Declared Events
+
+Complete list:
+
+- `chi`
+- `pon`
+- `daiminkan`
+- `ron`
+
+After a player makes a interruptable action (e.g. `dahai`), other players may
+be able to declare another action upon it. These are facilitated through a
+special event `declare` in the following way:
+
+1. Player constructs event object on his replicate
+2. Player sends `{what, args}` to master
+3. `declare` event is constructed and executed on master
+4. Partial `declare` is broadcast back to all players
+5. When master side is resolved (TBD)
 
 
-# 2 categories of event:
-# master-initiated:
-# - construct then apply on master (by game logic in kyoku methods)
-# - send partial info to replicates
-# - reconstruct then apply on replicates
-# replicate-initiated:
-# - construct on replicate-me (by player decision)
-# - send constructor args to master
-# - construct then apply on master (`newDoraHyouji` might be tagged on)
-# - send full info to replicates
-# - reconstruct then apply on replicates
-#
+- construct on replicate-me (by player decision)
+- send constructor args to master
+- construct then apply on master (`newDoraHyouji` might be tagged on)
+- send full info to replicates
+- reconstruct then apply on replicates
+
+*/
+/**
+@member {string} Event#type
+@desc Type of the event; same as event class name (written in snakeCase)
+
+This is useful for de-/serialization from/to JSON, as Class/prototype is not
+preserved in JSON.
+*/
+/**
+@member {number} Event#seq
+@desc Sequence number of the event (0-based).
+
+(TBD: xref kyoku seq)
+*/
+/**
+@member {Kyoku} Event#kyoku
+@desc After {@link Event#init}, stores a reference to the kyoku upon which this
+event is initialized.
+*/
+/**
+@method Event#(constructor)
+@param {Kyoku} kyoku
+@param {?object} args - dictionary containing minimal information needed to
+construct this type of event (see each event type).
+@desc
+Construct an event on a kyoku instance using minimal info. Some event types
+allow alternative convenience constructor args (e.g. `chi`). The constructor
+always tail calls {@link Event#init} to validate input.
+*/
+/**
+@method Event#init
+@param {Kyoku} kyoku
+@desc
+Validates this event against given kyoku instance and gather additional
+information relevant to the event.
+
+Note that this event might not have been constructed on this kyoku instance.
+This is why a 2-step construction is necessary. (TBD: justify more)
+*/
+/**
+@method Event#apply
+*/
+/**
+@method Event#toPartials
+*/
+/**
+@method Event#toMinimal
+*/
+
+
+# XXX
 # Notice that constructor args is also a minimal set of parameters that
 # sufficiently determines the event (at current kyoku state on master)
 #
@@ -54,17 +151,29 @@ Event.import = ({type}:e) ->
 #   "full": sent to replicates (includes "minimal")
 
 
-Event.deal = class Deal # {{{
-  # master-initiated
-  # minimal:
-  #   wall: ?[136]Pai -- defaults to randomly shuffled
-  # partial:
-  #   haipai: [13]Pai -- each player receives only his own
-  #   initDoraHyouji: [1]Pai
-  # private:
-  #   wallParts: {haipai, piipai, rinshan, doraHyouji, uraDoraHyouji}
-  #   initDoraHyouji
+/**
+utility function for reconstructing event object with correct class
+from e.g. serialized event
+@param {Event} e
+*/
+exports.reconstruct = ({type}:e) ->
+  ctor = Event[type]
+  if !ctor? then throw Error "invalid event '#type'"
+  ctor:: with e
 
+# deal {{{
+exports.deal = class deal
+  /**
+  @classdesc
+  __master-initiated__: {@link Kyoku#deal}
+
+  Setup the wall and deal the initial hand to each player.
+  (TBD: xref splitWall)
+
+  @static
+  @class
+  @implements Event
+  */
   (kyoku, {@wall}) -> with kyoku
     assert not ..isReplicate
     @type = \deal
@@ -72,6 +181,34 @@ Event.deal = class Deal # {{{
     @wall ?= Pai.shuffleAll ..rulevar.dora.akahai
     @init kyoku
 
+  #/**
+  #@static
+  #@class Event/deal/ctor
+  #@prop {?Pai[]} wall - defaults to randomly shuffled wall
+  #*/
+  #/**
+  #@static
+  #@class Event/deal/full
+  #@prop {Pai[]} wall
+  #@prop {WallParts} wallParts - (TBD: xref splitWall)
+  #@prop {Pai[]} initDoraHyouji - contains 1 pai: first dora-hyoujihai
+  #*/
+  #/**
+  #@static
+  #@class Event/deal/minimal
+  #@prop {Pai[]} wall
+  #*/
+  #/**
+  #@static
+  #@class Event/deal/partial
+  #@prop {Pai[]} haipai - initial hand for this player
+  #@prop {Pai[]} initDoraHyouji - see `deal/full`
+  #*/
+
+  /**
+  @method
+  @param {Kyoku} kyoku
+  */
   init: (kyoku) -> with @kyoku = kyoku
     assert.equal @type, \deal
     assert.equal ..seq, 0
@@ -91,9 +228,10 @@ Event.deal = class Deal # {{{
       ..playerHidden = for p til 4
         new PlayerHidden haipai[(4 - ..chancha + p)%4]
     else
-      ..wallParts = piipai: [] rinshan: [] doraHyouji: [], uraDoraHyouji: []
+      ..wallParts = {piipai: [], rinshan: [], doraHyouji: [], uraDoraHyouji: []}
       ..playerHidden = for p til 4
-        if p == ..me then new PlayerHidden @haipai
+        if p == ..me
+        then new PlayerHidden @haipai
         else new PlayerHiddenMock
     ..playerPublic = for p til 4
       new PlayerPublic (4 - ..chancha + p)%4
@@ -111,7 +249,8 @@ Event.deal = class Deal # {{{
   toMinimal: -> @{type, seq, wall}
 # }}}
 
-Event.tsumo = class Tsumo # {{{
+# tsumo {{{
+exports.tsumo = class tsumo
   # master-initiated
   # minimal: (null)
   # partial:
@@ -160,7 +299,7 @@ Event.tsumo = class Tsumo # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-Event.dahai = class Dahai # {{{
+exports.dahai = class dahai # {{{
   # replicate-initiated
   # minimal:
   #   pai: ?Pai
@@ -259,7 +398,7 @@ Event.dahai = class Dahai # {{{
   toMinimal: -> @{type, seq, pai, tsumokiri, riichi}
 # }}}
 
-Event.ankan = class Ankan # {{{
+exports.ankan = class ankan # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai
@@ -348,7 +487,7 @@ Event.ankan = class Ankan # {{{
   toMinimal: -> @{type, seq, pai}
 # }}}
 
-Event.kakan = class Kakan # {{{
+exports.kakan = class kakan # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai -- see `kakanPai` in fuuro/kakan
@@ -411,7 +550,7 @@ Event.kakan = class Kakan # {{{
   toMinimal: -> @{type, seq, pai}
 # }}}
 
-Event.tsumoAgari = class TsumoAgari # {{{
+exports.tsumoAgari = class tsumoAgari # {{{
   # replicate-initiated:
   # minimal: null
   # full:
@@ -464,7 +603,7 @@ Event.tsumoAgari = class TsumoAgari # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
+exports.kyuushuukyuuhai = class kyuushuukyuuhai # {{{
   # replicate-initiated
   # minimal: null
   # full:
@@ -512,7 +651,7 @@ Event.kyuushuukyuuhai = class Kyuushuukyuuhai # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-Event.declare = class Declare # {{{
+exports.declare = class declare # {{{
   # SPECIAL: EVENT WRAPPER
   # minimal:
   #   what: chi/pon/daiminkan/ron
@@ -553,7 +692,7 @@ Event.declare = class Declare # {{{
   toMinimal: -> @{type, seq, what, args}
 # }}}
 
-Event.chi = class Chi # {{{
+exports.chi = class chi # {{{
   # replicate-declared
   # minimal:
   #   player: `(currPlayer + 1)%4` -- implicit, may be omitted
@@ -663,7 +802,7 @@ Event.chi = class Chi # {{{
   toMinimal: -> @{type, seq, ownPai}
 # }}}
 
-Event.pon = class Pon # {{{
+exports.pon = class pon # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -741,7 +880,7 @@ Event.pon = class Pon # {{{
   toMinimal: -> @{type, seq, player, ownPai}
 # }}}
 
-Event.daiminkan = class Daiminkan # {{{
+exports.daiminkan = class daiminkan # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -819,7 +958,7 @@ Event.daiminkan = class Daiminkan # {{{
   toMinimal: -> @{type, seq, player}
 # }}}
 
-Event.ron = class Ron # {{{
+exports.ron = class ron # {{{
   # replicate-initiated
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -878,7 +1017,7 @@ Event.ron = class Ron # {{{
   toMinimal: -> @{type, seq, player, isFirst, isLast}
 # }}}
 
-Event.nextTurn = class NextTurn # {{{
+exports.nextTurn = class nextTurn # {{{
   # master-initiated
   # NOTE: no member
 
@@ -905,7 +1044,7 @@ Event.nextTurn = class NextTurn # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-Event.ryoukyoku = class Ryoukyoku # {{{
+exports.ryoukyoku = class ryoukyoku # {{{
   # master-initiated
   # full:
   #   renchan: Boolean -- assigned to kyoku.result.renchan
@@ -934,7 +1073,7 @@ Event.ryoukyoku = class Ryoukyoku # {{{
   toMinimal: -> @{type, seq, renchan, reason}
 # }}}
 
-Event.howanpai = class Howanpai # {{{
+exports.howanpai = class howanpai # {{{
   # master-initiated
   # full:
   #   renchan: Boolean

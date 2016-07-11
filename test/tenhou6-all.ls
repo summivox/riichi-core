@@ -51,7 +51,7 @@ replayGame = ({rulevar, kyokus}) !->
     if endState then assert.deepEqual startState, endState
     {master} = stepper = new KyokuStepper {rulevar, startState}
     for e in events
-      e = Event.import e
+      e = Event.reconstruct e
       master.exec e.init master
     assert.equal master.seq, events.length
     assert.equal master.phase, \end
@@ -117,6 +117,9 @@ simGame = ({rulevar, kyokus}) ->
       if retB.renchan? then assert.equal retA.renchan, retB.renchan
       assert.equal retA.reason, retB.reason
     endState = master.endState
+
+    say master
+    process.exit(1)
 
 function globAndRead(pattern)
   glob.sync pattern .map (filename) ->

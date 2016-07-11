@@ -1,3 +1,7 @@
+/**
+@module kyoku
+*/
+
 require! {
   events: {EventEmitter}
 
@@ -16,6 +20,12 @@ require! {
   './kyoku-player-hidden': PlayerHidden
 }
 
+/**
+@classdesc
+
+@global
+@class Kyoku
+*/
 module.exports = class Kyoku implements EventEmitter::
   # constructor {{{
   #   rulevar: (see `./rulevar-default`)
@@ -166,12 +176,12 @@ module.exports = class Kyoku implements EventEmitter::
     @seq++
     @emit \event, event
 
-  # execute an (unserialized) event
-  execImported: (event) !->
-    @exec (Event.import event).init(this)
-
   # game progress methods (master only) {{{
 
+  /**
+  @method
+  @param {?Pai[]} wall
+  */
   # prepare wall and start game
   #   wall: ?[136]Pai -- defaults to randomly shuffled
   deal: (wall) ->
