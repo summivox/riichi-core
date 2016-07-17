@@ -42,10 +42,10 @@ module.exports = class KyokuStepper
       #console.log "#H #{JSON.stringify e.toMinimal!}" # DEBUG
 
       # feed the event to replay and replicates
-      @replay.execImported e
+      @replay.exec Event.reconstruct(e).init(@replay)
       partials = e.toPartials!
       for p til 4
-        @replicate[p].execImported partials[p]
+        @replicate[p].exec Event.reconstruct(partials[p]).init(@replicate[p])
 
       # check only the last event in a multi-ron series
       if e.type == \ron and not e.isLast then return

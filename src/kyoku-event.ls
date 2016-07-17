@@ -24,11 +24,9 @@ Global TODO
 - fix doc of all events
 */
 
+Event = exports
 
 /**
-@interface Event
-@desc
-
 All events implicitly implement a common interface.
 
 # Hierarchy
@@ -87,44 +85,47 @@ special event `declare` in the following way:
 - send full info to replicates
 - reconstruct then apply on replicates
 
+@interface Event
 */
 /**
-@member {string} Event#type
-@desc Type of the event; same as event class name (written in snakeCase)
+Type of the event; same as event class name (written in snakeCase)
 
 This is useful for de-/serialization from/to JSON, as Class/prototype is not
 preserved in JSON.
-*/
-/**
-@member {number} Event#seq
-@desc Sequence number of the event (0-based).
 
+@member {string} Event#type
+*/
+/**
+Sequence number of the event (0-based).
 (TBD: xref kyoku seq)
+
+@member {number} Event#seq
 */
 /**
+After {@link Event#init}, stores a reference to the kyoku upon which this event
+is initialized.
+
 @member {Kyoku} Event#kyoku
-@desc After {@link Event#init}, stores a reference to the kyoku upon which this
-event is initialized.
 */
 /**
+Construct an event on a kyoku instance using minimal info. Some event types
+allow alternative convenience constructor args (e.g. `chi`). The constructor
+always tail calls {@link Event#init} to validate input.
+
 @method Event#(constructor)
 @param {Kyoku} kyoku
 @param {?object} args - dictionary containing minimal information needed to
 construct this type of event (see each event type).
-@desc
-Construct an event on a kyoku instance using minimal info. Some event types
-allow alternative convenience constructor args (e.g. `chi`). The constructor
-always tail calls {@link Event#init} to validate input.
 */
 /**
-@method Event#init
-@param {Kyoku} kyoku
-@desc
 Validates this event against given kyoku instance and gather additional
 information relevant to the event.
 
 Note that this event might not have been constructed on this kyoku instance.
 This is why a 2-step construction is necessary. (TBD: justify more)
+
+@method Event#init
+@param {Kyoku} kyoku
 */
 /**
 @method Event#apply
@@ -156,23 +157,22 @@ utility function for reconstructing event object with correct class
 from e.g. serialized event
 @param {Event} e
 */
-exports.reconstruct = ({type}:e) ->
+Event.reconstruct = ({type}:e) ->
   ctor = Event[type]
   if !ctor? then throw Error "invalid event '#type'"
   ctor:: with e
 
 # deal {{{
-exports.deal = class deal
+Event.deal = class deal
   /**
-  @classdesc
   __master-initiated__: {@link Kyoku#deal}
 
   Setup the wall and deal the initial hand to each player.
   (TBD: xref splitWall)
 
-  @static
   @class
   @implements Event
+  @constructor
   */
   (kyoku, {@wall}) -> with kyoku
     assert not ..isReplicate
@@ -250,7 +250,7 @@ exports.deal = class deal
 # }}}
 
 # tsumo {{{
-exports.tsumo = class tsumo
+Event.tsumo = class tsumo
   # master-initiated
   # minimal: (null)
   # partial:
@@ -299,7 +299,7 @@ exports.tsumo = class tsumo
   toMinimal: -> @{type, seq}
 # }}}
 
-exports.dahai = class dahai # {{{
+Event.dahai = class dahai # {{{
   # replicate-initiated
   # minimal:
   #   pai: ?Pai
@@ -398,7 +398,7 @@ exports.dahai = class dahai # {{{
   toMinimal: -> @{type, seq, pai, tsumokiri, riichi}
 # }}}
 
-exports.ankan = class ankan # {{{
+Event.ankan = class ankan # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai
@@ -487,7 +487,7 @@ exports.ankan = class ankan # {{{
   toMinimal: -> @{type, seq, pai}
 # }}}
 
-exports.kakan = class kakan # {{{
+Event.kakan = class kakan # {{{
   # replicate-initiated
   # minimal:
   #   pai: Pai -- see `kakanPai` in fuuro/kakan
@@ -550,7 +550,7 @@ exports.kakan = class kakan # {{{
   toMinimal: -> @{type, seq, pai}
 # }}}
 
-exports.tsumoAgari = class tsumoAgari # {{{
+Event.tsumoAgari = class tsumoAgari # {{{
   # replicate-initiated:
   # minimal: null
   # full:
@@ -603,7 +603,7 @@ exports.tsumoAgari = class tsumoAgari # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-exports.kyuushuukyuuhai = class kyuushuukyuuhai # {{{
+Event.kyuushuukyuuhai = class kyuushuukyuuhai # {{{
   # replicate-initiated
   # minimal: null
   # full:
@@ -651,7 +651,7 @@ exports.kyuushuukyuuhai = class kyuushuukyuuhai # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-exports.declare = class declare # {{{
+Event.declare = class declare # {{{
   # SPECIAL: EVENT WRAPPER
   # minimal:
   #   what: chi/pon/daiminkan/ron
@@ -692,7 +692,7 @@ exports.declare = class declare # {{{
   toMinimal: -> @{type, seq, what, args}
 # }}}
 
-exports.chi = class chi # {{{
+Event.chi = class chi # {{{
   # replicate-declared
   # minimal:
   #   player: `(currPlayer + 1)%4` -- implicit, may be omitted
@@ -802,7 +802,7 @@ exports.chi = class chi # {{{
   toMinimal: -> @{type, seq, ownPai}
 # }}}
 
-exports.pon = class pon # {{{
+Event.pon = class pon # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -872,7 +872,7 @@ exports.pon = class pon # {{{
 
     return this
 
-  apply: Chi::apply # exactly the same code
+  apply: chi::apply # exactly the same code
 
   toPartials: -> for til 4 => @{type, seq, player, ownPai}
   # NOTE: can't reuse here: `player` is implicit in `chi` but not in `pon`
@@ -880,7 +880,7 @@ exports.pon = class pon # {{{
   toMinimal: -> @{type, seq, player, ownPai}
 # }}}
 
-exports.daiminkan = class daiminkan # {{{
+Event.daiminkan = class daiminkan # {{{
   # replicate-declared
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -958,7 +958,7 @@ exports.daiminkan = class daiminkan # {{{
   toMinimal: -> @{type, seq, player}
 # }}}
 
-exports.ron = class ron # {{{
+Event.ron = class ron # {{{
   # replicate-initiated
   # minimal:
   #   player: 0/1/2/3 -- must not be `currPlayer`
@@ -1017,7 +1017,7 @@ exports.ron = class ron # {{{
   toMinimal: -> @{type, seq, player, isFirst, isLast}
 # }}}
 
-exports.nextTurn = class nextTurn # {{{
+Event.nextTurn = class nextTurn # {{{
   # master-initiated
   # NOTE: no member
 
@@ -1044,7 +1044,7 @@ exports.nextTurn = class nextTurn # {{{
   toMinimal: -> @{type, seq}
 # }}}
 
-exports.ryoukyoku = class ryoukyoku # {{{
+Event.ryoukyoku = class ryoukyoku # {{{
   # master-initiated
   # full:
   #   renchan: Boolean -- assigned to kyoku.result.renchan
@@ -1073,7 +1073,7 @@ exports.ryoukyoku = class ryoukyoku # {{{
   toMinimal: -> @{type, seq, renchan, reason}
 # }}}
 
-exports.howanpai = class howanpai # {{{
+Event.howanpai = class howanpai # {{{
   # master-initiated
   # full:
   #   renchan: Boolean

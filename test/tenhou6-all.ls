@@ -118,9 +118,6 @@ simGame = ({rulevar, kyokus}) ->
       assert.equal retA.reason, retB.reason
     endState = master.endState
 
-    say master
-    process.exit(1)
-
 function globAndRead(pattern)
   glob.sync pattern .map (filename) ->
     {filename, file: fs.readJsonSync filename}

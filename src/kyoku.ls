@@ -437,7 +437,7 @@ module.exports = class Kyoku implements EventEmitter::
       # natural end of ippatsu for current player
       # virgin can be considered ippatsu of north player
       @playerPublic[@currPlayer].riichi.ippatsu = false
-      if @currPlayer == (@chancha + 3)%4 then @virgin = false
+      if @virgin and @currPlayer == (@chancha + 3)%4 then @virgin = false
     else
       # fuuro has happened -- all ippatsu broken
       @playerPublic.forEach (.riichi.ippatsu = false)
