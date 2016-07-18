@@ -8,8 +8,8 @@ kyoku = new Kyoku # creates a new game with default rules
 kyoku.on 'event', (event) -> console.log JSON.stringify event # logs all executed events to console
 kyoku.deal! # start it by shuffling the wall and dealing the initial hand
 kyoku.go! # start 1st player's turn -- a tile is drawn from the wall
-kyoku.exec new Event.dahai kyoku, tsumokiri: true # 1st player chooses to discard the tile he just drew
-kyoku.exec new Event.declare kyoku, what: 'chi', args: {dir: -1} # which is called for meld by the 2nd player (NOTE: will throw if rule does not allow him, which is likely to happen due to randomly generated wall)
+kyoku.exec new Event.dahai kyoku, tsumokiri: true # 1st player chooses to discard the tile he just drew...
+kyoku.exec new Event.declare kyoku, what: 'chi', args: {dir: -1} # ...which is called for meld by the 2nd player (NOTE: will throw if rule does not allow him, which is likely to happen due to randomly generated wall)
 /* ... */
 ```
 
@@ -48,14 +48,14 @@ kyoku.exec(new Event.declare(kyoku, {
 
 # Architecture
 
-## Technical Overview of the Game
+## Game Overview
 
-Riichi Mahjong is a card game. More specifically, a turn-based deterministic multi-player imperfect-information game. A game involves 4 players and consists of a number of [[kyoku]]s. The initial conditions of a [[kyoku]] is uniquely determined by `{bakaze, chancha, honba, points}`, where `points` is a numerical score for each player. A [[kyoku]] begins with shuffle/deal, and ends with a potential change to the points of the players. The outcome of a [[kyoku]] in turn uniquely determines (according to the specific rule used) whether the game should end, or another [[kyoku]] should be played; in the latter case, the initial conditions of the next [[kyoku]].
+Riichi Mahjong is a card game. More specifically, a turn-based deterministic multi-player imperfect-information game. A game involves 4 players and consists of a number of [[kyoku]]s. The initial conditions of a [[kyoku]] is sufficiently determined by `{bakaze, chancha, honba, points}`, where `points` is a numerical score for each player. A [[kyoku]] begins with shuffle/deal, and ends with a potential change to the points of the players. The outcome of a [[kyoku]] sufficiently  determines (according to the specific rule used) whether the game should end, or another [[kyoku]] should be played; in the latter case, the initial conditions of the next [[kyoku]] is also determined.
 
 ## Representation
 
 <figure>
-![](http://i.imgur.com/OGN8VW1.png)
+<img src="http://i.imgur.com/iEYMumv.png" />
 <figcaption>Example of game progression</figcaption>
 </figure>
 
@@ -67,7 +67,7 @@ Riichi Mahjong is a card game. More specifically, a turn-based deterministic mul
 This library is designed around a client-server model; it implements both client and server functionalities. All 4 clients (players) communicate with a single server, which maintains a `Kyoku` instance that serves as the **single source of truth**. This instance is called the "master". Each client may keep its own `Kyoku` instance, called a "replicate", which can be synchronized with the master by applying events from the master.
 
 <figure>
-![](http://i.imgur.com/j2NjfY7.png)
+<img src="http://i.imgur.com/j2NjfY7.png" />
 <figcaption>Client-server model</figcaption>
 </figure>
 
@@ -77,7 +77,7 @@ Information invisible to each player is filtered out when passing the event from
 ## Finite State Machine
 
 <figure>
-![](http://i.imgur.com/QiAucLo.png)
+<img src="http://i.imgur.com/QiAucLo.png)" />
 <figcaption>The kyoku state machine (`Kyoku#phase`)</figcaption>
 </figure>
 
@@ -113,7 +113,12 @@ Master events are marked as blue arrows in the FSM diagram. They represent the o
 
 ### Own-turn Events
 
-Own-turn events are marked as red arrows in the FSM diagram. They represent a player's move in his own turn (after {{tsumo}}).
+Own-turn events are marked as red arrows in the FSM diagram. They represent a player's move in his own turn (after {{tsumo}}) and have straightforward semantics.
+
+- `dahai{pai, tsumokiri, riichi}`: includes [[riichi]] declaration. Note that this is *not* considered a "declared event" (see below) as it can be considered as a part of regular [[dahai]] and is done in player's own turn.
+- `ankan{pai}`, `kakan{pai}`
+- `tsumoAgari`
+- `kyuushuuKyuuhai`: "9-9" in diagram. Note that this is the only way of forcing a [[ryoukyoku]] by a player directly in his own turn.
 
 
 ### Declared Events
@@ -126,6 +131,24 @@ This game mechanics is implemented as a two-step process:
 2. When all declarations have been registered, `Kyoku#resolve` is called. It determines which declarations are valid and applies the actual event (e.g. `chi`).
 
 If no declarations are active, a default/placeholder event `nextTurn` is applied instead using the same mechanism to advance the game into next turn (same player in case of {{kan}}, next player otherwise).
+
+
+## Cross Concerns
+
+### (need a title for didNotHoujuu)
+
+All declared events except for `ron` call `Kyoku#_didNotHoujuu` when applied, shown as `**` in the FSM diagram. This routine handles the common codepath that updates the following conditions flags:
+
+- [[riichi]] acception: `PlayerPublic#riichi.accepted`
+- [[riichi]] [[ippatsu]]: `PlayerPublic#riichi.ippatsu`
+- first uninterrupted [[tsumo]] round: `Kyoku#virgin`
+- [[furiten]]: `PlayerHidden#furiten`
+
+While these flags might seem disjoint and unrelated, they share one thing in common: they are all conditioned on "player finished action without causing [[ron]]". This is reflected in the name of the method ([[houjuu]] == to cause a [[ron]]).
+
+### Dora-hyoujihai revealing
+
+(TBD)1
 
 
 

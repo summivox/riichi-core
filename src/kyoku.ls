@@ -432,7 +432,8 @@ module.exports = class Kyoku implements EventEmitter::
   # declared on dahai/ankan/kakan
   _didNotHoujuu: (event) !->
     # end of ippatsu/virgin
-    # NOTE: this must happen before accepting riichi
+    # NOTE: this must happen before accepting new riichi, or ippatsu flag would
+    # always be overwritten to false
     if @phase == \postDahai and event.type == \nextTurn
       # natural end of ippatsu for current player
       # virgin can be considered ippatsu of north player
