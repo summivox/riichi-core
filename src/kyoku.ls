@@ -188,10 +188,10 @@ module.exports = class Kyoku implements EventEmitter::
     assert not @isReplicate
     @exec new Event.deal this, {wall}
 
-  # begin of turn: tsumo or ryoukyoku
-  begin: ->
+  # start player's turn: tsumo or ryoukyoku
+  go: ->
     assert not @isReplicate
-    assert @phase != \end
+    assert @phase == \preTsumo
     # check for tochuu ryoukyoku
     for reason in <[suufonrenta suukaikan suuchariichi]>
       switch @rulevar.ryoukyoku.tochuu[reason]

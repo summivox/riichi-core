@@ -81,7 +81,7 @@ simGame = ({rulevar, kyokus}) ->
     for e in events
       switch e.type
       | \deal => master.deal e.wall
-      | \tsumo, \ryoukyoku, \howanpai => master.begin!
+      | \tsumo, \ryoukyoku, \howanpai => master.go!
       | \dahai
         stepper.play master.currPlayer, that, e{pai, tsumokiri, riichi}
       | \ankan, \kakan
