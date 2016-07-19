@@ -270,8 +270,8 @@ module.exports = class Kyoku implements EventEmitter::
     # determine next bakaze/chancha
     newBakaze = false
     if renchan
-      # all-last oya top
-      if end.oyaALTop and bakaze == end.normal - 1 and chancha == 3
+      # all-last oya top (agariyame)
+      if end.agariyame and bakaze == end.normal - 1 and chancha == 3
       and points[0 to 2].every (< points[3])
           return null
       honba++

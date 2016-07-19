@@ -112,4 +112,4 @@ module.exports =
       normal: 2
       overtime: 3
       suddenDeath: yes
-      oyaALTop: yes
+      agariyame: yes # if chancha/oya is top after all-last, game ends
