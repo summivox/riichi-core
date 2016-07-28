@@ -134,6 +134,12 @@ module.exports = class KyokuStepper
         assert.equal PH.furiten,
           PH.sutehaiFuriten or PH.doujunFuriten or PH.riichiFuriten
 
+      # playerPublic
+      for p0 til 4
+        PP = @master.playerPublic[p0]
+        for {pai} in PP.sutehai
+          assert PP.sutehaiContains pai
+
 
   # run a common sequence in a game:
   # - construct replicate-initiated event on replicate-me
