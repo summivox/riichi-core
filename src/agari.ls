@@ -2,7 +2,7 @@
 
 require! {
   './pai': Pai
-  './decomp': {tenpaiDecomp, decompAgariFromTenpai}
+  './decomp': {decompAgariFromTenpai}
   './util': {OTHER_PLAYERS, ceilTo, sum, count}
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
@@ -58,7 +58,6 @@ require! {
 
 module.exports = class Agari
   (input) ->
-    debugger
     import all input
 
     @isRon = @houjuuPlayer?
