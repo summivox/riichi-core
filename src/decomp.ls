@@ -393,8 +393,8 @@ export function decompTenpai(bins)
                   decomp.wait = convert(waitOne, iw)
                   ret.decomps.push decomp
                   waitSuite .|.= waitOne
-                  # NOTE: this cannot be moved to outer loop because we need
-                  # to verify that this decomp is valid
+                  # NOTE: this cannot be moved to outer loop because we need to
+                  # verify that this decomp is valid
                 addRem(rem, d1C2)
             addRem(rem, d1C1)
         addRem(rem, d1C0)

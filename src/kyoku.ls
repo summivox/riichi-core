@@ -225,7 +225,7 @@ module.exports = class Kyoku implements EventEmitter::
             reason: if nRon == 2 then \doubleRon else \tripleRon
         if atamahane
           @exec new Event.ron this, {player, +isFirst, +isLast}
-        else for {player, args: {player}}, i in ..
+        else for {player}, i in ..
           @exec new Event.ron this, {
             player
             isFirst: i == 0

@@ -23,8 +23,8 @@ module.exports = class PlayerHidden
     #
     @tsumohai = null
     @juntehai = haipai.slice!sort Pai.compare
-    @bins = bins = Pai.binsFromArray haipai
-    @tenpaiDecomp = decompTenpai bins
+    @bins = Pai.binsFromArray haipai
+    @tenpaiDecomp = decompTenpai @bins
 
     # Furiten status flags: (managed externally by Kyoku logic)
     #
