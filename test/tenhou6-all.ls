@@ -68,6 +68,7 @@ simGame = ({rulevar, kyokus}) ->
         if e.isLast then master.resolve!
       | \nextTurn
         master.resolve!
+      | _ => throw Error "invalid event '#that'"
 
     # assert.equal master.seq, events.length
     # NOTE: this does not apply anymore due to extra declare events
@@ -88,6 +89,7 @@ simGame = ({rulevar, kyokus}) ->
     | \ryoukyoku
       if retB.renchan? then assert.equal retA.renchan, retB.renchan
       assert.equal retA.reason, retB.reason
+    | _ => throw Error "invalid result type '#that'"
     endState = master.endState
 
 function globAndRead(pattern)
