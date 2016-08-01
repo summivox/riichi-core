@@ -64,7 +64,7 @@ module.exports = class PlayerHidden
       throw Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
     pai = @tsumohai
     @bins[pai.S][pai.N]--
-    @tenpaiDecomp = decompTenpai @bins
+    #@tenpaiDecomp = decompTenpai @bins
     @tsumohai = null
     return pai
 
