@@ -621,6 +621,10 @@ export function parseKyoku([
       addEvent {type: \nextTurn}
       addEvent {type: \howanpai}
     | \tripleRon
+      # FIXME: this isn't really what happens --- in actual riichi-core log
+      # there should be 3 declarations then one ryoukyoku. Current impl abuses
+      # ron then resolve mechanism in test runner code.
+
       p0 = lastEvent.player # should be dahai
       for p, i in OTHER_PLAYERS[p0]
         addEvent {type: \ron, player: p, isFirst: i == 0, isLast: i == 2}

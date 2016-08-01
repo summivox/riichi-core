@@ -22,7 +22,7 @@ function POD(obj)
 
 function sortedYaku(yaku)
   if !yaku? then return []
-  yaku.slice!sort (a, b) -> a.name < b.name
+  yaku.slice!sort (a, b) -> if a.name < b.name then -1 else +1
 
 function canonicalAgari(agari)
   ret = POD agari{
@@ -44,37 +44,9 @@ function canonicalAgari(agari)
       ..dora = []
       ..doraTotal = 0
 
-
-replayGame = ({rulevar, kyokus}) !->
-  endState = null
-  for let {startState, events, result: retB}, i in kyokus
-    if endState then assert.deepEqual startState, endState
-    {master} = stepper = new KyokuStepper {rulevar, startState}
-    for e in events
-      e = Event.reconstruct e
-      master.exec e.init master
-    assert.equal master.seq, events.length
-    assert.equal master.phase, \end
-    retA = master.result
-    switch retA.type
-    | \tsumoAgari
-      assert.equal retA.renchan, retB.renchan
-      assert.deepEqual do
-        canonicalAgari retA.agari
-        canonicalAgari retB.agari
-    | \ron
-      assert.equal retA.renchan, retB.renchan
-      assert.deepEqual do
-        retA.agari.map canonicalAgari
-        retB.agari.map canonicalAgari
-    | \ryoukyoku
-      if retB.renchan? then assert.equal retA.renchan, retB.renchan
-      assert.equal retA.reason, retB.reason
-    endState = master.endState
-
 simGame = ({rulevar, kyokus}) ->
   endState = null
-  for let {startState, events, result: retB}, i in kyokus
+  for {startState, events, result: retB}, i in kyokus
     if endState then assert.deepEqual startState, endState
     {master} = stepper = new KyokuStepper {rulevar, startState}
 
@@ -127,5 +99,4 @@ D 'tenhou6', ->
   files = globAndRead "#base/*/*.json"
   for let {filename, file} in files
     I path.relative(base, filename), ->
-      #replayGame tenhou6.parseGame file
       simGame tenhou6.parseGame file

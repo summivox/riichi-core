@@ -276,7 +276,7 @@ module.exports = class Kyoku implements EventEmitter::
           return null
       honba++
     else
-      honba = 0
+      if result.type == \ryoukyoku then honba++ else honba = 0
       if ++chancha == 4
         chancha = 0
         bakaze++

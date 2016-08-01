@@ -1115,8 +1115,10 @@ Event.howanpai = class howanpai # {{{
     return this
 
   apply: !-> with kyoku = @kyoku
-    ..result{type, renchan} = this
-    ..result.reason = \howanpai
+    ..result
+      ..type = \ryoukyoku
+      ..renchan = @renchan
+      ..reason = \howanpai
     for p til 4 => ..result.delta[p] += @delta[p]
     # TODO: playerHidden (like agari)
     .._end!
