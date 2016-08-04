@@ -532,8 +532,8 @@ function agariK(bins)
   for x, i in yaochuu => switch x
   | 1 => ++c1
   | 2 =>
-    if ++c2 > 1 then return null
-  | 3, 4 => return null
+    if ++c2 > 1 then return false
+  | 3, 4 => return false
   return c1 == 12 and c2 == 1
 
 # chiitoi tenpai: 6 toitsu + 1 tanki
