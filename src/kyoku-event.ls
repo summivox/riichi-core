@@ -461,8 +461,7 @@ Event.ankan = class ankan # {{{
       # TODO: some impls have a more relaxed "basic" rule:
       #   tenpai/wait set must not change
       # "okurikan" rule above might still apply even with relaxed "basic"
-      d = PH.tenpaiDecomp
-      allKoutsu = d.decomps.every -> it.mentsu.some ->
+      allKoutsu = PH.tenpaiDecomp.decomps.every -> it.mentsu.some ->
         it.type == \koutsu and it.anchor == pai
       assert allKoutsu, "riichi ankan: hand decomposition must not change"
       if not ..rulevar.riichi.okurikan
@@ -967,8 +966,6 @@ Event.ron = class ron # {{{
   #   juntehai: PlayerHidden::juntehai
   #   uraDoraHyouji: ?[]Pai -- only revealed ones if riichi
   # private:
-  #   houjuuPlayer: kyoku.currPlayer
-  #   tenpaiDecomp: PlayerHidden::tenpaiDecomp
   #   agari: Agari
 
   (kyoku, {@player, @isFirst = true, @isLast = true}) -> with kyoku
@@ -987,10 +984,11 @@ Event.ron = class ron # {{{
     with ..playerHidden[@player]
       if .. instanceof PlayerHidden
         assert not ..furiten
-        @{juntehai, tenpaiDecomp} = ..
+        @{juntehai} = ..
+        {tenpaiDecomp} = ..
     assert.isArray @juntehai
-    @tenpaiDecomp ?= decompTenpai Pai.binsFromArray @juntehai
-    assert ..isKeiten @tenpaiDecomp
+    tenpaiDecomp ?= decompTenpai Pai.binsFromArray @juntehai
+    assert ..isKeiten tenpaiDecomp
     if not ..isReplicate
       @uraDoraHyouji = ..getUraDoraHyouji @player
 
