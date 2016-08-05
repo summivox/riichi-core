@@ -271,6 +271,7 @@ function subRem(rem, decomp1)
   {nTarget: [shuntsu, koutsu, jantou]} = decomp1
   rem[0] -= shuntsu + koutsu
   rem[1] -= jantou
+  if rem[0] < 0 then throw Error 'fuck'
   return rem[0] >= 0 && rem[1] >= 0
 # same as above, but add it back
 !function addRem(rem, decomp1)
