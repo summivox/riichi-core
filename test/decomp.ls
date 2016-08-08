@@ -1,18 +1,24 @@
 require! {
-  'chai': {assert}
+  'chai': {assert}:chai
   'fs-extra-promise': fs
+  path
+  'globby': glob
 }
+#chai.use require 'chai-shallow-deep-equal'
+
 root = require 'app-root-path'
 {
   decomp1C, makeDecomp1C
   decomp1W, makeDecomp1W, countDecomp1W
-}:decomp = require "#root/src/decomp-next/decomp-next.ls"
+  decompTenpai
+}:decomp = require "#root/src/decomp.js"
+Pai = require "#root/src/pai.js"
 
 D = describe
 I = it
 
-D 'decomp-next', ->
-  function binStr(key)
+D 'decomp', ->
+  function binToString(key)
     s = Number key .toString 8
     return ('0' * (9 - s.length)) + s
 
@@ -30,7 +36,7 @@ D 'decomp-next', ->
     console.log '\n'
     C := {[bin, cs] for bin, cs of decomp1C}
     Ck := [Number bin for bin, cs of decomp1C].sort!
-    Wk := [binStr bin for bin, ws of decomp1W].sort!
+    Wk := [binToString bin for bin, ws of decomp1W].sort!
 
   # TODO: actually load the ref files and compare
   D 'C-table', ->
@@ -43,8 +49,33 @@ D 'decomp-next', ->
         assert ((cs.every -> it.jantou?) or (cs.every -> !it.jantou?))
         l = cs.0.mentsu.length
         assert cs.every (.mentsu.length == l)
-  D 'W-table', ->
+  D.skip 'W-table', ->
     I 'correct # of entries', ->
       assert.equal do
         [cs.length for binW, ws of decomp1W for {cs} in ws].reduce (+)
         161738
+
+  D 'decompTenpai', ->
+    function canonicalTenpaiDecomp({decomps, tenpaiSet}:td)
+      tenpaiSet.sort Pai.compare
+      decomps.forEach ->
+        it.mentsu.sort (a, b) ->
+          if Pai.compare(a.anchor, b.anchor) then return that
+          if a.type < b.type then -1 else +1
+        it.k7 ?= null
+      decomps.sort (a, b) ->
+        if Pai.compare(a.tenpai, b.tenpai) then return that
+        if a.tenpaiType < b.tenpaiType then -1 else +1
+      return JSON.parse JSON.stringify td
+    base = path.posix.normalize "#__dirname/data/decomp"
+    files = globAndRequire "#base/tenpai/*.json.ls"
+    for let {filename, file} in files
+      {desc, str, partial, tenpaiSet, decomps} = file
+      I desc, ->
+        actual = canonicalTenpaiDecomp decompTenpai Pai.binsFromString str
+        expected = canonicalTenpaiDecomp Pai.cloneFix {tenpaiSet, decomps}
+        assert.deepEqual actual, expected
+
+function globAndRequire(...pattern)
+  glob.sync ...pattern .map (filename) ->
+    {filename, file: require filename}

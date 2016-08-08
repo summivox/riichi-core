@@ -208,14 +208,15 @@ mentsuWithSuite = Pai[0 1 2 3].map (P) -> (x) ->
 
 DT_KOKUSHI = Pai.YAOCHUU.map (tenpai) -> [{
   mentsu: [], jantou: null, k7: \kokushi
-  tenpaiType: \kokushi, tenpai
+  tenpaiType: \kokushi, tenpai, anchor: tenpai
 }]
 DT_KOKUSHI13 = Pai.YAOCHUU.map (tenpai) -> {
   mentsu: [], jantou: null, k7: \kokushi
-  tenpaiType: \kokushi13, tenpai
+  tenpaiType: \kokushi13, tenpai, anchor: tenpai
 }
 
-function decompTenpai(bins)
+export function decompTenpai(bins)
+  bitBins = bins.map -> it.reduceRight (a, b) -> (a.<<.3).|.b
   # kokushi: exclusive
   if (w = tenpaiK bins)?
     if w == 13
@@ -234,10 +235,10 @@ function decompTenpai(bins)
   # complete decomp for each suite
   # 1-7z cannot form shuntsu
   css =
-    decomp1C[bins.0]
-    decomp1C[bins.1]
-    decomp1C[bins.2]
-    decomp1C[bins.3]?.filter (.shuntsu == 0)
+    decomp1C[bitBins.0]
+    decomp1C[bitBins.1]
+    decomp1C[bitBins.2]
+    decomp1C[bitBins.3]?.filter (.shuntsu == 0)
 
   # number of suites without complete decomp:
   #   0 => tenpai might come from any suite (try each)
@@ -259,7 +260,7 @@ function decompTenpai(bins)
     f 2 0 1 3
     f 3 0 1 2
   !function f(jw, j0, j1, j2)
-    ws = decomp1W[bins[jw]]
+    ws = decomp1W[bitBins[jw]]
     cs0 = css[j0]
     cs1 = css[j1]
     cs2 = css[j2]
@@ -272,7 +273,11 @@ function decompTenpai(bins)
     cJantouN = cJantou0? + cJantou1? + cJantou2?
     if cJantouN >= 2 then return []
     # cache the jantou (if any)
-    cJantou = cJantou0 ? cJantou1 ? cJantou2
+    switch
+    | cJantou0? => cJantou = Pai[j0][that + 1]
+    | cJantou1? => cJantou = Pai[j1][that + 1]
+    | cJantou2? => cJantou = Pai[j2][that + 1]
+    | _ => cJantou = null
 
     # tenpai set, represented as a bitmap
     # e.g. jw == 0 then bit 2 set means 3m in tenpai set
@@ -294,6 +299,7 @@ function decompTenpai(bins)
       for cw in csw
         # filter: 1-7z cannot form shuntsu
         continue if jw == 3 and cw.shuntsu > 0
+        wJantou = if cw.jantou? then Pai[jw][that + 1] else null
         # each: complete suites
         for c0 in cs0 => for c1 in cs1 => for c2 in cs2
           # NOTE: shuntsu already filtered (see `css` above)
@@ -303,7 +309,7 @@ function decompTenpai(bins)
               c0.mentsu.map mentsuWithSuite[j0]
               c1.mentsu.map mentsuWithSuite[j1]
               c2.mentsu.map mentsuWithSuite[j2]
-            jantou: cJantou ? cw.jantou
+            jantou: cJantou ? wJantou
             k7: null
             tenpaiType, tenpai, anchor
           }
@@ -321,7 +327,7 @@ function decompTenpai(bins)
   if (w = tenpai7 bins)?
     decomps.push {
       mentsu: [], jantou: null, k7: \chiitoi
-      tenpaiType: \chiitoi, tenpai: w
+      tenpaiType: \chiitoi, tenpai: w, anchor: w
     }
     if w not in tenpaiSet then tenpaiSet.push w
 
