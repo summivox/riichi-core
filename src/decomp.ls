@@ -77,34 +77,35 @@ export function printDecomp1C
 export decomp1W = []
 export !function makeDecomp1W
   # NOTE: I know that stateful-ness is bad, but I could not think of a "pure"
-  # way of handling `hasJantou` and `existShuntsuLess` as clean...
+  # way of handling `hasJantou` and `allHasShuntsu` as clean...
   for binC, cs of decomp1C
     binC = Number binC
     hasJantou = cs.0.jantou?
     nMentsu = cs.0.mentsu.length
-    existShuntsuLess = cs.some (.shuntsu == 0)
+    allHasShuntsu = cs.every (.shuntsu > 0)
     if not hasJantou
       hasJantou = true # tanki serves as jantou
-      for i from 0 to 8 => expand \tanki 8~1 0 i
+      for i from 0 to 8 => expand \tanki 8~1 0 0 i
       hasJantou = false # restore it
     if nMentsu < 4
-      for i from 0 to 8 => expand \shanpon 8~2 0 i
-      for i from 0 to 6 => expand \kanchan 8~101 1 i
-      existShuntsuLess = false # ryanmen/penchan serves as shuntsu
-      expand \penchan 8~11 2 0
+      for i from 0 to 8 => expand \shanpon 8~2 0 0 i
+      for i from 0 to 6 => expand \kanchan 8~101 1 0 i
+      allHasShuntsu = true # ryanmen/penchan serves as shuntsu
+      expand \penchan 8~11 2 0 0
       for i from 1 to 6
-        expand \ryanmen 8~11 -1 i
-        expand \ryanmen 8~11 2 i
-      expand \penchan 8~11 -1 7
-      # NOTE: no need to restore `existShuntsuLess`
-  function expand(tenpaiType, pat, delta, pos)
-    binW = (binC + (pat.<<.((pos.|.0)+(pos.<<.1)))).|.0
-    tenpaiN = pos + delta
+        expand \ryanmen 8~11 -1 -1 i
+        expand \ryanmen 8~11 2 0 i
+      expand \penchan 8~11 -1 -1 7
+      # NOTE: no need to restore `allHasShuntsu`
+  function expand(tenpaiType, pat, dTenpai, dAnchor, i)
+    binW = (binC + (pat.<<.((i.|.0)+(i.<<.1)))).|.0
+    tenpaiN = i + dTenpai
+    anchorN = i + dAnchor
     if binValid binW and binGet(binW, tenpaiN) < 4
       decomp1W.[][binW].push {
-        binC, cs, pos
-        hasJantou, existShuntsuLess
-        tenpaiType, tenpaiN
+        binC, cs
+        hasJantou, allHasShuntsu
+        tenpaiType, tenpaiN, anchorN
       }
 
 
@@ -150,17 +151,17 @@ function tenpaiK(bins)
   c0 = c1 = c2 = 0
   i0 = -1
   for x, i in yaochuu => switch x
-  | 0 =>
+  | 0
     if ++c0 > 1 then return null
     i0 = i
   | 1 => ++c1
-  | 2 =>
+  | 2
     if ++c2 > 1 then return null
   | 3, 4 => return null
   if c1 == 13
-    return Pai.YAOCHUU
+    return 13
   if c0 == 1 and c1 == 11 and c2 == 1
-    return [Pai.YAOCHUU[i0]]
+    return i0
   return null
 
 # kokushi agari: [19m19p19s1234567z] + one more
@@ -169,7 +170,7 @@ function agariK(bins)
   c1 = c2 = 0
   for x, i in yaochuu => switch x
   | 1 => ++c1
-  | 2 =>
+  | 2
     if ++c2 > 1 then return false
   | 3, 4 => return false
   return c1 == 12 and c2 == 1
@@ -177,10 +178,10 @@ function agariK(bins)
 # chiitoi tenpai: 6 toitsu + 1 tanki
 function tenpai7(bins)
   c1 = c2 = 0
-  p1 = -1
+  p1 = null
   for s til 4 => for n til 9 => switch bins[s][n]
   | 0 => void
-  | 1 =>
+  | 1
     if ++c1 > 1 then return null
     p1 = Pai[s][n+1]
   | 2 => ++c2
@@ -205,17 +206,26 @@ mentsuWithSuite = Pai[0 1 2 3].map (P) -> (x) ->
   type: if x.&.2~10000 then \ankou else \shuntsu
   anchor: P[(x.&.2~1111) + 1]
 
+DT_KOKUSHI = Pai.YAOCHUU.map (tenpai) -> [{
+  mentsu: [], jantou: null, k7: \kokushi
+  tenpaiType: \kokushi, tenpai
+}]
+DT_KOKUSHI13 = Pai.YAOCHUU.map (tenpai) -> {
+  mentsu: [], jantou: null, k7: \kokushi
+  tenpaiType: \kokushi13, tenpai
+}
+
 function decompTenpai(bins)
   # kokushi: exclusive
-  if (w = tenpaiK bins)
-    tenpaiType = if w.length == 1 then \kokushi else \kokushi13
-    # TODO: constant-ize
-    return {
-      decomps: w.map (tenpai) -> {
-        mentsu: [], jantou: null, k7: \kokushi
-        tenpaiType, tenpai
-      }
-      tenpaiSet: w
+  if (w = tenpaiK bins)?
+    if w == 13
+    then return {
+      decomps: DT_KOKUSHI13
+      tenpaiSet: Pai.YAOCHUU
+    }
+    else return {
+      decomps: DT_KOKUSHI[w]
+      tenpaiSet: Pai.YAOCHUU[w]
     }
 
   decomps = []
@@ -269,16 +279,17 @@ function decompTenpai(bins)
     bitmap = 0
 
     # each: tenpai suite
-    for {cs: csw, tenpaiType, tenpaiN}:w in ws
+    for {cs: csw, tenpaiType, tenpaiN, anchorN}:w in ws
       # filter: 1-7z cannot form shuntsu
       # NOTE: not redundant; this decides if tenpai is added to set
-      continue if jw == 3 and not w.existShuntsuLess
+      continue if jw == 3 and w.allHasShuntsu
       # filter: exactly 1 jantou from all sources
       # jantou either comes from complete suites or tenpai suite
       continue unless cJantouN == 1 xor w.hasJantou
-      # add to tenpai set
-      tenpai = mentsuWithSuite[jw](tenpaiN)
+
       bitmap .|.= 1.<<.tenpaiN
+      tenpai = Pai[jw][tenpaiN + 1]
+      anchor = Pai[jw][anchorN + 1]
       # each: complete component of tenpai suite
       for cw in csw
         # filter: 1-7z cannot form shuntsu
@@ -294,7 +305,7 @@ function decompTenpai(bins)
               c2.mentsu.map mentsuWithSuite[j2]
             jantou: cJantou ? cw.jantou
             k7: null
-            tenpaiType, tenpai
+            tenpaiType, tenpai, anchor
           }
         #end for c0, c1, c2
       #end for cw
