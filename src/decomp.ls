@@ -226,7 +226,7 @@ export function decompTenpai(bins)
     }
     else return {
       decomps: DT_KOKUSHI[w]
-      tenpaiSet: Pai.YAOCHUU[w]
+      tenpaiSet: [Pai.YAOCHUU[w]]
     }
 
   decomps = []
@@ -261,6 +261,7 @@ export function decompTenpai(bins)
     f 3 0 1 2
   !function f(jw, j0, j1, j2)
     ws = decomp1W[bitBins[jw]]
+    return unless ws?
     cs0 = css[j0]
     cs1 = css[j1]
     cs2 = css[j2]
