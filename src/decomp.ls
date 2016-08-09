@@ -22,7 +22,6 @@ function binToString(key)
 ########################################
 # complete
 
-# []{shuntsu: Number, jantou: Pai?, mentsu: []Number}
 export decomp1C = []
 export !function makeDecomp1C
   jantou = null
