@@ -88,8 +88,8 @@ export !function makeDecomp1W
       hasJantou = false # restore it
     if nMentsu < 4
       for i from 0 to 8 => expand \shanpon 8~2 0 0 i
+      allHasShuntsu = true # kanchan/ryanmen/penchan serves as shuntsu
       for i from 0 to 6 => expand \kanchan 8~101 1 0 i
-      allHasShuntsu = true # ryanmen/penchan serves as shuntsu
       expand \penchan 8~11 2 0 0
       for i from 1 to 6
         expand \ryanmen 8~11 -1 -1 i
