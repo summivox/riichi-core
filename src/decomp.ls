@@ -59,19 +59,6 @@ export !function makeDecomp1C
     dfsShuntsu 0 0 bin
     dfsKoutsu  0 0 bin
 
-export function printDecomp1C
-  outs = []
-  for bin, cs of decomp1C
-    bs = binToString bin
-    for {jantou, mentsu} in cs
-      out = bs
-      for x in mentsu
-        out += if x.&.2~10000 then ',1' + (x.&.2~1111) else ',0' + x
-      if jantou?
-        out += ',2' + jantou
-      outs.push out
-  outs .sort! .join '\n'
-
 
 ########################################
 # waiting
@@ -109,36 +96,6 @@ export !function makeDecomp1W
         hasJantou, allHasShuntsu
         tenpaiType, tenpaiN, anchorN
       }
-
-
-########################################
-# test (TODO: move to actual test)
-
-if module is require.main
-  require! {assert, fs}
-
-  console.time 'make total'
-  console.time 'make C'
-  makeDecomp1C!
-  console.timeEnd 'make C'
-  console.time 'make W'
-  makeDecomp1W!
-  console.timeEnd 'make W'
-  console.timeEnd 'make total'
-
-  return
-
-  # dump C
-  C = {[bin, cs] for bin, cs of decomp1C}
-  Ck = [Number bin for bin, cs of decomp1C].sort!
-  fs
-    ..writeFileSync 'c-all.txt', printDecomp1C!
-    ..writeFileSync 'c-keys.txt', Ck.join '\n'
-
-  # dump W
-  Wk = [binToString bin for bin, ws of decomp1W].sort!
-  fs
-    ..writeFileSync 'w-keys-uniq.txt', Wk.join '\n'
 
 
 ########################################

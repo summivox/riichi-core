@@ -6,6 +6,10 @@ require! {
 }
 #chai.use require 'chai-shallow-deep-equal'
 
+function globAndRequire(...pattern)
+  glob.sync ...pattern .map (filename) ->
+    {filename, file: require filename}
+
 root = require 'app-root-path'
 {
   decomp1C, makeDecomp1C
@@ -49,11 +53,33 @@ D 'decomp', ->
         assert ((cs.every -> it.jantou?) or (cs.every -> !it.jantou?))
         l = cs.0.mentsu.length
         assert cs.every (.mentsu.length == l)
+
+    # TODO: just moved here; need to use them
+    function printDecomp1C
+      outs = []
+      for bin, cs of decomp1C
+        bs = binToString bin
+        for {jantou, mentsu} in cs
+          out = bs
+          for x in mentsu
+            out += if x.&.2~10000 then ',1' + (x.&.2~1111) else ',0' + x
+          if jantou?
+            out += ',2' + jantou
+          outs.push out
+      outs .sort! .join '\n'
+    function dumpDecomp1C
+      fs
+        ..writeFileSync 'c-all.txt', printDecomp1C!
+        ..writeFileSync 'c-keys.txt', Ck.join '\n'
+
   D.skip 'W-table', ->
     I 'correct # of entries', ->
       assert.equal do
         [cs.length for binW, ws of decomp1W for {cs} in ws].reduce (+)
         161738
+    function dumpDecomp1W
+      fs
+        ..writeFileSync 'w-keys-uniq.txt', Wk.join '\n'
 
   D 'decompTenpai', ->
     function canonicalTenpaiDecomp({decomps, tenpaiSet}:td)
@@ -76,6 +102,7 @@ D 'decomp', ->
         expected = canonicalTenpaiDecomp Pai.cloneFix {tenpaiSet, decomps}
         assert.deepEqual actual, expected
 
-function globAndRequire(...pattern)
-  glob.sync ...pattern .map (filename) ->
-    {filename, file: require filename}
+  D.skip 'decompAgari', ->
+    ... # TODO
+    # NOTE: I don't think this is necessary because the code is very straight-
+    # forward; correctness directly depends on `decompTenpai`.
