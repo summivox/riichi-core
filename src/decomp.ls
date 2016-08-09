@@ -271,7 +271,7 @@ export function decompTenpai(bins)
     cJantou1 = cs1.0.jantou
     cJantou2 = cs2.0.jantou
     cJantouN = cJantou0? + cJantou1? + cJantou2?
-    if cJantouN >= 2 then return []
+    return unless cJantouN <= 1
     # cache the jantou (if any)
     switch
     | cJantou0? => cJantou = Pai[j0][that + 1]
