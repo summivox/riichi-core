@@ -2,6 +2,9 @@ require! {
   './pai': Pai
 }
 
+# TODO: doc the whole algorithm
+
+
 ########################################
 # packed bin
 # 1 pos => 3 bits (octal)
@@ -202,7 +205,7 @@ function agari7(bins)
 # tenpai
 
 mentsuWithSuite = Pai[0 1 2 3].map (P) -> (x) ->
-  type: if x.&.2~10000 then \ankou else \shuntsu
+  type: if x.&.2~10000 then \anko else \shuntsu
   anchor: P[(x.&.2~1111) + 1]
 
 DT_KOKUSHI = Pai.YAOCHUU.map (tenpai) -> [{
@@ -215,7 +218,6 @@ DT_KOKUSHI13 = Pai.YAOCHUU.map (tenpai) -> {
 }
 
 export function decompTenpai(bins)
-  bitBins = bins.map -> it.reduceRight (a, b) -> (a.<<.3).|.b
   # kokushi: exclusive
   if (w = tenpaiK bins)?
     if w == 13
@@ -230,6 +232,9 @@ export function decompTenpai(bins)
 
   decomps = []
   tenpaiSet = []
+
+  # packed bins for table lookup
+  bitBins = bins.map -> it.reduceRight (a, b) -> (a.<<.3).|.b
 
   # complete decomp for each suite
   # 1-7z cannot form shuntsu
@@ -282,6 +287,9 @@ export function decompTenpai(bins)
     # tenpai set, represented as a bitmap
     # e.g. jw == 0 then bit 2 set means 3m in tenpai set
     bitmap = 0
+
+    # NOTE: despite the deeply nested (5-layer) for loops, iteration count
+    # of the inner loop is small due to all the constraints on solution
 
     # each: tenpai suite
     for {cs: csw, tenpaiType, tenpaiN, anchorN}:w in ws

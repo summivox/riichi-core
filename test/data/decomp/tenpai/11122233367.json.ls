@@ -16,15 +16,15 @@ decomps: [
     jantou: \1s
     tenpaiType: \ryanmen tenpai: \8m anchor: \6m
   * mentsu:
-      * type: \ankou anchor: \1m
-      * type: \ankou anchor: \2m
-      * type: \ankou anchor: \3m
+      * type: \anko anchor: \1m
+      * type: \anko anchor: \2m
+      * type: \anko anchor: \3m
     jantou: \1s
     tenpaiType: \ryanmen tenpai: \5m anchor: \5m
   * mentsu:
-      * type: \ankou anchor: \1m
-      * type: \ankou anchor: \2m
-      * type: \ankou anchor: \3m
+      * type: \anko anchor: \1m
+      * type: \anko anchor: \2m
+      * type: \anko anchor: \3m
     jantou: \1s
     tenpaiType: \ryanmen tenpai: \8m anchor: \6m
 ]
