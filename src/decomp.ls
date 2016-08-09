@@ -341,3 +341,22 @@ export function decompTenpai(bins)
 
   tenpaiSet.sort Pai.compare
   return {decomps, tenpaiSet}
+
+
+########################################
+# agari
+
+export function decompAgari({decomps}:tenpaiDecomp, agariPai, isRon)
+  agariPai .= equivPai
+  for {mentsu, jantou, k7, tenpaiType, tenpai, anchor} in decomps
+    continue if agariPai != tenpai
+    if !decomp.k7?
+      switch tenpaiType
+      | \tanki
+        jantou = tenpai
+      | \shanpon
+        mentsu ++= {anchor, type: if isRon then \minko else \anko}
+      | \kanchan, \penchan, \ryanmen
+        mentsu ++= {anchor, type: \shuntsu}
+      | _ => throw Error 'WTF'
+    {mentsu, jantou, k7, tenpaiType}
