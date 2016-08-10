@@ -4,6 +4,10 @@ require! {
 
 # TODO: doc the whole algorithm
 
+export !function init
+  makeDecomp1C!
+  makeDecomp1W!
+
 
 ########################################
 # packed bin
@@ -13,11 +17,11 @@ const SEVEN = 8~777_777_777
 const FOUR  = 8~444_444_444
 const THREE = 8~333_333_333
 
-function binValid(x)
+export function binValid(x)
   not ( ((x.&.THREE)+(0.|.THREE)).&.x.&.FOUR )
-function binGet(x, i)
+export function binGet(x, i)
   (x.>>.((i.|.0)+(i.<<.1))).&.8~7
-function binToString(key)
+export function binToString(key)
   s = Number key .toString 8
   return ('0' * (9 - s.length)) + s
 
@@ -94,7 +98,7 @@ export !function makeDecomp1W
         expand \ryanmen 8~11 2 0 i
       expand \penchan 8~11 -1 -1 7
       # NOTE: no need to restore `allHasShuntsu`
-  function expand(tenpaiType, pat, dTenpai, dAnchor, i)
+  !function expand(tenpaiType, pat, dTenpai, dAnchor, i)
     binW = (binC + (pat.<<.((i.|.0)+(i.<<.1)))).|.0
     tenpaiN = i + dTenpai
     anchorN = i + dAnchor
@@ -131,17 +135,6 @@ function tenpaiK(bins)
     return i0
   return null
 
-# kokushi agari: [19m19p19s1234567z] + one more
-function agariK(bins)
-  yaochuu = Pai.yaochuuFromBins bins
-  c1 = c2 = 0
-  for x, i in yaochuu => switch x
-  | 1 => ++c1
-  | 2
-    if ++c2 > 1 then return false
-  | 3, 4 => return false
-  return c1 == 12 and c2 == 1
-
 # chiitoi tenpai: 6 toitsu + 1 tanki
 function tenpai7(bins)
   c1 = c2 = 0
@@ -155,15 +148,6 @@ function tenpai7(bins)
   | _ => return null
   if c1 == 1 and c2 == 6 then return p1
   return null
-
-# chiitoi agari: 7 toitsu (duh)
-function agari7(bins)
-  c2 = 0
-  for s til 4 => for n til 9 => switch bins[s][n]
-  | 0 => void
-  | 2 => ++c2
-  | _ => return false
-  return c2 == 7
 
 
 ########################################
