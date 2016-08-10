@@ -4,10 +4,6 @@ require! {
 
 # TODO: doc the whole algorithm
 
-export !function init
-  makeDecomp1C!
-  makeDecomp1W!
-
 
 ########################################
 # packed bin
@@ -30,11 +26,7 @@ export function binToString(key)
 # complete
 
 export decomp1C = []
-made1C = false
-export !function makeDecomp1C
-  return if made1C
-  made1C = true
-
+!function makeDecomp1C
   jantou = null
   shuntsu = 0
   mentsu = [0 0 0 0]
@@ -72,11 +64,7 @@ export !function makeDecomp1C
 # waiting
 
 export decomp1W = []
-made1W = false
-export !function makeDecomp1W
-  return if made1W
-  made1W = true
-
+!function makeDecomp1W
   # NOTE: I know that stateful-ness is bad, but I could not think of a "pure"
   # way of handling `hasJantou` and `allHasShuntsu` as clean...
   for binC, cs of decomp1C
@@ -108,6 +96,22 @@ export !function makeDecomp1W
         hasJantou, allHasShuntsu
         tenpaiType, tenpaiN, anchorN
       }
+
+
+########################################
+# init
+# NOTE: run when this module is first required
+
+now = try require 'performance-now' catch e then (-> 0)
+t0 = now!
+makeDecomp1C!
+t1 = now!
+makeDecomp1W!
+t2 = now!
+export STARTUP_TIME =
+  c: t1 - t0
+  w: t2 - t1
+  cw: t2 - t0
 
 
 ########################################

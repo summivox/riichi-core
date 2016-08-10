@@ -1,11 +1,7 @@
-require! {
-  './util': util
-  './pai': Pai
-  './decomp': decomp
-  './kyoku': Kyoku
-  './kyoku-event': Event
-  './rulevar-default': rule
-}
-export {util, Pai, decomp, Kyoku, Event, rule}
-
-decomp.init!
+export
+   util: require './util'
+   Pai: require './pai'
+   decomp: require './decomp'
+   Kyoku: require './kyoku'
+   Event: require './kyoku-event'
+   rule: require './rulevar-default'

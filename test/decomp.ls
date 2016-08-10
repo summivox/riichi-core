@@ -28,16 +28,12 @@ D 'decomp', ->
 
   var C, Ck, Wk
   before ->
-    console.log '\n--- timing ---'
-    console.time 'make total'
-    console.time 'make C'
-    makeDecomp1C!
-    console.timeEnd 'make C'
-    console.time 'make W'
-    makeDecomp1W!
-    console.timeEnd 'make W'
-    console.timeEnd 'make total'
-    console.log '\n'
+    console.log '\n\n=== startup timing ==='
+    with decomp.STARTUP_TIME
+      console.log "C: #{..c.toFixed 2} ms"
+      console.log "W: #{..w.toFixed 2} ms"
+      console.log "total: #{..cw.toFixed 2} ms"
+    console.log '\n\n'
     C := {[bin, cs] for bin, cs of decomp1C}
     Ck := [Number bin for bin, cs of decomp1C].sort!
     Wk := [binToString bin for bin, ws of decomp1W].sort!
