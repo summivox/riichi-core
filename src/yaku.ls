@@ -259,7 +259,7 @@ export
   # 4/3-anko(u)/tanki
   suuankouTanki: (decomp, {menzen}) ->
     decomp.anko = anko = count decomp.mentsu, (.type == \anko)
-    menzen and anko == 4 and decomp.wait == \tanki
+    menzen and anko == 4 and decomp.tenpaiType == \tanki
   suuankou: (decomp, {menzen}) ->
     menzen and decomp.anko == 4
   sannankou: (decomp) ->

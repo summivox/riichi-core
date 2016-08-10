@@ -77,6 +77,8 @@ module.exports =
     suji: yes # e.g. has 234m, 34m chi 0m => cannot dahai 2m
     pon : no  # e.g. has 333m, 33m pon 3m => cannot dahai 3m
 
+  karaten: null # TODO
+
   # valid values:
   #   no: cannot ryoukyoku
   #   'oyanagare': can ryoukyoku but no renchan

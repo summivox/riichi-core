@@ -2,7 +2,7 @@
 
 require! {
   './pai': Pai
-  './decomp': {decompAgariFromTenpai}
+  './decomp': {decompAgari}
   './util': {OTHER_PLAYERS, ceilTo, sum, count}
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
@@ -65,7 +65,7 @@ module.exports = class Agari
 
     # tenpai and agari decompsition
     if @tenpaiDecomp.length == 0 then return @isAgari = false
-    @agariDecomp = decompAgariFromTenpai @tenpaiDecomp, @agariPai, @isRon
+    @agariDecomp = decompAgari @tenpaiDecomp, @agariPai, @isRon
     if @agariDecomp.length == 0 then return @isAgari = false
 
     # fu from fuuro: count once and cache
@@ -87,13 +87,13 @@ module.exports = class Agari
     # maximize basic points over all decompositions
     maxBasicPoints = 0
     maxDecompResult = null
-    for {wait}:decomp in @agariDecomp
+    for {tenpaiType}:decomp in @agariDecomp
       # kokushi: exclusive override
-      if wait in <[kokushi kokushi13]>
-        times = (@rulevar.yakuman[wait] ? 1) <? @rulevar.yakuman.max
+      if tenpaiType in <[kokushi kokushi13]>
+        times = (@rulevar.yakuman[tenpaiType] ? 1) <? @rulevar.yakuman.max
         maxBasicPoints = getBasicPointsYakuman times
         maxDecompResult = {
-          yakuman: [{name: wait, times}]
+          yakuman: [{name: tenpaiType, times}]
           yakumanTotal: times
           basicPoints: maxBasicPoints
         }
@@ -240,8 +240,8 @@ function getYakuResult(decomp, {
   # NOTE: pinfu not considered yet
 
   # fu
-  {wait, mentsu, jantou} = decomp
-  if wait == \chiitoi
+  {tenpaiType, mentsu, jantou} = decomp
+  if tenpaiType == \chiitoi
     fu = 25
   else
     # NOTE: This is perhaps the most convoluted rule in the whole game mostly
@@ -252,7 +252,7 @@ function getYakuResult(decomp, {
     # yaku is by its very original definition: "the yaku of no fu", and other
     # (modern) special rules effectively coupling pinfu and fu together.
 
-    # calculate 3 main parts: mentsu, jantou, machi/wait
+    # calculate 3 main parts: mentsu, jantou, machi
     mentsuFu = fuuroFu
     for m in mentsu
       switch m.type
@@ -264,12 +264,12 @@ function getYakuResult(decomp, {
     switch jantou
     | Pai.FONPAI[bakaze, jikaze], Pai<[5z 6z 7z]> => jantouFu = 2
     | _ => jantouFu = 0
-    switch wait
-    | \ryanmen, \shanpon => waitFu = 0
-    | _ => waitFu = 2
+    switch tenpaiType
+    | \ryanmen, \shanpon => machiFu = 0
+    | _ => machiFu = 2
 
     # 2*2*2 decision tree (pinfu-form * menzen * tsumo/ron)
-    x = mentsuFu + jantouFu + waitFu
+    x = mentsuFu + jantouFu + machiFu
     if x == 0
       if menzen
         # pinfu yaku (NOT listed in `./yaku`)
