@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 * API: `Kyoku#begin` is renamed to `Kyoku#go` (avoid confusion with `Kyoku#phase` value `'begin'`)
 * API: `rulevar.setup.end.oyaALTop` is renamed to `rulevar.setup.end.agariyame` (canonical name)
+* Rewrite: `decomp` module has been completely rewritten for speed. API has completely changed.
 
 
 ## [1.0.2] - 2016-06-16
