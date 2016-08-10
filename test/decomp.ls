@@ -103,6 +103,6 @@ D 'decomp', ->
         assert.deepEqual actual, expected
 
   D.skip 'decompAgari', ->
-    ... # TODO
+    void # TODO
     # NOTE: I don't think this is necessary because the code is very straight-
     # forward; correctness directly depends on `decompTenpai`.

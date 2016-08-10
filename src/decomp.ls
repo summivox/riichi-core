@@ -26,7 +26,11 @@ function binToString(key)
 # complete
 
 export decomp1C = []
+made1C = false
 export !function makeDecomp1C
+  return if made1C
+  made1C = true
+
   jantou = null
   shuntsu = 0
   mentsu = [0 0 0 0]
@@ -64,7 +68,11 @@ export !function makeDecomp1C
 # waiting
 
 export decomp1W = []
+made1W = false
 export !function makeDecomp1W
+  return if made1W
+  made1W = true
+
   # NOTE: I know that stateful-ness is bad, but I could not think of a "pure"
   # way of handling `hasJantou` and `allHasShuntsu` as clean...
   for binC, cs of decomp1C
@@ -204,22 +212,26 @@ export function decompTenpai(bins)
   # number of suites without complete decomp:
   #   0 => tenpai might come from any suite (try each)
   #   1 => tenpai must come from this suite
-  #   2+ => no solution; fail
+  #   2+ => no (non-k7) solution; fail
   jw = -1
+  skip = false
   for j til 4
     if not css[j]?.length
       if jw == -1 then jw = j
-      else return {decomps, tenpaiSet}
-  switch jw
-  | 0 => f 0 1 2 3
-  | 1 => f 1 0 2 3
-  | 2 => f 2 0 1 3
-  | 3 => f 3 0 1 2
-  | _
-    f 0 1 2 3
-    f 1 0 2 3
-    f 2 0 1 3
-    f 3 0 1 2
+      else
+        skip = true
+        break
+  if not skip
+    switch jw
+    | 0 => f 0 1 2 3
+    | 1 => f 1 0 2 3
+    | 2 => f 2 0 1 3
+    | 3 => f 3 0 1 2
+    | _
+      f 0 1 2 3
+      f 1 0 2 3
+      f 2 0 1 3
+      f 3 0 1 2
   !function f(jw, j0, j1, j2)
     ws = decomp1W[bitBins[jw]]
     return unless ws?
@@ -287,7 +299,13 @@ export function decompTenpai(bins)
   #end function f
 
   # chiitoi: non-exclusive (might also be ryanpeikou)
-  # NOTE: although chiitoi implies tanki, fu is not counted as such
+  #
+  # NOTE:
+  #
+  # - although chiitoi implies tanki, it does not fit in the standard decomp
+  #   model and is therefore not counted as either tanki or jantou
+  # - reason this is considered last: easier de-dupe in `tenpaiSet`
+  #
   # (FIXME: explain this better)
   if (w = tenpai7 bins)?
     decomps.push {
@@ -307,7 +325,7 @@ export function decompAgari({decomps}:tenpaiDecomp, agariPai, isRon)
   agariPai .= equivPai
   for {mentsu, jantou, k7, tenpaiType, tenpai, anchor} in decomps
     continue if agariPai != tenpai
-    if !decomp.k7?
+    if !k7?
       switch tenpaiType
       | \tanki
         jantou = tenpai

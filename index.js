@@ -10,4 +10,6 @@ module.exports = {
 };
 
 //module.exports.init(); // just do it!
-module.exports.decomp.init();
+//module.exports.decomp.init();
+//module.exports.decomp.makeDecomp1C();
+//module.exports.decomp.makeDecomp1W();

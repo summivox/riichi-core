@@ -6,7 +6,7 @@ require! {
   'chai': {assert}
 
   './pai': Pai
-  './decomp': {decompTenpai, decompAgari}
+  './decomp': {decompTenpai}
   './split-wall': splitWall
   './util': {OTHER_PLAYERS}
 
@@ -371,7 +371,7 @@ Event.dahai = class dahai # {{{
         decomp = PH.tenpaiDecomp # maintained by PlayerHidden
       else
         decomp = PH.decompTenpaiWithout pai # calculated on demand
-      assert decomp?.wait?.length > 0, "not tenpai if dahai is [#pai]"
+      assert decomp?.tenpaiSet?.length > 0, "not tenpai if dahai is [#pai]"
 
     return this
 
@@ -462,7 +462,7 @@ Event.ankan = class ankan # {{{
       #   tenpai/wait set must not change
       # "okurikan" rule above might still apply even with relaxed "basic"
       allKoutsu = PH.tenpaiDecomp.decomps.every -> it.mentsu.some ->
-        it.type == \koutsu and it.anchor == pai
+        it.type == \anko and it.anchor == pai
       assert allKoutsu, "riichi ankan: hand decomposition must not change"
       if not ..rulevar.riichi.okurikan
         assert.equal PH.tsumohai.equivPai, pai,
@@ -574,11 +574,15 @@ Event.tsumoAgari = class tsumoAgari # {{{
     with ..playerHidden[..currPlayer]
       if .. instanceof PlayerHidden
         @{juntehai, tsumohai} = ..
+        tenpaiDecomp = ..tenpaiDecomp
+
     if not ..isReplicate
       @uraDoraHyouji = ..getUraDoraHyouji ..currPlayer
 
     assert.isArray @juntehai
-    assert (decompAgari Pai.binsFromArray @juntehai ++ @tsumohai .length > 0)
+    tenpaiDecomp ?= decompTenpai Pai.binsFromArray @juntehai
+    assert @tsumohai.equivPai in tenpaiDecomp.tenpaiSet
+
 
     @agari = ..agari this
     assert.isNotNull @agari
@@ -1093,7 +1097,7 @@ Event.howanpai = class howanpai # {{{
       noTen = []
       @juntehai = new Array 4
       for p til 4
-        if ..playerHidden[p].tenpaiDecomp.wait.length
+        if ..playerHidden[p].tenpaiDecomp.tenpaiSet.length
           ten.push p
           @juntehai[p] = ..playerHidden[p].juntehai.slice!
         else

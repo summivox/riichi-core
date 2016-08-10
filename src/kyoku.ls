@@ -313,9 +313,10 @@ module.exports = class Kyoku implements EventEmitter::
   # keiten == keishiki-tenpai (tenpai in form)
   # TODO: pick a better name (this name usually has a narrower connotation)
   isKeiten: (tenpaiDecomp) ->
-    if @currPai.equivPai not in tenpaiDecomp.wait then return false
+    if @currPai.equivPai not in tenpaiDecomp.tenpaiSet then return false
     if @phase == \postAnkan
-      return @rulevar.yaku.kokushiAnkan and tenpaiDecomp.0?.k7 == \kokushi
+      return @rulevar.yaku.kokushiAnkan and
+        tenpaiDecomp.decomps.0?.k7 == \kokushi
     return true
 
   # kuikae: refers to the situation where a player declares chi with two pai in
@@ -363,10 +364,10 @@ module.exports = class Kyoku implements EventEmitter::
     return null
 
   # TODO: describe
-  agari: ({type, player, juntehai, tsumohai, tenpaiDecomp}:event) ->
-    switch type
+  agari: (event) ->
+    switch event.type
     | \ron
-      agariPlayer = player
+      agariPlayer = event.player
       houjuuPlayer = @currPlayer
       agariPai = @currPai
       if @rulevar.ron.honbaAtamahane and not event.isFirst
@@ -376,18 +377,19 @@ module.exports = class Kyoku implements EventEmitter::
     | \tsumoAgari
       agariPlayer = @currPlayer
       houjuuPlayer = null
-      agariPai = tsumohai
+      agariPai = event.tsumohai
       honba = @startState.honba
-    | _ => return null
+    | _ => throw Error "invalid event #{event.type}"
 
     {jikaze, fuuro, menzen, riichi} = @playerPublic[agariPlayer]
-    tenpaiDecomp ?= decompTenpai Pai.binsFromArray juntehai
+    tenpaiDecomp = @playerHidden[agariPlayer].tenpaiDecomp ?
+      decompTenpai Pai.binsFromArray event.juntehai
 
     input = {
       rulevar: @rulevar
 
-      agariPai: tsumohai ? @currPai
-      juntehai
+      agariPai
+      juntehai: event.juntehai
       tenpaiDecomp
       fuuro
       menzen
@@ -455,7 +457,8 @@ module.exports = class Kyoku implements EventEmitter::
     if @phase == \postDahai
       PP = @playerPublic[@currPlayer]
       with @playerHidden[@currPlayer] => if .. instanceof PlayerHidden
-        ..sutehaiFuriten = ..tenpaiDecomp.wait.some -> PP.sutehaiContains it
+        ..sutehaiFuriten = ..tenpaiDecomp.tenpaiSet.some ->
+          PP.sutehaiContains it
         ..doujunFuriten = false
         ..furiten = ..sutehaiFuriten or ..riichiFuriten # or ..doujunFuriten
     for op in OTHER_PLAYERS[@currPlayer]
