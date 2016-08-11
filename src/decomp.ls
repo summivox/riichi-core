@@ -335,3 +335,78 @@ export function decompAgari({decomps}:tenpaiDecomp, agariPai, isRon)
         mentsu ++= {anchor, type: \shuntsu}
       | _ => throw Error 'WTF'
     {mentsu, jantou, k7, tenpaiType}
+
+
+########################################
+# brute-force number-only shanten calc
+
+const CAP = 6
+class BoolMat
+  -> @a = for r til CAP => for c til CAP => false
+  clone: -> for r til CAP => @a[r].slice!
+  get: (r, c) -> @a[r][c]
+  set: (r, c, v) -> @a[r][c] = v
+  set1: (r, c) -> @a[r][c] = true
+  set0: (r, c) -> @a[r][c] = false
+  diag: -> for i til CAP => @a[i][i]
+  toString: ->
+    ret = ''
+    for r til CAP
+      ret += '\n'
+      for c til CAP
+        ret += +@a[r][c]
+    ret
+
+  @conv = ({a: A}, {a: B}) ->
+    {a: Y}:ret = new BoolMat
+    for ry til CAP => for cy til CAP
+      y = false
+      for ra to ry
+        for ca to cy
+          if A[ra][ca] && B[ry - ra][cy - ca]
+            y = true
+            break
+        if y then break
+      Y[ry][cy] = y
+    ret
+
+export function getShanten(bins)
+  debugger
+  console.time 'getShanten'
+  a = for i til 2 => for j til 4 => new BoolMat
+  for bitBin, cs of decomp1C
+    target = binUnpack Number bitBin
+    j = +(cs.0.jantou?)
+    allShuntsu = cs.every (.shuntsu > 0)
+    for s til (if allShuntsu then 3 else 4)
+      input = bins[s]
+      plus = 0
+      minus = 0
+      for n til 9
+        d = target[n] - input[n]
+        if d > 0 then plus += d
+        else if d < 0 then minus -= d
+      if plus < CAP and minus < CAP
+        a[j][s].set1(plus, minus)
+  ret = Math.min do
+    f 0 1 2 3
+    f 1 0 2 3
+    f 2 0 1 3
+    f 3 0 1 2
+  console.timeEnd 'getShanten'
+  return ret
+  function f(sj, s0, s1, s2)
+    with BoolMat.conv
+      b = .. a[1][sj], .. a[0][s0], .. a[0][s1], a[0][s2]
+    i = b.diag!.indexOf(true)
+    if i == -1 then CAP + 1 else i - 1
+
+TEST =
+  * '67m20568p2079s36z6p', 4
+  * '2389m35p24s11246z9p', 3
+  * '4m4669p15s3346777z', 4
+  * '79m2477p366s2444z9s', 2
+require! chai: {assert}
+for [str, ans] in TEST
+  assert.equal (getShanten Pai.binsFromString str), ans
+null
