@@ -15,11 +15,23 @@ const THREE = 8~333_333_333
 
 export function binValid(x)
   not ( ((x.&.THREE)+(0.|.THREE)).&.x.&.FOUR )
+
 export function binGet(x, i)
   (x.>>.((i.|.0)+(i.<<.1))).&.8~7
-export function binToString(key)
-  s = Number key .toString 8
+export function binAdd(x, p, i)
+  (x + (p.<<.((i.|.0)+(i.<<.1)))).|.0
+
+export function binToString(x)
+  s = Number x .toString 8
   return ('0' * (9 - s.length)) + s
+
+export function binPack(bin)
+  bin.reduceRight (a, b) -> (a.<<.3).|.b
+export function binUnpack(x)
+  for i til 9
+    z = x.&.8~7
+    x.>>.=3
+    z
 
 
 ########################################
@@ -32,7 +44,7 @@ export decomp1C = []
   mentsu = [0 0 0 0]
   !function dfsShuntsu(n, iMin, binOld)
     for i from iMin til 7
-      bin = (binOld + (8~111.<<.((i.|.0)+(i.<<.1)))).|.0
+      bin = binAdd(binOld, 8~111, i)
       if binValid bin
         shuntsu++
         mentsu[n] = i
@@ -43,7 +55,7 @@ export decomp1C = []
         shuntsu--
   !function dfsKoutsu(n, iMin, binOld)
     for i from iMin til 9
-      bin = (binOld + (8~3.<<.((i.|.0)+(i.<<.1)))).|.0
+      bin = binAdd(binOld, 8~3, i)
       if binValid bin
         mentsu[n] = i.|.2~10000
         decomp1C.[][bin].push do
@@ -87,7 +99,7 @@ export decomp1W = []
       expand \penchan 8~11 -1 -1 7
       # NOTE: no need to restore `allHasShuntsu`
   !function expand(tenpaiType, pat, dTenpai, dAnchor, i)
-    binW = (binC + (pat.<<.((i.|.0)+(i.<<.1)))).|.0
+    binW = binAdd(binC, pat, i)
     tenpaiN = i + dTenpai
     anchorN = i + dAnchor
     if binValid binW and binGet(binW, tenpaiN) < 4
@@ -187,7 +199,7 @@ export function decompTenpai(bins)
   tenpaiSet = []
 
   # packed bins for table lookup
-  bitBins = bins.map -> it.reduceRight (a, b) -> (a.<<.3).|.b
+  bitBins = bins.map binPack
 
   # complete decomp for each suite
   # 1-7z cannot form shuntsu
