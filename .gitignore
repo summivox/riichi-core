@@ -33,3 +33,6 @@ _exp
 # js compiled from coffee
 src/*.js
 src/*.map
+
+# generated doc
+doc-gen
