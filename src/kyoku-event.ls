@@ -12,56 +12,97 @@ require! {
   './kyoku-player-hidden-mock': PlayerHiddenMock
 }
 
-# Global TODO
-# - explain doraHyouji piggybacking
+# ## Global TODO
+#
+# - explain `doraHyouji` piggybacking
 # - more watertight `init` checks
 # - assertion messages even though source is pretty natural language
 #   - separate "ctor" from "minimal"/"canonical"
 #  - fix doc of all events
 
-Event = exports
+# ## Overview (TL;DR)
+#
+# See architecture document for details on client/server and event-sourcing.
+#
+# ### Master Events
+#
+# List:
+#
+# - `deal`
+# - `tsumo`
+# - `ryoukyoku`
+# - `howanpai`
+#
+# Procedure:
+#
+# 1.  Call `Kyoku#deal`/`Kyoku#go` on master, which constructs and executes the
+#     event.
+# 2.  Send partials to replicates.
+# 3.  Initialize and execute partial event on each replicate.
+#
+# ### Own-turn Events
+#
+# List:
+#
+# - `dahai`
+# - `ankan`
+# - `kakan`
+# - `tsumoAgari`
+# - `kyuushuuKyuuhai`
+#
+# Procedure:
+#
+# 1.  Construct event on replicate.
+# 2.  Send type and ctor args to master.
+# 3.  Construct event on master and execute.
+# 4.  Send partials (full event) to replicates.
+# 5.  Initialize and execute event on each replicate.
+#
+# ### Declared Events
+#
+# List:
+#
+# - `chi`
+# - `pon`
+# - `daiminkan`
+# - `ron`
+#
+# Procedure:
+#
+# 1.  Construct event on replicate.
+# 2.  Send type and ctor args to master.
+# 3.  Construct `declare` wrapper event on master and execute.
+# 4.  Send partials (player, type) to replicates.
+# 5.  Initialize and execute `declare` on each replicate.
+# 6.  After master collects all declarations, call `Kyoku#resolve` on master,
+#     which executes the event that "wins".
+# 7.  Send partials (full event) to replicates.
+# 8.  Initialize and execute event on each replicate.
 
-/*TODO
-Type of the event; same as event class name (written in snakeCase)
 
-This is useful for de-/serialization from/to JSON, as Class/prototype is not
-preserved in JSON.
-
-@member {string} Event#type
-*/
-/*TODO
-Sequence number of the event (0-based).
-(TBD: xref kyoku seq)
-
-@member {number} Event#seq
-*/
-/*TODO
-After {@link Event#init}, stores a reference to the kyoku upon which this event
-is initialized.
-
-@member {Kyoku} Event#kyoku
-*/
-/*TODO
-Construct an event on a kyoku instance using minimal info. Some event types
-allow alternative convenience constructor args (e.g. `chi`). The constructor
-always tail calls {@link Event#init} to validate input.
-
-@method Event#(constructor)
-@param {Kyoku} kyoku
-@param {?object} args - dictionary containing minimal information needed to
-construct this type of event (see each event type).
-*/
-
-/*TODO
-Validates this event against given kyoku instance and gather additional
-information relevant to the event.
-
-Note that this event might not have been constructed on this kyoku instance.
-This is why a 2-step construction is necessary. (TBD: justify more)
-
-@method Event#init
-@param {Kyoku} kyoku
-*/
+# ## Event Interface
+#
+# All events "implement" the same common interface.
+#
+# ### Fields
+#
+# - `type`: same as event class name (in `lowerSnakeCase`). This is for
+#   retaining event class across serialization.
+# - `seq`: event sequence number; agrees with `Kyoku#seq`
+# - `kyoku`: reference to the kyoku instance this event is `init`ed upon
+#
+# ### Methods
+#
+# - `constructor(kyoku, args)`: construct the event from its minimal
+#   representation on given kyoku. `args` is either a dictionary or null.
+#
+#   NOTE:
+#
+#   - Constructor is called at the *origin* of the event and master instance.
+#   - Some events (e.g. `chi`) offer alternative convenience construction args.
+#   - constructor calls `init(kyoku)` in the end
+#
+# - `init(kyoku)`: validate the event on given kyoku and cache
 
 
 # XXX
@@ -84,7 +125,7 @@ from e.g. serialized event
 @param {Event} e
 */
 export function reconstruct({type}:e)
-  ctor = Event[type]
+  ctor = exports[type]
   if !ctor? then throw Error "invalid event '#type'"
   ctor:: with e
 
@@ -603,7 +644,7 @@ export class declare # {{{
     assert.equal @type, \declare
     assert @what in <[chi pon daiminkan ron]>#
     if @args?
-      @player ?= new Event[@what](kyoku, @args) .player
+      @player ?= new exports[@what](kyoku, @args) .player
     assert.isNull ..currDecl[@player],
       "a player can only declare once during one turn"
     return this
