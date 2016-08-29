@@ -402,6 +402,14 @@ export function parseResult([type]:result)
       delta: result.1 ? [0 0 0 0]
       reason
     }
+  else if type == '全員不聴'
+    # discovered recently --- could be result of legacy code
+    # we handle this specially to avoid polluting the invert dictionary
+    return {
+      type: \ryoukyoku
+      delta: [0 0 0 0]
+      reason: \howanpai
+    }
   else return null # no result
 
 const RYOUKYOKU_DICT_INV = invert RYOUKYOKU_DICT
