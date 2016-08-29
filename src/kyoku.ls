@@ -434,9 +434,8 @@ module.exports = class Kyoku implements EventEmitter::
   # declared on dahai/ankan/kakan
   _didNotHoujuu: (event) !->
     # end of ippatsu/virgin
-    # NOTE: this must happen before accepting new riichi, or ippatsu flag would
-    # always be overwritten to false
-    if @phase == \postDahai and event.type == \nextTurn
+    naturalEnd = (@phase == \postDahai and event.type == \nextTurn)
+    if naturalEnd
       # natural end of ippatsu for current player
       # virgin can be considered ippatsu of north player
       @playerPublic[@currPlayer].riichi.ippatsu = false
@@ -450,7 +449,7 @@ module.exports = class Kyoku implements EventEmitter::
     with @playerPublic[@currPlayer].riichi
       if ..declared and not ..accepted
         ..accepted = true
-        ..ippatsu = true
+        ..ippatsu = naturalEnd # fuuro on riichi => still no ippatsu
         @result.giveKyoutaku @currPlayer
 
     # maintain furiten state: see `PlayerPublic::furiten`
