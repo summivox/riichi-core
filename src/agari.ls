@@ -85,32 +85,37 @@ module.exports = class Agari
       @doraTotal = ..dora + ..uraDora + ..akaDora
 
     # maximize basic points over all decompositions
-    maxBasicPoints = 0
-    maxDecompResult = null
+    maxDecompResult = {
+      basicPoints: 0
+      yaku: []
+      yakuTotal: 0
+      han: 0
+      fu: 0
+    }
+
     for {tenpaiType}:decomp in @agariDecomp
       # kokushi: exclusive override
       if tenpaiType in <[kokushi kokushi13]>
         times = (@rulevar.yakuman[tenpaiType] ? 1) <? @rulevar.yakuman.max
-        maxBasicPoints = getBasicPointsYakuman times
         maxDecompResult = {
           yakuman: [{name: tenpaiType, times}]
           yakumanTotal: times
-          basicPoints: maxBasicPoints
+          basicPoints: getBasicPointsYakuman times
         }
         break # <-- cannot be any other form at the same time
+
       # yakuman
-      {basicPoints}:yakumanResult = getYakumanResult decomp, @
-      if basicPoints > maxBasicPoints
-        maxBasicPoints = basicPoints
+      yakumanResult = getYakumanResult decomp, @
+      if compareResult(yakumanResult, maxDecompResult) > 0
         maxDecompResult = yakumanResult
         continue # <-- all other yaku overridden
+
       # yaku-han-fu
-      {basicPoints}:yakuResult = getYakuResult decomp, @
-      if basicPoints > maxBasicPoints
-        maxBasicPoints = basicPoints
+      yakuResult = getYakuResult decomp, @
+      if compareResult(yakuResult, maxDecompResult) > 0
         maxDecompResult = yakuResult
 
-    if maxBasicPoints == 0 then return @isAgari = false
+    if maxDecompResult.basicPoints == 0 then return @isAgari = false
     else @isAgari = true
     import all maxDecompResult
     @delta = getDelta @
@@ -121,7 +126,6 @@ module.exports = class Agari
     getDelta
     getYakuResult, getYakumanResult
   }
-
 
 # count all pai from all fuuro (for @tehai)
 function allPaiFromFuuro({fuuro})
@@ -307,5 +311,20 @@ function getYakumanResult(decomp, {rulevar}:agariObj)
   if yakumanTotal == 0 then return {basicPoints: 0}
   basicPoints = getBasicPointsYakuman yakumanTotal
   return {basicPoints, yakuman, yakumanTotal}
+
+function compareYakuResult(l, r)
+  if (diff = l.basicPoints - r.basicPoints) != 0 then return diff
+  if (diff = l.han - r.han) != 0 then return diff
+  return l.fu - r.fu
+
+function compareYakumanResult(l, r)
+  if (diff = l.basicPoints - r.basicPoints) != 0 then return diff
+  return l.yakumanTotal - r.yakumanTotal
+
+function compareResult(l, r)
+  lm = l.yakuman?
+  rm = r.yakuman?
+  if (diff = lm - rm) != 0 then return diff
+  if lm then compareYakumanResult(l, r) else compareYakuResult(l, r)
 
 # [1]: your mileage may vary
