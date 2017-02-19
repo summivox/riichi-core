@@ -46,7 +46,7 @@
     "watch": "lsc -bcw src/",
     "prepublish": "lsc -bc src/ && npm test",
     "test": "mocha",
-    "test-debug": "node-debug node_modules/mocha/bin/_mocha",
+    "test-debug": "node --inspect --debug-brk node_modules/mocha/bin/_mocha",
     "coverage": "istanbul cover node_modules/mocha/bin/_mocha",
     "jsdoc": "shx rm -r doc/jsdoc && jsdoc -c jsdoc.json -d doc/jsdoc"
   }

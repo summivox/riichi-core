@@ -1,3 +1,4 @@
+debugger
 require! {
   'chai': {assert}
   'fs-extra-promise': fs
