@@ -1,6 +1,7 @@
 require! {
   'chai': {assert}
   'lodash.merge': merge
+  'lodash.clonedeep': cloneDeep
 
   './pai': Pai
   './split-wall': splitWall
@@ -140,24 +141,32 @@ export function makeOutgoing(event)
   | _ => null
 
 
-
 ########################################
 # metadata: rule and result
 
 # rule array/string <=> riichi-core rulevar override object
-const RULE_RE = /(東|南)(喰)?/
+const RULE_RE = //
+  (三|四)?  # [1] NOTE: 三 (tenhou's sanma / 3-player rule) not supported
+  (.)?      # [2] NOTE: actually (般|上|特|鳳) but we don't care
+  (東|南)   # [3] east only / east + south
+  (喰)?     # [4] kuitan or not
+  (赤)?     # [5] aka or not (NOTE: overrides /aka(5\d)?/)
+//
 export function parseRule({disp, aka, aka51, aka52, aka53})
-  disp ?= '南喰'
-  if not isNaN(aka = parseInt aka)
+  disp ?= '南喰赤'
+  if (m = disp.match RULE_RE)
+    if m.1 == '三'
+       throw Error "sanma is not supported"
+    switch m.3
+    | '東' => end = {normal: 1, overtime: 2} # east only
+    | '南' => end = {normal: 2, overtime: 3} # east + south
+    kuitan = !!m.4
+    akahai = if m.5 then [1 1 1] else [0 0 0]
+  else if not isNaN(aka = parseInt aka)
     akahai = [aka, aka, aka]
   else
     akahai = [aka51, aka52, aka53].map -> parseInt it
     if akahai.some isNaN then akahai = void
-  if (m = disp.match RULE_RE)
-    switch m.1
-    | '東' => end = {normal: 1, overtime: 2} # east only
-    | '南' => end = {normal: 2, overtime: 3} # east + south
-    kuitan = !!m.2
   return {
     dora: {akahai}
     yaku: {kuitan}
@@ -374,7 +383,8 @@ const RYOUKYOKU_DICT =
   '四家立直': \suuchariichi
   '四槓散了': \suukaikan
 export function parseResult([type]:result)
-  if type == '和了'
+  switch type
+  | '和了'
     agari1 = parseAgari result.1, result.2
     if agari1.isTsumo
       return {
@@ -396,13 +406,7 @@ export function parseResult([type]:result)
         delta
         agari: agariList
       }
-  else if (reason = RYOUKYOKU_DICT[type])
-    return {
-      type: \ryoukyoku
-      delta: result.1 ? [0 0 0 0]
-      reason
-    }
-  else if type == '全員不聴'
+  | '全員不聴', '全員聴牌'
     # discovered recently --- could be result of legacy code
     # we handle this specially to avoid polluting the invert dictionary
     return {
@@ -410,7 +414,14 @@ export function parseResult([type]:result)
       delta: [0 0 0 0]
       reason: \howanpai
     }
-  else return null # no result
+  | _
+    if (reason = RYOUKYOKU_DICT[type])
+      return {
+        type: \ryoukyoku
+        delta: result.1 ? [0 0 0 0]
+        reason
+      }
+    else throw Error "cannot determine result type: #type"
 
 const RYOUKYOKU_DICT_INV = invert RYOUKYOKU_DICT
 export function makeResult(startState, {type, delta}:result)
@@ -665,6 +676,14 @@ export function parseKyoku([
 
   # fill in placeholder deal event
   events.0.wall = wall
+
+  # workaround tenhou aka inconsistency:
+  # akahai is still used even if rule string says there is none
+  aka = rulevar.dora.akahai
+  if aka.some (== 0)
+    events = cloneDeep events, (x) ->
+      if (e = x?.equivPai)?
+        if aka[e.S] == 0 then e else x
 
   return {
     startState
