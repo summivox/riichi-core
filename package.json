@@ -2,9 +2,9 @@
   "name": "riichi-core",
   "version": "2.0.0",
   "description": "Riichi Mahjong game engine",
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "files": [
-    "src/*.js"
+    "lib/*.js"
   ],
   "repository": {
     "type": "git",
@@ -26,8 +26,9 @@
     "chai": "^3.4.1",
     "chalk": "^1.1.3",
     "lodash.clonedeep": "^3.0.1",
-    "lodash.merge": "^3.3.2",
-    "performance-now": "^0.2.0"
+    "lodash.defaultsdeep": "^4.6.0",
+    "performance-now": "^0.2.0",
+    "req-all": "^1.0.0"
   },
   "devDependencies": {
     "app-root-path": "^1.0.0",
@@ -36,6 +37,7 @@
     "esrever": "^0.2.0",
     "fs-extra-promise": "^0.3.1",
     "globby": "^4.1.0",
+    "groc": "^0.8.0",
     "istanbul": "^0.4.3",
     "livescript": "^1.5.0",
     "mocha": "^2.5.3",
@@ -43,8 +45,8 @@
     "yuidocjs": "^0.10.2"
   },
   "scripts": {
-    "watch": "lsc -bcw src/",
-    "prepublish": "lsc -bc src/ && npm test",
+    "watch": "lsc -o lib -bcw src",
+    "prepublish": "lsc -o lib -bc src && npm test",
     "test": "mocha",
     "test-debug": "node --inspect --debug-brk node_modules/mocha/bin/_mocha",
     "coverage": "istanbul cover node_modules/mocha/bin/_mocha",

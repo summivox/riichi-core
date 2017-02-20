@@ -5,6 +5,7 @@ require! {
 
 module.exports = class PlayerHidden
   (haipai) ->
+    @isMock = false
     # juntehai and tsumohai: (maintained by methods)
     #   tsumohai: null or Pai
     #   juntehai: sorted array of Pai (excl. tsumohai)
@@ -55,13 +56,10 @@ module.exports = class PlayerHidden
 
   # (3n+1)* => (3n+1)
   # update tenpaiDecomp
-  canTsumokiri: ->
-    if not @tsumohai? then return valid: false, reason: "no tsumohai"
-    return valid: true
+  assertCanTsumokiri: ->
+    if not @tsumohai? => throw Error "no tsumohai"
   tsumokiri: ->
-    {valid, reason} = @canTsumokiri!
-    if not valid
-      throw Error "riichi-core: kyoku: PlayerHidden: tsumokiri: #reason"
+    @assertCanTsumokiri!
     pai = @tsumohai
     @bins[pai.S][pai.N]--
     #@tenpaiDecomp = decompTenpai @bins
@@ -70,15 +68,13 @@ module.exports = class PlayerHidden
 
   # (3n+1)* or (3n+2) => (3n+1)
   # update tenpaiDecomp
-  canDahai: (pai) ->
+  assertCanDahai: (pai) ->
     i = @juntehai.indexOf pai
-    if i == -1 then return valid: false, reason:
-      "[#pai] not in juntehai [#{Pai.stringFromArray @juntehai}]"
-    return valid: true, i: i
+    if i == -1
+      throw Error "[#pai] not in juntehai [#{Pai.stringFromArray @juntehai}]"
+    return i
   dahai: (pai) ->
-    {valid, reason, i} = @canDahai pai
-    if not valid
-      throw Error "riichi-core: kyoku: PlayerHidden: dahai: #reason"
+    i = @assertCanDahai!
     @bins[pai.S][pai.N]--
     @tenpaiDecomp = decompTenpai @bins
     with @juntehai

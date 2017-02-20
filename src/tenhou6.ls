@@ -1,6 +1,6 @@
 require! {
   'chai': {assert}
-  'lodash.merge': merge
+  'lodash.defaultsdeep': defaultsDeep
   'lodash.clonedeep': cloneDeep
 
   './pai': Pai
@@ -460,7 +460,7 @@ export function parseKyoku([
   extra
 ], rulevar)
 
-  rulevar = merge {}, rulevarDefault, rulevar
+  defaultsDeep rulevar, rulevarDefault
 
   bakaze = nKyoku.>>.2 # div 4
   chancha = nKyoku.&.3 # mod 4

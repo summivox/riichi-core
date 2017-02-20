@@ -12,11 +12,13 @@ function globAndRequire(...pattern)
 
 root = require 'app-root-path'
 {
-  decomp1C, makeDecomp1C
-  decomp1W, makeDecomp1W, countDecomp1W
-  decompTenpai
-}:decomp = require "#root/src/decomp.js"
-Pai = require "#root/src/pai.js"
+  decomp: {
+    decomp1C, makeDecomp1C
+    decomp1W, makeDecomp1W, countDecomp1W
+    decompTenpai
+  }:decomp,
+  Pai
+}:pkg = require "#root"
 
 D = describe
 I = it

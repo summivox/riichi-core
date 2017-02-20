@@ -31,7 +31,7 @@ module.exports = class PlayerPublic
       double:   false # goes and stays true if declared during true first tsumo
       ippatsu:  false # true only during ippatsu period; false otherwise
 
-  dahai: ({pai, tsumokiri, riichi}) ->
+  dahai: (pai, tsumokiri, riichi) ->
     @sutehaiBitmaps[pai.S].|.= 1.<<.pai.N
     @sutehai.push @lastSutehai = {pai, tsumokiri, riichi, fuuroPlayer: null}
 

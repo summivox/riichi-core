@@ -1,3 +1,4 @@
+'use strict'
 debugger
 require! {
   'chai': {assert}
@@ -8,8 +9,7 @@ require! {
   "./lib/kyoku-stepper.ls": KyokuStepper
 }
 root = require 'app-root-path'
-{Event} = require "#root"
-tenhou6 = require "#root/src/tenhou6"
+{Event, tenhou6} = require "#root"
 
 D = describe
 I = it

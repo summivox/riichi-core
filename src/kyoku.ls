@@ -6,7 +6,7 @@ require! {
   events: {EventEmitter}
 
   'chai': {assert}
-  'lodash.merge': merge
+  'lodash.defaultsdeep': defaultsDeep
 
   '../package.json': {version: VERSION}
   './pai': Pai
@@ -20,6 +20,33 @@ require! {
   './kyoku-player-hidden': PlayerHidden
 }
 
+CurrDecl =
+  add: ({type, player}:decl) ->
+    @[type] = @[player] = decl
+    @count++
+  clear: ->
+    @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
+    @count = 0
+  resolve: (currPlayer) ->
+    | @ron?
+      for p in OTHER_PLAYERS[currPlayer]
+        if @[p]?.type == \ron then @[p]
+    | @daiminkan? => that
+    | @pon? => that
+    | @chi? => that
+    | _ => {type: \nextTurn, args: null}
+    # NOTE: no need to call `clear` (Event::apply will)
+
+Result =
+  # called when a player declares riichi
+  giveKyoutaku: (player) ->
+    @delta[player] -= KYOUTAKU_UNIT
+    @kyoutaku++
+  # called when a player wins
+  takeKyoutaku: (player) ->
+    @delta[player] += @kyoutaku * KYOUTAKU_UNIT
+    @kyoutaku = 0
+
 /**
 @classdesc
 
@@ -31,8 +58,8 @@ module.exports = class Kyoku implements EventEmitter::
   #   rulevar: (see `./rulevar-default`)
   #   startState: (see below)
   #   forPlayer: ?Integer
-  #     null: master
-  #     0/1/2/3: replicate player id
+  #     null: server
+  #     0/1/2/3: client player id
   ({rulevar, startState, forPlayer} = {}) ->
     @VERSION = VERSION
 
@@ -40,8 +67,7 @@ module.exports = class Kyoku implements EventEmitter::
     EventEmitter.call @
 
     # rulevar: use default for missing entries
-    # XXX: consider using  `_.defaultsDeep` (mutates `rulevar`)
-    @rulevar = rulevar = merge {}, rulevarDefault, rulevar
+    @rulevar = defaultsDeep rulevar, rulevarDefault
 
     # startState: initial condition for this kyoku
     #   bakaze: 0/1/2/3 => E/S/W/N
@@ -62,12 +88,12 @@ module.exports = class Kyoku implements EventEmitter::
     @chancha = chancha = startState.chancha
 
     if forPlayer?
-      # replicated instance
+      # clientd instance
       @me = forPlayer
-      @isReplicate = true
+      @isClient = true
     else
-      # master instance
-      @isReplicate = false
+      # server instance
+      @isClient = false
 
     # TODO: doc
     @wallParts = null
@@ -80,7 +106,7 @@ module.exports = class Kyoku implements EventEmitter::
     #     TODO: doc
     #   currPlayer: 0/1/2/3
     #   currPai: ?Pai -- most recently touched pai
-    #     after tsumo: tsumohai (can be null in replicate)
+    #     after tsumo: tsumohai (can be null in client)
     #     after dahai: sutehai
     #     after fuuro:
     #       chi/pon/daiminkan/ankan: ownPai
@@ -109,6 +135,8 @@ module.exports = class Kyoku implements EventEmitter::
     @playerHidden = null
     @playerPublic = null
 
+    # TODO: move CurrDecl and Result to separate files and make factories
+
     # conflict resolution for declarations
     # after a particular event:
     # - one player may at most declare once
@@ -118,21 +146,10 @@ module.exports = class Kyoku implements EventEmitter::
     # - if no one declares, default to next natural turn
     #
     # NOTE: ron resolution order is natural turn order after current player
-    kyoku = this # for reference to `currPlayer`
-    @currDecl =
+    @currDecl = CurrDecl with
       chi: null, pon: null, daiminkan: null, ron: null
       0: null, 1: null, 2: null, 3: null
-      add: ({what, player}:decl) -> @[what] = @[player] = decl
-      clear: -> @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
-      resolve: ->
-        | @ron?
-          for p in OTHER_PLAYERS[kyoku.currPlayer]
-            if @[p]?.what == \ron then @[p]
-        | @daiminkan? => that
-        | @pon? => that
-        | @chi? => that
-        | _ => {what: \nextTurn, args: null}
-        # NOTE: no need to call `clear` (Event::apply will)
+      count: 0
 
     # result: updated as game proceeds
     #   common:
@@ -148,20 +165,12 @@ module.exports = class Kyoku implements EventEmitter::
     #   ryoukyoku:
     #     reason: String
     KYOUTAKU_UNIT = rulevar.riichi.kyoutaku
-    @result =
+    @result = Result with
       type: null
       delta: [0 0 0 0]
       kyoutaku: startState.kyoutaku
       renchan: false
       points: ~-> [@delta[p] + startState.points[p] for p til 4]
-      # called when a player declares riichi
-      giveKyoutaku: (player) ->
-        @delta[player] -= KYOUTAKU_UNIT
-        @kyoutaku++
-      # called when a player wins
-      takeKyoutaku: (player) ->
-        @delta[player] += @kyoutaku * KYOUTAKU_UNIT
-        @kyoutaku = 0
 
     # same format as `startState` -- see `getEndState` and `_end`
     @endState = null
@@ -176,7 +185,7 @@ module.exports = class Kyoku implements EventEmitter::
     @seq++
     @emit \event, event
 
-  # game progress methods (master only) {{{
+  # game progress methods (server only) {{{
 
   /**
   @method
@@ -185,12 +194,12 @@ module.exports = class Kyoku implements EventEmitter::
   # prepare wall and start game
   #   wall: ?[136]Pai -- defaults to randomly shuffled
   deal: (wall) ->
-    assert not @isReplicate
+    assert not @isClient
     @exec new Event.deal this, {wall}
 
   # start player's turn: tsumo or ryoukyoku
   go: ->
-    assert not @isReplicate
+    assert not @isClient
     assert @phase == \preTsumo
     # check for tochuu ryoukyoku
     for reason in <[suufonrenta suukaikan suuchariichi]>
@@ -207,12 +216,12 @@ module.exports = class Kyoku implements EventEmitter::
 
   # resolve declarations after dahai/ankan/kakan
   resolve: !->
-    assert not @isReplicate
+    assert not @isClient
     assert @phase in <[postDahai postAnkan postKakan]>#
-    with @currDecl.resolve!
+    with @currDecl.resolve @currPlayer
       if .. not instanceof Array
         # chi/pon/daiminkan/nextTurn
-        @exec new Event[..what](this, ..args)
+        @exec new Event[..type](this, ..args)
       else
         # (multi-)ron
         # NOTE: ordering handled by `@currDecl.resolve`
@@ -236,16 +245,16 @@ module.exports = class Kyoku implements EventEmitter::
 
   # read-only helper methods {{{
 
-  # get doraHyouji to be revealed, accounting for minkan delay (master only)
-  getNewDoraHyouji: ({type}:event) ->
-    assert not @isReplicate
+  # get doraHyouji to be revealed, accounting for minkan delay (server only)
+  getNewDoraHyouji: (type) ->
+    assert not @isClient
     if not (rule = @rulevar.dora.kan) then return []
     lo = @doraHyouji.length
     hi = @nKan + (rule[type] ? 0)
     if hi < lo then return null
     return @wallParts.doraHyouji[lo to hi]
 
-  # get all revealed uraDoraHyouji after agari under riichi (master only)
+  # get all revealed uraDoraHyouji after agari under riichi (server only)
   getUraDoraHyouji: (player) ->
     {ura, kanUra} = @rulevar.dora
     switch
@@ -331,10 +340,14 @@ module.exports = class Kyoku implements EventEmitter::
   # - pon : has 555m, pon 0m => cannot dahai 5m
   #
   # return: true if given situation is kuikae forbidden by rule
+  #
+  # NOTE: this does not depend on current kyoku state by design
   isKuikae: (fuuro, dahai) ->
     {type, ownPai, otherPai} = fuuro
     if type not in <[minjun minko]> then return false
-    {moro, suji, pon} = @rulevar.banKuikae
+    bans = @rulevar.banKuikae
+    if !bans? then return false
+    {moro, suji, pon} = bans
 
     # NOTE: fuuro object is NOT modified
     # shorthands: (pq) chi (o) dahai (d)

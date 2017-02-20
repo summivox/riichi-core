@@ -1,5 +1,6 @@
 module.exports = class PlayerHiddenMock
   (@hasTsumohai = false, @nJuntehai = 13) ->
+    @isMock = true
     # Juntehai and tsumohai: (maintained by methods)
     #   hasTsumohai <=> `PlayerHidden::tsumohai?`
     #   nJuntehai   <=> `PlayerHidden::juntehai.length`

@@ -155,7 +155,7 @@ function countFuuroFu({fuuro})
 #   `.dora`
 function getDora({
   rulevar: {dora: {ura, kan, kanUra}}
-  tehai, fuuro, riichi
+  tehai, riichi
   doraHyouji, uraDoraHyouji, nKan
 })
   dora = doraHyouji.map (.succDora)

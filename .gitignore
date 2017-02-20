@@ -31,8 +31,7 @@ node_modules
 _exp
 
 # js compiled from coffee
-src/*.js
-src/*.map
+lib/
 
 # generated doc
 doc-gen

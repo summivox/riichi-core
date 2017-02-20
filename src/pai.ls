@@ -171,6 +171,18 @@ Pai.compare = (a, b) ->
 # - bitmap, lsbit-first (for unique set of pai in single suite)
 #   e.g. 0b000100100 => 36m/p/s/z
 
+# trivial
+Pai.array = (a) ->
+  for x in a
+    p = Pai[x]
+    if p? then p else throw Error "#x is not a pai"
+
+Pai.arrayN = (a, n) ->
+  if a?.length != n then throw Error "not array of length #n"
+  for i til n
+    p = Pai[a[i]]
+    if p? then p else throw Error "#x is not a pai"
+
 Pai.arrayFromString = (s) ->
   ret = []
   for run in s.match /\d*\D/g
