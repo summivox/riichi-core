@@ -6,9 +6,7 @@ CPKR =
   daiminkan: require './daiminkan'
   ron: require './ron'
 
-# `what` => "what did this player declare"
-
-export function fromClient(kyoku, {type, seq, player}:what)
+export function fromClient(kyoku, {type, seq}:decl)
   if kyoku.isClient
     throw Error "must be called on server side"
 
@@ -19,12 +17,14 @@ export function fromClient(kyoku, {type, seq, player}:what)
   unless seq == seqBeforeDecl
     throw Error "seq mismatch: kyoku at #seqBeforeDecl, event at #seq"
 
+  kyoku.currDecl.validate decl
+
   return declare-server with {
     kyoku.seq, kyoku
-    what: cpkr.fromClient kyoku, what
+    decl: cpkr.fromClient kyoku, decl
   }
 
-export function fromServer(kyoku, {type, seq, what})
+export function fromServer(kyoku, {type, seq, decl})
   unless kyoku.isClient
     throw Error "must be called on client side"
   unless type == \declare
@@ -32,67 +32,29 @@ export function fromServer(kyoku, {type, seq, what})
   unless kyoku.seq == seq
     throw Error "seq mismatch: kyoku at #{kyoku.seq}, event at #seq"
 
-  unless what.type in <[chi pon daiminkan ron]>
-    throw Error "wrong type #{what.type}"
+  unless decl.type in <[chi pon daiminkan ron]>
+    throw Error "wrong type #{decl.type}"
+
+  kyoku.currDecl.validate decl
 
   return declare-client with {
     kyoku.seq, kyoku
-    what
+    decl
   }
 
 declare-server =
-  toLog: -> {type: \declare, @seq, @what.toLog!}
+  toLog: -> {type: \declare, @seq, @decl.toLog!}
 
   toClients: ->
-    x = {type: \declare, @seq, what: @what{type, player}}
+    x = {type: \declare, @seq, decl: @decl{type, player}}
     [x, x, x, x]
 
-  apply: !-> @kyoku.currDecl.add @what
+  apply: !->
+    {kyoku, seq, decl} = @
+    unless kyoku.seq == seq
+      throw Error "seq mismatch: kyoku at #{kyoku.seq}, event at #seq"
+
+    kyoku.currDecl.add decl
 
 declare-client =
   apply: declare-server.apply
-
-
-
-
-export class declare # {{{
-  # SPECIAL: EVENT WRAPPER
-  # minimal:
-  #   what: chi/pon/daiminkan/ron
-  #   args: (constructor args for constructing corresponding event)
-  #     player: 0/1/2/3
-  # partial:
-  #   player: 0/1/2/3 -- `args.player`
-  #   what
-  # full:
-  #   player
-  #   what
-  #   args
-
-  (kyoku, {@what, @args}) -> with kyoku
-    @type = \declare
-    @seq = ..seq
-    @init kyoku
-
-  init: (kyoku) -> with @kyoku = kyoku
-    assert.equal @type, \declare
-    assert @what in <[chi pon daiminkan ron]>#
-    if @args?
-      @player ?= new exports[@what](kyoku, @args) .player
-    assert.isNull ..currDecl[@player],
-      "a player can only declare once during one turn"
-    return this
-
-  apply: !-> with kyoku = @kyoku
-    ..currDecl.add @{what, player, args} # NOTE: `args` can be null
-
-  toPartials: ->
-    for p til 4
-      # FIXME: just make it uniform?
-      if p == @player
-        @{type, seq, what, player, args}
-      else
-        @{type, seq, what, player}
-
-  toMinimal: -> @{type, seq, what, args}
-# }}}

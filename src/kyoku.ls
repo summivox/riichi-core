@@ -15,12 +15,15 @@ require! {
   './util': {OTHER_PLAYERS}
   './rulevar-default': rulevarDefault
 
-  './kyoku-event': Event
-  './kyoku-player-public': PlayerPublic
-  './kyoku-player-hidden': PlayerHidden
+  './event': Event
 }
 
 CurrDecl =
+  validate: ({type, player}:decl) ->
+    if @[type]? and type != \ron
+      throw Error "duplicate declare: #type from player #player"
+    if @[player]?
+      throw Error "duplicate declare: #type from player #player"
   add: ({type, player}:decl) ->
     @[type] = @[player] = decl
     @count++
@@ -34,7 +37,7 @@ CurrDecl =
     | @daiminkan? => that
     | @pon? => that
     | @chi? => that
-    | _ => {type: \nextTurn, args: null}
+    | _ => null
     # NOTE: no need to call `clear` (Event::apply will)
 
 Result =
@@ -445,9 +448,9 @@ module.exports = class Kyoku implements EventEmitter::
 
   # always called by an event after conflict resolution if no ron has been
   # declared on dahai/ankan/kakan
-  _didNotHoujuu: (event) !->
+  _didNotHoujuu: (type) !->
     # end of ippatsu/virgin
-    naturalEnd = (@phase == \postDahai and event.type == \nextTurn)
+    naturalEnd = (@phase == \postDahai and type == \nextTurn)
     if naturalEnd
       # natural end of ippatsu for current player
       # virgin can be considered ippatsu of north player
@@ -468,13 +471,13 @@ module.exports = class Kyoku implements EventEmitter::
     # maintain furiten state: see `PlayerPublic::furiten`
     if @phase == \postDahai
       PP = @playerPublic[@currPlayer]
-      with @playerHidden[@currPlayer] => if .. instanceof PlayerHidden
+      with @playerHidden[@currPlayer] => if not ..isMock
         ..sutehaiFuriten = ..tenpaiDecomp.tenpaiSet.some ->
           PP.sutehaiContains it
         ..doujunFuriten = false
         ..furiten = ..sutehaiFuriten or ..riichiFuriten # or ..doujunFuriten
     for op in OTHER_PLAYERS[@currPlayer]
-      with @playerHidden[op] => if .. instanceof PlayerHidden
+      with @playerHidden[op] => if not ..isMock
         if @isKeiten ..tenpaiDecomp
           ..furiten = true
           ..doujunFuriten = true
