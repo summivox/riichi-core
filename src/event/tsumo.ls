@@ -40,7 +40,7 @@ export function fromServer(kyoku, {
   if kyoku.currPlayer == me
     unless (pai = Pai[pai])? => throw Error "invalid pai"
     return tsumo-client with {
-      kyoku.seq, kyoku,
+      kyoku.seq, kyoku
       pai
     }
   else
