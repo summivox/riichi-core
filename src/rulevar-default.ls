@@ -1,5 +1,10 @@
+'use strict'
+require! {
+  'app-root-path': root
+}
+
 module.exports =
-  VERSION: require '../package.json' .version
+  VERSION: require "#root/package.json" .version
 
   dora:
     akahai: [1 1 1] # number of 0m/p/s to replace 5m/p/s
