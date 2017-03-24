@@ -1,5 +1,4 @@
-# agari : everything[1] you wish to know about a winning hand
-
+'use strict'
 require! {
   './pai': Pai
   './decomp': {decompAgari}
@@ -7,41 +6,49 @@ require! {
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
 
-# properties: almost all flattened as a dictionary
-#
-# NOTE: objects originally passed as input are NOT modified; copies are made
-# before any modification
-#
-# INPUT:
-#   `rulevar`
-#
-#   ===== hand =====
-#   `agariPai`
-#   `juntehai`
-#   `tenpaiDecomp`: corresponds to `juntehai`
-#   `fuuro`
-#   `menzen`
-#   `riichi`: {accepted, double, ippatsu}
-#
-#   ===== players =====
-#   `chancha`
-#   `agariPlayer`
-#   `houjuuPlayer`: null => tsumo
-#
-#   ===== kyoku =====
-#   `honba`
-#   `bakaze`
-#   `jikaze`
-#   `doraHyouji`: revealed only
-#   `uraDoraHyouji`
-#   `nKan`
-#
-#   ===== conditions =====
-#   `rinshan`
-#   `chankan`
-#   `isHaitei`: for haiteiraoyue and houteiraoyui
-#   `virgin`: for tenhou and chiihou
-#
+module.exports = (kyoku, agariPlayer) ->
+
+  isTsumo = (agariPlayer == kyoku.currPlayer)
+  isRon = not isTsumo
+  if isTsumo
+    houjuuPlayer = null
+    agariPai = kyoku.playerHidden[agariPlayer].tsumohai
+  else
+    houjuuPlayer = kyoku.currPlayer
+    agariPai = kyoku.currPai
+
+  {honba, bakaze} = kyoku.startState
+  {jikaze, fuuro, menzen, riichi} = kyoku.playerPublic[agariPlayer]
+  {juntehai, tenpaiDecomp} = kyoku.playerHidden[agariPlayer]
+
+  {
+    kyoku.rulevar
+
+    agariPai
+    juntehai
+    tenpaiDecomp
+    fuuro
+    menzen
+    riichi
+
+    kyoku.chancha
+    agariPlayer
+    houjuuPlayer
+
+    honba
+    bakaze
+    jikaze
+    kyoku.doraHyouji
+    # NOTE: uraDoraHyouji is counted separately
+    kyoku.nKan
+
+    kyoku.rinshan
+    chankan: kyoku.phase in <[postKakan postAnkan]>#
+    # NOTE: kokushiAnkan handled in `Kyoku#isKeiten`
+    isHaitei: kyoku.nTsumoLeft == 0
+    kyoku.virgin
+  }
+
 # OUTPUT:
 #   `isAgari`: true/false
 #   `delta`: score gains for each agariPlayer

@@ -379,64 +379,6 @@ module.exports = class Kyoku implements EventEmitter::
           return player
     return null
 
-  # TODO: describe
-  agari: (event) ->
-    switch event.type
-    | \ron
-      agariPlayer = event.player
-      houjuuPlayer = @currPlayer
-      agariPai = @currPai
-      if @rulevar.ron.honbaAtamahane and not event.isFirst
-        honba = 0
-      else
-        honba = @startState.honba
-    | \tsumoAgari
-      agariPlayer = @currPlayer
-      houjuuPlayer = null
-      agariPai = event.tsumohai
-      honba = @startState.honba
-    | _ => throw Error "invalid event #{event.type}"
-
-    {jikaze, fuuro, menzen, riichi} = @playerPublic[agariPlayer]
-    tenpaiDecomp = @playerHidden[agariPlayer].tenpaiDecomp ?
-      decompTenpai Pai.binsFromArray event.juntehai
-
-    input = {
-      rulevar: @rulevar
-
-      agariPai
-      juntehai: event.juntehai
-      tenpaiDecomp
-      fuuro
-      menzen
-      riichi
-
-      chancha: @chancha
-      agariPlayer
-      houjuuPlayer
-
-      honba
-      bakaze: @startState.bakaze
-      jikaze
-      doraHyouji: @doraHyouji
-      uraDoraHyouji: @uraDoraHyouji
-      nKan: @nKan
-
-      rinshan: @rinshan
-      chankan: @phase in <[postKakan postAnkan]>#
-      # NOTE: kokushiAnkan already handled in `isKeiten`
-      isHaitei: @nTsumoLeft == 0
-      virgin: @virgin
-    }
-    a = new Agari input
-    if not a.isAgari then return null
-    {[k, v] for k, v of a when k not of AGARI_BLACKLIST} # FIXME
-
-  AGARI_BLACKLIST = {
-    -rulevar
-    -tenpaiDecomp
-  }
-
   # }}}
 
   # state mutating hooks (common building blocks of events) {{{
