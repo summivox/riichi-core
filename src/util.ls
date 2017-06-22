@@ -37,3 +37,5 @@ export function randomShuffle(arr, rand = Math.random)
     j = ~~(rand! * (i + 1))
     t = arr[j] ; arr[j] = arr[i] ; arr[i] = t
   arr
+
+export function nCompare(a, b) => a - b # livescript (-) is inefficient

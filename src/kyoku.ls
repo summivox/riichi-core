@@ -5,8 +5,8 @@
 require! {
   events: {EventEmitter}
 
-  'chai': {assert}
   'lodash.defaultsdeep': defaultsDeep
+  'lodash.isEqual':
 
   '../package.json': {version: VERSION}
   './pai': Pai
@@ -16,6 +16,8 @@ require! {
   './rulevar-default': rulevarDefault
 
   './event': Event
+
+  './player-state/hidden': PlayerHidden
 }
 
 CurrDecl =
@@ -43,11 +45,11 @@ CurrDecl =
 Result =
   # called when a player declares riichi
   giveKyoutaku: (player) ->
-    @delta[player] -= KYOUTAKU_UNIT
+    @delta[player] -= @KYOUTAKU_UNIT
     @kyoutaku++
   # called when a player wins
   takeKyoutaku: (player) ->
-    @delta[player] += @kyoutaku * KYOUTAKU_UNIT
+    @delta[player] += @kyoutaku * @KYOUTAKU_UNIT
     @kyoutaku = 0
 
 /**
@@ -167,8 +169,8 @@ module.exports = class Kyoku implements EventEmitter::
     #     agari: []Agari -- in natural turn order from `houjuuPlayer`
     #   ryoukyoku:
     #     reason: String
-    KYOUTAKU_UNIT = rulevar.riichi.kyoutaku
     @result = Result with
+      KYOUTAKU_UNIT: rulevar.riichi.kyoutaku
       type: null
       delta: [0 0 0 0]
       kyoutaku: startState.kyoutaku
@@ -180,6 +182,7 @@ module.exports = class Kyoku implements EventEmitter::
   # }}}
 
   # execute an event
+  # TODO: use new event format
   exec: (event) !->
     if !event.kyoku? then event.init this
     assert.equal event.kyoku, this
@@ -190,20 +193,17 @@ module.exports = class Kyoku implements EventEmitter::
 
   # game progress methods (server only) {{{
 
-  /**
-  @method
-  @param {?Pai[]} wall
-  */
   # prepare wall and start game
   #   wall: ?[136]Pai -- defaults to randomly shuffled
   deal: (wall) ->
-    assert not @isClient
+    if @isClient then throw Error "can only be executed on server"
     @exec new Event.deal this, {wall}
 
   # start player's turn: tsumo or ryoukyoku
   go: ->
-    assert not @isClient
-    assert @phase == \preTsumo
+    if @isClient then throw Error "can only be executed on server"
+    unless @phase == \preTsumo
+      throw Error "wrong phase #{@phase} (should be 'preTsumo')"
     # check for tochuu ryoukyoku
     for reason in <[suufonrenta suukaikan suuchariichi]>
       switch @rulevar.ryoukyoku.tochuu[reason]
@@ -218,8 +218,9 @@ module.exports = class Kyoku implements EventEmitter::
     @exec new Event.tsumo this
 
   # resolve declarations after dahai/ankan/kakan
+  # TODO: adapt to new event format
   resolve: !->
-    assert not @isClient
+    if @isClient then throw Error "can only be executed on server"
     assert @phase in <[postDahai postAnkan postKakan]>#
     with @currDecl.resolve @currPlayer
       if .. not instanceof Array
@@ -424,6 +425,14 @@ module.exports = class Kyoku implements EventEmitter::
           ..furiten = true
           ..doujunFuriten = true
           ..riichiFuriten = @playerPublic[op].riichi.accepted
+
+  # rebuild/build revealed hand
+  # TODO: cross-check furiten retroactively
+  _revealHidden: (player, juntehai, tsumohai) ->
+    if @playerHidden[player].isMock
+      @playerHidden[player] = (new PlayerHidden juntehai) <<< {tsumohai}
+    else
+      @playerHidden[player]
 
   _end: !->
     @endState = @getEndState @result

@@ -2,12 +2,30 @@
 require! {
   './pai': Pai
   './decomp': {decompAgari}
-  './util': {OTHER_PLAYERS, ceilTo, sum, count}
+  './util': {OTHER_PLAYERS, ceilTo, sum}
   './yaku': {YAKU_LIST, YAKUMAN_LIST}:Yaku
 }
 
-module.exports = (kyoku, agariPlayer) ->
+{slice, push} = []
 
+# return:
+#   if not agari: null
+#   else:
+#
+#     agariPlayer, houjuuPlayer
+#     isTsumo, isRon
+#     riichi
+#     tehai
+#
+#     basicPoints (not final --- see `score`)
+#     if yaku:
+#       yaku: [{name, han}]
+#       yakuTotal: sum of yaku[i].han
+#       fu
+#     else (yakuman):
+#       yakuman: [{name, times}]
+#       yakumanTotal: sum of yakuman[i].times
+export function create(kyoku, agariPlayer)
   isTsumo = (agariPlayer == kyoku.currPlayer)
   isRon = not isTsumo
   if isTsumo
@@ -17,205 +35,172 @@ module.exports = (kyoku, agariPlayer) ->
     houjuuPlayer = kyoku.currPlayer
     agariPai = kyoku.currPai
 
-  {honba, bakaze} = kyoku.startState
+  {chancha, honba, bakaze} = kyoku.startState
   {jikaze, fuuro, menzen, riichi} = kyoku.playerPublic[agariPlayer]
   {juntehai, tenpaiDecomp} = kyoku.playerHidden[agariPlayer]
 
-  {
+  # decomp
+  return null if tenpaiDecomp.length == 0
+  agariDecomp = decompAgari tenpaiDecomp, agariPai, isRon
+  return null if agariDecomp.length == 0
+
+  # collect all tehai (juntehai + agariPai + fuuro)
+  # also calculate fu from fuuro (since we go through all fuuro anyway)
+  tehai = juntehai.slice!
+  tehai.push agariPai
+  fuuroFu = 0
+  for f in fuuro
+    push.apply tehai, f.ownPai
+    if f.otherPai then tehai.push that
+    if f.kakanPai then ret.push that
+    switch f.type
+    | \minjun             => ff = 0
+    | \minko              => ff = 2
+    | \daiminkan, \kakan  => ff = 8
+    | \ankan              => ff = 16
+    | _ => throw Error "unknown fuuro '#that'"
+    if f.anchor.isYaochuupai then ff *= 2
+    fuuroFu += ff
+  tehai.sort Pai.compare
+
+  # bins from tehai
+  bins = Pai.binsFromArray tehai
+  binsSum = bins.map sum
+
+  # vars for yaku predicates
+  context = {
     kyoku.rulevar
 
-    agariPai
-    juntehai
-    tenpaiDecomp
+    # who won from whom
+    agariPlayer, houjuuPlayer
+    isTsumo, isRon
+
+    # winner's hand
+    agariPai, juntehai, tehai
+    bins, binsSum
     fuuro
-    menzen
-    riichi
+    menzen, riichi
 
-    kyoku.chancha
-    agariPlayer
-    houjuuPlayer
-
-    honba
-    bakaze
-    jikaze
-    kyoku.doraHyouji
-    # NOTE: uraDoraHyouji is counted separately
+    # environment
+    chancha, honba, bakaze, jikaze
     kyoku.nKan
 
+    # special conditions
+    kyoku.virgin
     kyoku.rinshan
+    isHaitei: kyoku.nTsumoLeft == 0
     chankan: kyoku.phase in <[postKakan postAnkan]>#
     # NOTE: kokushiAnkan handled in `Kyoku#isKeiten`
-    isHaitei: kyoku.nTsumoLeft == 0
-    kyoku.virgin
   }
 
-# OUTPUT:
-#   `isAgari`: true/false
-#   `delta`: score gains for each agariPlayer
-#   `dora`: number of {dora, uraDora, akaDora}
-#   `doraTotal`: sum of `dora`
-#   highest-points interpretation:
-#     `basicPoints`: "net worth" of the hand
-#     `yakuman`: array of {name, times}
-#     `yakumanTotal`: sum of yakuman.times (capped by rule)
-#     `yaku`: array of {name, han}
-#     `yakuTotal`: sum of yaku.han
-#     `han`: `yakuTotal + doraTotal` if not yakuman
-#     `fu`
+  # choose the best decomp
 
-module.exports = class Agari
-  (input) ->
-    import all input
-
-    @isRon = @houjuuPlayer?
-    @isTsumo = not @isRon
-
-    # tenpai and agari decompsition
-    if @tenpaiDecomp.length == 0 then return @isAgari = false
-    @agariDecomp = decompAgari @tenpaiDecomp, @agariPai, @isRon
-    if @agariDecomp.length == 0 then return @isAgari = false
-
-    # fu from fuuro: count once and cache
-    @fuuroFu = countFuuroFu @
-
-    # juntehai: input juntehai + agariPai
-    # tehai: juntehai + fuuro
-    # NOTE: tehai.length not always 14 (due to kan)
-    @juntehai = (@juntehai ++ [@agariPai]).sort Pai.compare
-    @tehai = (@juntehai ++ (allPaiFromFuuro @)).sort Pai.compare
-    # bins: correspond to full tehai
-    @bins = Pai.binsFromArray @tehai
-    @binsSum = @bins.map sum
-
-    # dora
-    with @dora = getDora @
-      @doraTotal = ..dora + ..uraDora + ..akaDora
-
-    # maximize basic points over all decompositions
-    maxDecompResult = {
-      basicPoints: 0
-      yaku: []
-      yakuTotal: 0
-      han: 0
-      fu: 0
-    }
-
-    for {tenpaiType}:decomp in @agariDecomp
-      # kokushi: exclusive override
-      if tenpaiType in <[kokushi kokushi13]>
-        times = (@rulevar.yakuman[tenpaiType] ? 1) <? @rulevar.yakuman.max
-        maxDecompResult = {
-          yakuman: [{name: tenpaiType, times}]
-          yakumanTotal: times
-          basicPoints: getBasicPointsYakuman times
-        }
-        break # <-- cannot be any other form at the same time
-
-      # yakuman
-      yakumanResult = getYakumanResult decomp, @
-      if compareResult(yakumanResult, maxDecompResult) > 0
-        maxDecompResult = yakumanResult
-        continue # <-- all other yaku overridden
-
-      # yaku-han-fu
-      yakuResult = getYakuResult decomp, @
-      if compareResult(yakuResult, maxDecompResult) > 0
-        maxDecompResult = yakuResult
-
-    if maxDecompResult.basicPoints == 0 then return @isAgari = false
-    else @isAgari = true
-    import all maxDecompResult
-    @delta = getDelta @
-
-  import {
-    getDora
-    getBasicPoints, getBasicPointsYakuman
-    getDelta
-    getYakuResult, getYakumanResult
+  # placeholder for no solution
+  bestResult = {
+    basicPoints: 0
+    yakuTotal: 0
+    fu: 0
   }
 
-# count all pai from all fuuro (for @tehai)
-function allPaiFromFuuro({fuuro})
-  ret = []
-  for f in fuuro
-    [].push.apply ret, f.ownPai
-    if f.otherPai then ret.push that
-    if f.kakanPai then ret.push that
-  ret
+  for {tenpaiType}:decomp in agariDecomp
+    # kokushi: exclusive override
+    if tenpaiType in <[kokushi kokushi13]>
+      times = (@rulevar.yakuman[tenpaiType] ? 1) <? @rulevar.yakuman.max
+      bestResult = {
+        basicPoints: basicPointsYakuman times
+        yakuman: [{name: tenpaiType, times}]
+        yakumanTotal: times
+        decomp
+      }
+      break # <-- cannot be any other form at the same time
 
-# count all fu awarded for fuuro (see `yakuResult`)
-function countFuuroFu({fuuro})
-  ret = 0
-  for f in fuuro
-    switch f.type
-    | \minjun             => fu = 0
-    | \minko              => fu = 2
-    | \daiminkan, \kakan  => fu = 8
-    | \ankan              => fu = 16
-    | _ => throw Error "unknown fuuro '#that'"
-    if f.anchor.isYaochuupai then fu *= 2
-    ret += fu
-  ret
+    # yakuman
+    yakumanResult = getYakumanResult decomp, context
+    if compareResult(yakumanResult, bestResult) > 0
+      bestResult = yakumanResult
+      continue # <-- yakuman shadows all normal yaku
 
-# count all 3 kinds of dora: {dora, uraDora, akaDora}
-# rule variations:
-#   `.dora`
-function getDora({
-  rulevar: {dora: {ura, kan, kanUra}}
-  tehai, riichi
-  doraHyouji, uraDoraHyouji, nKan
-})
-  dora = doraHyouji.map (.succDora)
-  if ura and riichi.accepted
-    n = if kanUra then doraHyouji.length else 1
-    uraDora = uraDoraHyouji[0 til n].map (.succDora)
-  else
-    uraDora = []
+    # yaku-han-fu
+    yakuResult = getYakuResult decomp, context
+    if compareResult(yakuResult, bestResult) > 0
+      bestResult = yakuResult
 
-  ret = dora: 0, uraDora: 0, akaDora: 0
-  for p in tehai
-    if p.isAkahai then ret.akaDora++
-    p .= equivPai
-    ret.dora += count dora, (== p)
-    ret.uraDora += count uraDora, (== p)
-  ret
+  return null if bestResult.basicPoints == 0
 
-function getBasicPoints({han, fu})
-  switch han
-  | 0 => 0
-  | 1, 2, 3, 4, 5 => (fu*(1.<<.(2+han)) <? 2000)
-  | 6, 7      => 3000
-  | 8, 9, 10  => 4000
-  | 11, 12    => 6000
-  | _         => 8000
-function getBasicPointsYakuman(yakumanTotal) => 8000 * yakumanTotal
+  return bestResult <<< {
+    agariPlayer, houjuuPlayer
+    isTsumo, isRon
+    tehai
+    riichi
+  }
 
-function getDelta({
-  rulevar: {points: {honba: HONBA_UNIT}}
-  basicPoints, chancha, agariPlayer, houjuuPlayer, isRon, honba
-})
-  # distribution {fudangaku} calculation
-  # [0] tsumo : ko  <- each ko
-  # [1] tsumo : oya <- each ko
-  #             ko  <- oya
-  # [2] ron   : ko  <- houjuuPlayer
-  # [3] ron   : oya <- houjuuPlayer
-  [tsumoKoKo, tsumoOyaKo, ronKo, ronOya] = [1 2 4 6].map ->
-    basicPoints*it |> ceilTo _, 100
+# add/modify the following to agariObj and return it:
+#   if yaku:
+#     nDora, nUraDora, nAkaDora
+#     nDoraTotal = nDora + nUraDora + nAkaDora
+#     han = yakuTotal + nDoraTotal
+#     basicPoints: (final)
+#
+# NOTE: this can be called multiple times even on the same agariObj, e.g.
+# once without uraDoraHyouji and once with.
+export function score(kyoku, agariObj, noHonbaBonus)
+  {
+    rulevar:
+      dora:
+        ura: allowUra
+        kanUra: allowKanUra
+      points: honba: HONBA_UNIT
+    startState: {chancha, honba}
+    nKan
+    doraHyouji, uraDoraHyouji
+  } = kyoku
+  {
+    agariPlayer, houjuuPlayer
+    tehai
+    riichi
+    yakuTotal
+  } = agariObj
+  if noHonbaBonus then honba = 0
 
-  tsumoKoKo += HONBA_UNIT * honba
-  tsumoOyaKo += HONBA_UNIT * honba
-  ronKo += HONBA_UNIT * 3 * honba
-  ronOya += HONBA_UNIT * 3 * honba
+  if yakuTotal
+    # collect final list of dora(-hyouji)
+    doraList = doraHyouji.map (.succDora)
+    if allowUra and riichi.accepted
+      n = if allowKanUra then doraHyouji.length else 1
+      uraDoraList = uraDoraHyouji[til n].map (.succDora)
+    else
+      uraDoraList = []
+
+    # count dora in tehai
+    nDora = nUraDora = nAkaDora = 0
+    for p in tehai
+      if p.isAkahai then nAkaDora++
+      p .= equivPai
+      # NOTE: lists are usually short so this is okay
+      for d in doraList => if d == p then nDora++
+      for d in uraDoraList => if d == p then nUraDora++
+    nDoraTotal = nDora + nUraDora + nAkaDora
+
+    agariObj <<< {nDora, nUraDora, nAkaDora, nDoraTotal}
+    agariObj.han = yakuTotal + nDoraTotal
+    agariObj.basicPoints = basicPointsYaku agariObj.han, agariObj.fu
+
+  # point distribution
+  # tsumo : ko  <- each ko      (1x)
+  # tsumo : oya <- each ko      (2x)
+  #         ko  <- oya          (2x)
+  # ron   : ko  <- houjuuPlayer (4x)
+  # ron   : oya <- houjuuPlayer (6x)
+  tsumoKoKo  = (basicPoints   |> ceilTo _, 100) + honba*HONBA_UNIT
+  tsumoOyaKo = (basicPoints*2 |> ceilTo _, 100) + honba*HONBA_UNIT
+  ronKo      = (basicPoints*4 |> ceilTo _, 100) + honba*HONBA_UNIT*3
+  ronOya     = (basicPoints*6 |> ceilTo _, 100) + honba*HONBA_UNIT*3
 
   delta = [0 0 0 0]
   if isRon
-    if agariPlayer == chancha
-      delta[chancha] = +(ronOya)
-      delta[houjuuPlayer] = -(ronOya)
-    else # ko
-      delta[agariPlayer] = +(ronKo)
-      delta[houjuuPlayer] = -(ronKo)
+    x = if agariPlayer == chancha then ronOya else ronKo
+    delta[agariPlayer]  = +(x)
+    delta[houjuuPlayer] = -(x)
   else # tsumo
     if agariPlayer == chancha
       delta[chancha] = +(3*tsumoOyaKo)
@@ -224,30 +209,41 @@ function getDelta({
     else # ko
       delta[agariPlayer] = +(2*tsumoKoKo + tsumoOyaKo)
       for p in OTHER_PLAYERS[agariPlayer]
-        if p == chancha
-          delta[p] = -(tsumoOyaKo)
-        else # ko
-          delta[p] = -(tsumoKoKo)
-  return delta
+        delta[p] = if p == chancha then -(tsumoOyaKo) else -(tsumoKoKo)
+  agariObj <<< {delta}
+
+  return agariObj
+
+########################################
+
+function basicPointsYaku(han, fu)
+  switch han
+  | 0 => 0
+  | 1, 2, 3, 4, 5 => (fu*(1.<<.(2+han)) <? 2000)
+  | 6, 7      => 3000
+  | 8, 9, 10  => 4000
+  | 11, 12    => 6000
+  | _         => 8000
+function basicPointsYakuman(yakumanTotal) => 8000 * yakumanTotal
 
 function getYakuResult(decomp, {
   bakaze, jikaze, fuuroFu, isTsumo, menzen, doraTotal
-}:agariObj)
+}:context)
 
   # yaku
   yaku = []
   yakuTotal = 0
-  blacklist = {}
-  for {name, conflict, menzenHan, kuiHan} in YAKU_LIST
+  shadowed = {}
+  for {name, shadows, menzenHan, kuiHan} in YAKU_LIST
     # check if overridden by higher priority yaku
-    if name of blacklist then continue
+    if name of shadowed then continue
     # check if yaku is menzen-only
     if not menzen and kuiHan == 0 then continue
-    if Yaku[name](decomp, agariObj)
+    if Yaku[name](decomp, context)
       han = if menzen then menzenHan else kuiHan
       yaku.push {name, han}
       yakuTotal += han
-      if conflict? then for c in conflict => blacklist[c] = true
+      if shadows? then for c in shadows => shadowed[c] = true
   # NOTE: pinfu not considered yet
 
   # fu
@@ -298,40 +294,37 @@ function getYakuResult(decomp, {
     fu = ceilTo fu, 10
 
   if yakuTotal == 0 then return {basicPoints: 0}
-  han = yakuTotal + doraTotal
-  basicPoints = getBasicPoints {han, fu}
-  return {basicPoints, yaku, yakuTotal, han, fu}
+  basicPoints = basicPointsYaku yakuTotal, fu # dora is counted later
+  return {basicPoints, yaku, yakuTotal, fu, decomp}
 
 # mostly parallel to getYakuResult (the yaku part)
-function getYakumanResult(decomp, {rulevar}:agariObj)
+function getYakumanResult(decomp, {rulevar}:context)
   yakuman = []
   yakumanTotal = 0
-  blacklist = {}
-  for {name, conflict} in YAKUMAN_LIST
-    if name of blacklist then continue
-    if Yaku[name](decomp, agariObj)
+  shadowed = {}
+  for {name, shadows} in YAKUMAN_LIST
+    if name of shadowed then continue
+    if Yaku[name](decomp, context)
       times = rulevar.yakuman[name] ? 1 # <-- different from yaku-han-fu
       yakuman.push {name, times}
       yakumanTotal += times
-      if conflict? then for c in conflict => blacklist[c] = true
+      if shadows? then for c in shadows => shadowed[c] = true
   yakumanTotal <?= rulevar.yakuman.max
   if yakumanTotal == 0 then return {basicPoints: 0}
-  basicPoints = getBasicPointsYakuman yakumanTotal
-  return {basicPoints, yakuman, yakumanTotal}
+  basicPoints = basicPointsYakuman yakumanTotal
+  return {basicPoints, yakuman, yakumanTotal, decomp}
 
 function compareYakuResult(l, r)
-  if (diff = l.basicPoints - r.basicPoints) != 0 then return diff
-  if (diff = l.han - r.han) != 0 then return diff
+  if l.basicPoints - r.basicPoints then return that
+  if l.yakuTotal - r.yakuTotal then return that
   return l.fu - r.fu
 
 function compareYakumanResult(l, r)
-  if (diff = l.basicPoints - r.basicPoints) != 0 then return diff
+  if l.basicPoints - r.basicPoints then return that
   return l.yakumanTotal - r.yakumanTotal
 
 function compareResult(l, r)
   lm = l.yakuman?
   rm = r.yakuman?
-  if (diff = lm - rm) != 0 then return diff
+  if lm != rm then return lm - rm
   if lm then compareYakumanResult(l, r) else compareYakuResult(l, r)
-
-# [1]: your mileage may vary

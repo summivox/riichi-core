@@ -1,4 +1,8 @@
 'use strict'
+require! {
+  './agari': Agari
+  '../player-state/hidden': PlayerHidden
+}
 
 !function precond(kyoku)
   unless kyoku.phase == \postTsumo
@@ -10,7 +14,9 @@ export function create(kyoku)
   if kyoku.isClient and kyoku.currPlayer != kyoku.me
     throw Error "wrong player #{kyoku.currPlayer} (should be #{kyoku.me})"
 
-  # TODO: check if is valid agari
+  agari = Agari.create kyoku, kyoku.currPlayer
+  if !agari?
+    throw Error "cannot tsumoAgari"
 
   return {type: \tsumoAgari, kyoku.seq}
 
@@ -21,18 +27,18 @@ export function fromClient(kyoku, {
   precond kyoku
   if kyoku.isClient
     throw Error "must be called on server side"
-  unless type == \kakan
-    throw Error "wrong type #type (should be 'kakan')"
+  unless type == \tsumoAgari
+    throw Error "wrong type #type (should be 'tsumoAgari')"
   unless kyoku.seq == seq
     throw Error "seq mismatch: kyoku at #{kyoku.seq}, event at #seq"
 
-  # TODO: check agari
+  agari = Agari.create kyoku, kyoku.currPlayer
+  if !agari?
+    throw Error "not agari"
 
-  return agari-server with {
-    kyoku.seq, kyoku
-    pai
+  return tsumo-agari-server with {
+    seq, kyoku
     agari
-    uraDoraHyouji: kyoku.getUraDoraHyouji kyoku.currPlayer
   }
 
 export function fromServer(kyoku, {
@@ -49,80 +55,60 @@ export function fromServer(kyoku, {
   unless kyoku.seq == seq
     throw Error "seq mismatch: kyoku at #{kyoku.seq}, event at #seq"
 
-  juntehai = Pai.array juntehai
+  juntehai = Pai.array juntehai .sort Pai.compare
   unless (tsumohai = Pai[tsumohai])? => throw Error "invalid tsumohai"
   uraDoraHyouji = Pai.array uraDoraHyouji
 
-  # TODO: check agari
+  agari = Agari.create kyoku, kyoku.currPlayer
 
-  return agari-client with {
-    kyoku.seq, kyoku
+  return tsumo-agari-client with {
+    seq, kyoku
     juntehai, tsumohai
     uraDoraHyouji
+    agari
   }
 
-
-agari-server =
+tsumo-agari-server =
   toLog: -> {type: \tsumoAgari, @seq}
 
   toClients: ->
+    player = @kyoku.currPlayer
+    {juntehai, tsumohai} = @kyoku.playerHidden[player]
     x = {
       type: \tsumoAgari, @seq
-      # TODO: juntehai, tsumohai
+      juntehai, tsumohai
+      uraDoraHyouji: kyoku.getUraDoraHyouji player
     }
+    [x, x, x, x]
 
-export class tsumoAgari # {{{
-  # client-initiated:
-  # minimal: null
-  # full:
-  #   juntehai: PlayerHidden::juntehai
-  #   tsumohai: PlayerHidden::tsumohai
-  #   uraDoraHyouji: ?[]Pai -- only revealed ones if riichi
-  # private:
-  #   agari: Agari
+  apply: !->
+    Agari.score @kyoku, @agari, false
+    player = @kyoku.currPlayer
+    with @kyoku.result
+      ..type = \tsumoAgari
+      ..agari = @agari
+      ..renchan = @kyoku.currPlayer == @kyoku.chancha
+      for p til 4 => ..delta[p] += @agari.delta[p]
+      ..takeKyoutaku player
+    @kyoku._end!
 
-  (kyoku) -> with kyoku
-    @type = \tsumoAgari
-    @seq = ..seq
-    if ..isClient
-      assert.equal ..currPlayer, ..me,
-        "cannot construct for others on client instance"
-    @init kyoku
-
-  init: (kyoku) -> with @kyoku = kyoku
-    assert.equal @type, \tsumoAgari
-    assert.equal ..phase, \postTsumo
-
-    with ..playerHidden[..currPlayer]
-      if .. instanceof PlayerHidden
-        @{juntehai, tsumohai} = ..
-        tenpaiDecomp = ..tenpaiDecomp
-
-    if not ..isClient
-      @uraDoraHyouji = ..getUraDoraHyouji ..currPlayer
-
-    assert.isArray @juntehai
-    tenpaiDecomp ?= decompTenpai Pai.binsFromArray @juntehai
-    assert @tsumohai.equivPai in tenpaiDecomp.tenpaiSet
-
-    @agari = ..agari this
-    assert.isNotNull @agari
-
-    return this
-
-  apply: !-> with kyoku = @kyoku
-    # TODO: for client, also reconstruct PlayerHidden (ron too)
+tsumo-agari-client =
+  apply: !->
+    # backfill uraDoraHyouji
     if @uraDoraHyouji?.length
-      ..uraDoraHyouji = @uraDoraHyouji
-      @agari = ..agari this # recalculate agari due to changed uraDoraHyouji
-    ..result.type = \tsumoAgari
-    for p til 4 => ..result.delta[p] += @agari.delta[p]
-    ..result.takeKyoutaku ..currPlayer
-    ..result.renchan = ..currPlayer == ..chancha
-    ..result.agari = @agari
-    .._end!
+      @kyoku.uraDoraHyouji ?= @uraDoraHyouji
 
-  toPartials: -> for til 4 => @{type, seq, juntehai, tsumohai, uraDoraHyouji}
+    # rebuild playerHidden
+    player = @kyoku.currPlayer
+    if @kyoku.playerHidden[player].isMock
+      @kyoku.playerHidden[player] =
+        with new PlayerHidden @juntehai => ..tsumo @tsumohai
 
-  toMinimal: -> @{type, seq}
-# }}}
+    Agari.score @kyoku, @agari, false
+    with @kyoku.result
+      ..type = \tsumoAgari
+      ..agari = @agari
+      ..renchan = @kyoku.currPlayer == @kyoku.chancha
+      for p til 4 => ..delta[p] += @agari.delta[p]
+      ..takeKyoutaku player
+    @kyoku._end!

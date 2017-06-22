@@ -1,5 +1,5 @@
 # Yaku list: high priority listed first (on top)
-# - conflict(optional): if high priority yaku is valid, all listed lower
+# - shadows(optional): if high priority yaku is valid, all listed lower
 #   priority yaku will be skipped (for this particular decomposition)
 # - kuiHan: (kui == not menzen, as in "kuitan")
 #     0 => yaku not valid when not menzen
@@ -8,38 +8,38 @@
 # NOTE:
 # - \pinfu is NOT included (handled during fu calculation)
 # - \chiitoitsu is included (other mentsu-agnostic yaku might still apply)
-#   no need to list as conflict in mentsu-specific yaku
+#   no need to list as shadows in mentsu-specific yaku
 # - any yakuman overrides all normal yaku
 # - some names contain extra 'n' -- this agrees with Japanese IME input rules
-# - conflict list is incomplete (but this is okay)
+# - shadows list is incomplete (but this is okay)
 
 require! {
   './pai': Pai
-  './util': {sum, count}
+  './util': {sum, count, nCompare}
 }
 
 export YAKU_LIST =
   # == 6 han ==
   * name: \chinniisou
-    conflict: <[honniisou sanshokudoujun sanshokudoukou honchantaiyaochuu]> #
+    shadows: <[honniisou sanshokudoujun sanshokudoukou honraotou honchantaiyaochuu]> #
     menzenHan: 6, kuiHan: 5
 
   # == 3 han ==
   * name: \ryanpeikou
-    conflict: <[iipeikou sanshokudoukou toitoihou]> #
+    shadows: <[iipeikou sanshokudoukou toitoihou]> #
     menzenHan: 3, kuiHan: 0
 
   * name: \junchantaiyaochuu
-    conflict: <[honchantaiyaochuu ikkitsuukan tanyaochuu]> #
+    shadows: <[honchantaiyaochuu ikkitsuukan tanyaochuu]> #
     menzenHan: 3, kuiHan: 2
 
   * name: \honniisou
-    conflict: <[sanshokudoujun sanshokudoukou]> #
+    shadows: <[sanshokudoujun sanshokudoukou]> #
     menzenHan: 3, kuiHan: 2
 
   # == 2 han ==
   * name: \doubleRiichi
-    conflict: <[riichi]> #
+    shadows: <[riichi]> #
     menzenHan: 2, kuiHan: 0
 
   * name: \shousangen
@@ -49,26 +49,26 @@ export YAKU_LIST =
     menzenHan: 2, kuiHan: 2
 
   * name: \sanshokudoukou
-    conflict: <[sanshokudoujun ikkitsuukan]> #
+    shadows: <[sanshokudoujun ikkitsuukan]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \honraotou # NOTE: agrees with `Pai::isRaotoupai`
-    conflict: <[honchantaiyaochuu tanyaochuu]> #
+    shadows: <[honchantaiyaochuu tanyaochuu]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \sannankou
-    conflict: <[sanshokudoujun ikkitsuukan]> #
+    shadows: <[sanshokudoujun ikkitsuukan]> #
     menzenHan: 2, kuiHan: 2 # NOTE: okay to chi (only once)
 
   * name: \toitoihou
-    conflict: <[sanshokudoujun ikkitsuukan]> #
+    shadows: <[sanshokudoujun ikkitsuukan]> #
     menzenHan: 2, kuiHan: 2
 
   * name: \chiitoitsu
     menzenHan: 2, kuiHan: 0
 
   * name: \honchantaiyaochuu
-    conflict: <[ikkitsuukan]> #
+    shadows: <[ikkitsuukan]> #
     menzenHan: 2, kuiHan: 1
 
   * name: \ikkitsuukan
@@ -82,7 +82,7 @@ export YAKU_LIST =
     menzenHan: 1, kuiHan: 1
 
   * name: \haiteiraoyue # also '~mouyue' (not used)
-    conflict: <[chankan]> #
+    shadows: <[chankan]> #
     menzenHan: 1, kuiHan: 1
 
   * name: \chankan
@@ -129,28 +129,25 @@ export YAKUMAN_LIST =
   * name: \tenhou
   * name: \chiihou
   * name: \junseichuurenpoutou
-    conflict: <[chuurenpoutou]>
+    shadows: <[chuurenpoutou]>
   * name: \chuurenpoutou
   * name: \suukantsu
   * name: \chinraotou
   * name: \ryuuiisou
   * name: \daisuushi
-    conflict: <[shousuushi]>
+    shadows: <[shousuushi]>
   * name: \shousuushi
   * name: \tsuuiisou
   * name: \daisangen
   * name: \suuankouTanki
-    conflict: <[suuankou]>
+    shadows: <[suuankou]>
   * name: \suuankou
 
 
 ########################################
 
 
-# yaku predicate functions: (decomp, agariObj) -> true/false
-#
-# NOTE: for "strong-weak" pairs: since the "strong" yaku has higher priority,
-# common results can be cached in decomp to be used by the "weak"
+# yaku predicates: (decomp, context) -> true/false
 
 export
 
@@ -198,18 +195,18 @@ export
 
   # dai/shou-suushi: 1234z
   daisuushi: (decomp, {bins}) ->
-    with decomp.suushi = suushi = bins.3[0 1 2 3].sort!
+    with bins.3[0 1 2 3].sort nCompare
       return ..0 >= 3 and ..1 >= 3 and ..2 >= 3 and ..3 >= 3
   shousuushi: (decomp) ->
-    with decomp.suushi
+    with bins.3[0 1 2 3].sort nCompare
       return ..0 == 2 and ..1 >= 3 and ..2 >= 3 and ..3 >= 3
 
   # dai/shou-sangen: 567z
   daisangen: (decomp, {bins}) ->
-    with decomp.sangen = sangen = bins.3[4 5 6].sort!
+    with bins.3[4 5 6].sort nCompare
       return ..0 >= 3 and ..1 >= 3 and ..2 >= 3
   shousangen: (decomp) ->
-    with decomp.sangen
+    with bins.3[4 5 6].sort nCompare
       return ..0 == 2 and ..1 >= 3 and ..2 >= 3
 
   # yakuhai = bakaze + jikaze + sangenpai
@@ -221,11 +218,11 @@ export
 
   # chinn/honn-iisou (aka chinn/honn-itsu)
   chinniisou: (decomp, {binsSum}) ->
-    decomp.binsSumSort = a = binsSum[0 1 2].sort!
-    binsSum.3 == 0 and a.0 == 0 and a.1 == 0 and a.2 > 0
+    with binsSum[0 1 2].sort nCompare
+      binsSum.3 == 0 and ..0 == 0 and ..1 == 0 and ..2 > 0
   honniisou: (decomp) ->
-    a = decomp.binsSumSort
-    a.0 == 0 and a.1 == 0 and a.2 > 0
+    with binsSum[0 1 2].sort nCompare
+      ..0 == 0 and ..1 == 0 and ..2 > 0
 
   # jun/chuuren:
   #     [3 1 2 1 1 1 1 1 3]
