@@ -91,7 +91,7 @@ export function fromClient(kyoku, {
   ownPai = Pai.arrayN(ownPai, 2)
   fuuro = createFuuro kyoku, player, ownPai
 
-  return pon-server with {kyoku, seq, player, fuuro}
+  return pon-server with {type: \pon, kyoku, seq, player, fuuro}
 
 export function fromServer(kyoku, {
   type, seq

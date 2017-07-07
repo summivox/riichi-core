@@ -32,15 +32,7 @@ CurrDecl =
   clear: ->
     @chi = @pon = @daiminkan = @ron = @0 = @1 = @2 = @3 = null
     @count = 0
-  resolve: (currPlayer) ->
-    | @ron?
-      for p in OTHER_PLAYERS[currPlayer]
-        if @[p]?.type == \ron then @[p]
-    | @daiminkan? => that
-    | @pon? => that
-    | @chi? => that
-    | _ => null
-    # NOTE: no need to call `clear` (Event::apply will)
+  resolve: -> @daiminkan ? @pon ? @chi
 
 Result =
   # called when a player declares riichi
@@ -195,11 +187,13 @@ module.exports = class Kyoku implements EventEmitter::
 
   # prepare wall and start game
   #   wall: ?[136]Pai -- defaults to randomly shuffled
+  # TODO: adapt to new event format
   deal: (wall) ->
     if @isClient then throw Error "can only be executed on server"
     @exec new Event.deal this, {wall}
 
   # start player's turn: tsumo or ryoukyoku
+  # TODO: adapt to new event format
   go: ->
     if @isClient then throw Error "can only be executed on server"
     unless @phase == \preTsumo
@@ -222,28 +216,28 @@ module.exports = class Kyoku implements EventEmitter::
   resolve: !->
     if @isClient then throw Error "can only be executed on server"
     assert @phase in <[postDahai postAnkan postKakan]>#
-    with @currDecl.resolve @currPlayer
-      if .. not instanceof Array
-        # chi/pon/daiminkan/nextTurn
-        @exec new Event[..type](this, ..args)
-      else
-        # (multi-)ron
-        # NOTE: ordering handled by `@currDecl.resolve`
-        {atamahane, double, triple} = @rulevar.ron
-        nRon = ..length
-        chancha = @chancha
-        if (nRon == 2 and not double) or (nRon == 3 and not triple)
-          return @exec new Event.ryoukyoku this,
-            renchan: ..some (.player == chancha)
-            reason: if nRon == 2 then \doubleRon else \tripleRon
-        if atamahane
-          @exec new Event.ron this, {player, +isFirst, +isLast}
-        else for {player}, i in ..
-          @exec new Event.ron this, {
-            player
-            isFirst: i == 0
-            isLast: i == nRon - 1
-          }
+    if @currDecl.ron?
+      {atamahane, double, triple} = @rulevar.ron
+      nRon = ..length
+      chancha = @chancha
+      if (nRon == 2 and not double) or (nRon == 3 and not triple)
+        return @exec new Event.ryoukyoku this,
+          renchan: ..some (.player == chancha)
+          reason: if nRon == 2 then \doubleRon else \tripleRon
+      if atamahane
+        @exec new Event.ron this, {player, +isFirst, +isLast}
+      else for {player}, i in ..
+        @exec new Event.ron this, {
+          player
+          isFirst: i == 0
+          isLast: i == nRon - 1
+        }
+    else if @currDecl.resolve!?
+      # chi/pon/daiminkan
+      ...
+    else
+      # nextTurn
+      ...
 
   # }}}
 

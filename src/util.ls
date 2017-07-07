@@ -39,3 +39,7 @@ export function randomShuffle(arr, rand = Math.random)
   arr
 
 export function nCompare(a, b) => a - b # livescript (-) is inefficient
+
+{assign, create} = object
+export function extend(base, ext) =>
+  assign(create(base::), ext)

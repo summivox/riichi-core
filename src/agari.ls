@@ -28,19 +28,16 @@ require! {
 export function create(kyoku, agariPlayer)
   isTsumo = (agariPlayer == kyoku.currPlayer)
   isRon = not isTsumo
-  if isTsumo
-    houjuuPlayer = null
-    agariPai = kyoku.playerHidden[agariPlayer].tsumohai
-  else
-    houjuuPlayer = kyoku.currPlayer
-    agariPai = kyoku.currPai
+  houjuuPlayer = if isTsumo then null else kyoku.currPlayer
+  agariPai = kyoku.currPai
+  return null if !agariPai?
 
   {chancha, honba, bakaze} = kyoku.startState
   {jikaze, fuuro, menzen, riichi} = kyoku.playerPublic[agariPlayer]
   {juntehai, tenpaiDecomp} = kyoku.playerHidden[agariPlayer]
 
   # decomp
-  return null if tenpaiDecomp.length == 0
+  return null unless kyoku.isKeiten tenpaiDecomp
   agariDecomp = decompAgari tenpaiDecomp, agariPai, isRon
   return null if agariDecomp.length == 0
 

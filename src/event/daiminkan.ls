@@ -78,7 +78,8 @@ export function fromClient(kyoku, {
   fuuro = createFuuro kyoku, player
   newDoraHyouji = kyoku.getNewDoraHyouji \daiminkan
 
-  return daiminkan-server with {kyoku, seq, player, fuuro, newDoraHyouji}
+  return daiminkan-server with
+    {type: \daiminkan, kyoku, seq, player, fuuro, newDoraHyouji}
 
 export function fromServer(kyoku, {
   type, seq

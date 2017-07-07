@@ -66,6 +66,7 @@ function createFuuro(kyoku, ownPai)
     p = a ; q = c ; r = b
   else
     p = a ; q = b ; r = c
+  # FIXME: did we check winds/honors?
   unless p.suite == q.suite == r.suite and
       p.succ == q.equivPai and
       q.succ == r.equivPai
@@ -123,8 +124,9 @@ export function fromClient(kyoku, {
 
   ownPai = Pai.arrayN(ownPai, 2)
   fuuro = createFuuro kyoku, ownPai
+  player = (kyoku.currPlayer + 1)%4
 
-  return chi-server with {kyoku, seq, fuuro}
+  return chi-server with {type: \chi, player, kyoku, seq, fuuro}
 
 export function fromServer(kyoku, {
   type, seq
@@ -151,12 +153,11 @@ chi-server =
     [x, x, x, x]
 
   apply: !->
-    {kyoku, seq, {ownPai: [a, b]}:fuuro} = @
+    {player, kyoku, seq, {ownPai: [a, b]}:fuuro} = @
     seqBeforeDecl = kyoku.seq - kyoku.currDecl.count
     unless seq == seqBeforeDecl
       throw Error "seq mismatch: kyoku at #seqBeforeDecl, event at #seq"
     @seq = kyoku.seq
-    player = (kyoku.currPlayer + 1)%4
 
     kyoku._didNotHoujuu \chi
     kyoku.playerHidden[player].remove2 a, b

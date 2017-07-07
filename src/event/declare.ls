@@ -43,7 +43,7 @@ export function fromServer(kyoku, {type, seq, decl})
   }
 
 declare-server =
-  toLog: -> {type: \declare, @seq, @decl.toLog!}
+  toLog: -> {type: \declare, @seq, decl: @decl.toLog!}
 
   toClients: ->
     x = {type: \declare, @seq, decl: @decl{type, player}}

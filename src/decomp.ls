@@ -3,6 +3,8 @@ require! {
   './pai': Pai
 }
 
+{slice, push} = []
+
 
 /****************************************/
 # ## Packed Single-suite Bin Representation
