@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "outDir": "./lib",
+    "allowJs": false,
+    "target": "es2016"
+  },
+  "include": [
+    "./src/**/*.ts"
+  ],
+  "compileOnSave": true,
+  "typeAcquisition": {
+    "enable": true,
+    "include": [
+      "lodash"
+    ]
+  }
+}

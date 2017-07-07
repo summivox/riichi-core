@@ -43,7 +43,8 @@
     "livescript": "^1.5.0",
     "mocha": "^2.5.3",
     "shx": "^0.1.2",
-    "yuidocjs": "^0.10.2"
+    "yuidocjs": "^0.10.2",
+    "typescript": "^2.4.1"
   },
   "scripts": {
     "watch": "lsc -o lib -bcw src",
