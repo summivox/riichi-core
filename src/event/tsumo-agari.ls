@@ -1,6 +1,6 @@
 'use strict'
 require! {
-  './agari': Agari
+  '../agari': Agari
   '../player-state/hidden': PlayerHidden
 }
 

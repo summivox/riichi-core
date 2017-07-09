@@ -1,4 +1,4 @@
---compilers ls:livescript
+--compilers ls:livescript,ts:ts-node/register
 --colors
 --inline-diffs
 --bail

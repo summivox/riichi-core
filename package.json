@@ -29,9 +29,12 @@
     "lodash.defaultsdeep": "^4.6.0",
     "lodash.isequal": "^4.5.0",
     "performance-now": "^0.2.0",
-    "req-all": "^1.0.0"
+    "req-all": "^1.0.0",
+    "xorshift": "^1.1.0"
   },
   "devDependencies": {
+    "@types/chai": "^4.0.1",
+    "@types/mocha": "^2.2.41",
     "app-root-path": "^1.0.0",
     "chai-shallow-deep-equal": "^1.4.0",
     "docco": "^0.7.0",
@@ -43,7 +46,7 @@
     "livescript": "^1.5.0",
     "mocha": "^2.5.3",
     "shx": "^0.1.2",
-    "yuidocjs": "^0.10.2",
+    "ts-node": "^3.2.0",
     "typescript": "^2.4.1"
   },
   "scripts": {
@@ -51,7 +54,6 @@
     "prepublish": "lsc -o lib -bc src && npm test",
     "test": "mocha",
     "test-debug": "node --inspect --debug-brk node_modules/mocha/bin/_mocha",
-    "coverage": "istanbul cover node_modules/mocha/bin/_mocha",
-    "jsdoc": "shx rm -r doc/jsdoc && jsdoc -c jsdoc.json -d doc/jsdoc"
+    "coverage": "istanbul cover node_modules/mocha/bin/_mocha"
   }
 }

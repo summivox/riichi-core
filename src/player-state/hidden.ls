@@ -1,6 +1,6 @@
 require! {
-  './pai': Pai
-  './decomp': {decompTenpai}
+  '../pai': Pai
+  '../decomp': {decompTenpai}
 }
 
 module.exports = class PlayerHidden

@@ -90,7 +90,7 @@ deal-client =
     kyoku.wallParts =
       piipai: [], rinshan: [], doraHyouji: [], uraDoraHyouji: []
     kyoku.playerHidden = for p til 4
-      if p == ..me
+      if p == kyoku.me
       then new PlayerHidden @haipai
       else new PlayerHiddenMock
     kyoku.playerPublic = for p til 4

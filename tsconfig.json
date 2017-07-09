@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
     "outDir": "./lib",
-    "allowJs": false,
-    "target": "es2016"
+    "allowJs": true,
+    "target": "es2016",
+    "module": "commonjs",
+    "declaration": true,
+    "experimentalDecorators": true
   },
   "include": [
-    "./src/**/*.ts"
+    "./src/**/*.ts",
+    "./src/**/*.js"
   ],
   "compileOnSave": true,
   "typeAcquisition": {
-    "enable": true,
-    "include": [
-      "lodash"
-    ]
+    "enable": true
   }
 }

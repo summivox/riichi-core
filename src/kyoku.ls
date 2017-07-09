@@ -6,7 +6,6 @@ require! {
   events: {EventEmitter}
 
   'lodash.defaultsdeep': defaultsDeep
-  'lodash.isEqual':
 
   '../package.json': {version: VERSION}
   './pai': Pai
@@ -211,6 +210,8 @@ module.exports = class Kyoku implements EventEmitter::
     # nothing happens; go on with tsumo
     @exec new Event.tsumo this
 
+  /*
+  # FIXME
   # resolve declarations after dahai/ankan/kakan
   # TODO: adapt to new event format
   resolve: !->
@@ -238,6 +239,7 @@ module.exports = class Kyoku implements EventEmitter::
     else
       # nextTurn
       ...
+  */
 
   # }}}
 
