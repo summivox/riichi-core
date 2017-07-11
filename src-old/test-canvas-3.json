@@ -1,0 +1,1329 @@
+{
+  "VERSION": "1.0.2",
+  "domain": null,
+  "_events": {},
+  "_eventsCount": 1,
+  "rulevar": {
+    "VERSION": "1.0.2",
+    "dora": {
+      "akahai": [
+        1,
+        1,
+        1
+      ],
+      "kan": {
+        "daiminkan": 0,
+        "kakan": 0,
+        "ankan": 1
+      },
+      "ura": true,
+      "kanUra": true
+    },
+    "yaku": {
+      "kuitan": true,
+      "kokushiAnkan": false
+    },
+    "yakuman": {
+      "max": 2
+    },
+    "riichi": {
+      "kyoutaku": 1000,
+      "minTsumoLeft": 4,
+      "double": true,
+      "ankan": true,
+      "okurikan": false
+    },
+    "ron": {
+      "atamahane": false,
+      "honbaAtamahane": true,
+      "double": true,
+      "triple": false
+    },
+    "banKuikae": {
+      "moro": true,
+      "suji": true,
+      "pon": false
+    },
+    "ryoukyoku": {
+      "kyuushuukyuuhai": true,
+      "nagashimangan": false,
+      "tochuu": {
+        "suufonrenta": true,
+        "suukaikan": true,
+        "suuchariichi": true
+      }
+    },
+    "points": {
+      "initial": 25000,
+      "origin": 30000,
+      "riichi": 1000,
+      "howanpai": 3000,
+      "honba": 100
+    },
+    "setup": {
+      "points": {
+        "initial": 25000,
+        "origin": 30000
+      },
+      "end": {
+        "normal": 2,
+        "overtime": 3,
+        "suddenDeath": true,
+        "oyaALTop": true
+      }
+    }
+  },
+  "startState": {
+    "bakaze": 1,
+    "chancha": 2,
+    "honba": 0,
+    "kyoutaku": 0,
+    "points": [
+      4300,
+      46600,
+      30800,
+      18300
+    ]
+  },
+  "chancha": 2,
+  "isReplicate": false,
+  "wallParts": {
+    "haipai": [
+      [
+        "1m",
+        "3m",
+        "3m",
+        "4m",
+        "5m",
+        "7m",
+        "3p",
+        "3p",
+        "5p",
+        "7s",
+        "9s",
+        "1z",
+        "3z"
+      ],
+      [
+        "1m",
+        "3m",
+        "4m",
+        "8m",
+        "9m",
+        "2p",
+        "7p",
+        "6s",
+        "1z",
+        "1z",
+        "2z",
+        "3z",
+        "6z"
+      ],
+      [
+        "5m",
+        "2p",
+        "4p",
+        "4p",
+        "1s",
+        "2s",
+        "5s",
+        "5s",
+        "6s",
+        "7s",
+        "8s",
+        "4z",
+        "7z"
+      ],
+      [
+        "1m",
+        "2m",
+        "7m",
+        "2p",
+        "3p",
+        "5p",
+        "6p",
+        "7p",
+        "8p",
+        "0s",
+        "7s",
+        "9s",
+        "3z"
+      ]
+    ],
+    "piipai": [
+      "6p",
+      "6p",
+      "7p",
+      "9p",
+      "9p",
+      "1s",
+      "1s",
+      "2s",
+      "2s",
+      "3s",
+      "3s",
+      "4s",
+      "5s",
+      "8s",
+      "2z",
+      "2z",
+      "4z",
+      "5z",
+      "5z",
+      "5z",
+      "6z",
+      "6z",
+      "7z"
+    ],
+    "rinshan": [
+      "4m",
+      "6m",
+      "2m",
+      "3m"
+    ],
+    "doraHyouji": [
+      "4p",
+      "9m",
+      "1p",
+      "1p",
+      "0p"
+    ],
+    "uraDoraHyouji": [
+      "6m",
+      "7m",
+      "1p",
+      "1p",
+      "4p"
+    ]
+  },
+  "seq": 158,
+  "phase": "end",
+  "currPlayer": 1,
+  "currPai": "8m",
+  "rinshan": false,
+  "virgin": false,
+  "nTsumoLeft": 23,
+  "nKan": 0,
+  "doraHyouji": [
+    "4p"
+  ],
+  "uraDoraHyouji": [],
+  "playerHidden": [
+    {
+      "tsumohai": null,
+      "juntehai": [
+        "1s",
+        "2s",
+        "3s",
+        "5s",
+        "5s",
+        "6s",
+        "6s",
+        "7s",
+        "8s",
+        "8s"
+      ],
+      "bins": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          1,
+          1,
+          0,
+          2,
+          2,
+          1,
+          2,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "tenpaiDecomp": {
+        "decomps": [
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "1s"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "5s"
+              },
+              {
+                "type": "ryanmen",
+                "anchor": "5s"
+              }
+            ],
+            "jantou": "8s",
+            "wait": [
+              "4s",
+              "7s"
+            ],
+            "k7": null
+          },
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "1s"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "6s"
+              },
+              {
+                "type": "kanchan",
+                "anchor": "6s"
+              }
+            ],
+            "jantou": "5s",
+            "wait": [
+              "7s"
+            ],
+            "k7": null
+          }
+        ],
+        "wait": [
+          "4s",
+          "7s"
+        ]
+      },
+      "furiten": false,
+      "sutehaiFuriten": false,
+      "doujunFuriten": false,
+      "riichiFuriten": false
+    },
+    {
+      "tsumohai": null,
+      "juntehai": [
+        "6p",
+        "7p",
+        "8p",
+        "0s",
+        "6s",
+        "7s",
+        "8s"
+      ],
+      "bins": [
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "tenpaiDecomp": {
+        "decomps": [
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "5s"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "6p"
+              }
+            ],
+            "jantou": "8s",
+            "wait": [
+              "8s"
+            ],
+            "k7": null
+          },
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "6s"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "6p"
+              }
+            ],
+            "jantou": "5s",
+            "wait": [
+              "5s"
+            ],
+            "k7": null
+          }
+        ],
+        "wait": [
+          "5s",
+          "8s"
+        ]
+      },
+      "furiten": false,
+      "sutehaiFuriten": false,
+      "doujunFuriten": false,
+      "riichiFuriten": false
+    },
+    {
+      "tsumohai": null,
+      "juntehai": [
+        "2m",
+        "3m",
+        "4m",
+        "5m",
+        "5m",
+        "6m",
+        "7m"
+      ],
+      "bins": [
+        [
+          0,
+          1,
+          1,
+          1,
+          2,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "tenpaiDecomp": {
+        "decomps": [
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "2m"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "5m"
+              }
+            ],
+            "jantou": "5m",
+            "wait": [
+              "5m"
+            ],
+            "k7": null
+          },
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "2m"
+              },
+              {
+                "type": "ryanmen",
+                "anchor": "6m"
+              }
+            ],
+            "jantou": "5m",
+            "wait": [
+              "5m",
+              "8m"
+            ],
+            "k7": null
+          },
+          {
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "3m"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "5m"
+              }
+            ],
+            "jantou": "2m",
+            "wait": [
+              "2m"
+            ],
+            "k7": null
+          }
+        ],
+        "wait": [
+          "2m",
+          "5m",
+          "8m"
+        ]
+      },
+      "furiten": false,
+      "sutehaiFuriten": false,
+      "doujunFuriten": false,
+      "riichiFuriten": false
+    },
+    {
+      "tsumohai": null,
+      "juntehai": [
+        "2m",
+        "3m",
+        "4m",
+        "0m",
+        "8m",
+        "8m",
+        "2p",
+        "7p",
+        "8p",
+        "8p",
+        "9p",
+        "6s",
+        "7s"
+      ],
+      "bins": [
+        [
+          0,
+          1,
+          1,
+          1,
+          1,
+          0,
+          0,
+          2,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          2,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "tenpaiDecomp": {
+        "decomps": [],
+        "wait": []
+      },
+      "furiten": false,
+      "sutehaiFuriten": false,
+      "doujunFuriten": false,
+      "riichiFuriten": false
+    }
+  ],
+  "playerPublic": [
+    {
+      "jikaze": 2,
+      "sutehai": [
+        {
+          "pai": "4z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "7z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "2p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "4z",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "5m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "7z",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "4p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": 1
+        },
+        {
+          "pai": "4p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "4m",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "3z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9p",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9s",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        }
+      ],
+      "sutehaiBitmaps": [
+        24,
+        266,
+        256,
+        77
+      ],
+      "lastSutehai": {
+        "pai": "9s",
+        "tsumokiri": true,
+        "riichi": false,
+        "fuuroPlayer": null
+      },
+      "fuuro": [
+        {
+          "type": "minko",
+          "anchor": "4s",
+          "ownPai": [
+            "4s",
+            "4s"
+          ],
+          "otherPai": "4s",
+          "fromPlayer": 1,
+          "kakanPai": null
+        }
+      ],
+      "menzen": false,
+      "riichi": {
+        "declared": false,
+        "accepted": false,
+        "double": false,
+        "ippatsu": false
+      }
+    },
+    {
+      "jikaze": 3,
+      "sutehai": [
+        {
+          "pai": "3z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9s",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "2m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": 2
+        },
+        {
+          "pai": "2s",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "7p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "7m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "8p",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "3p",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "6m",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": 2
+        },
+        {
+          "pai": "4s",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": 0
+        },
+        {
+          "pai": "2p",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "8m",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        }
+      ],
+      "sutehaiBitmaps": [
+        227,
+        198,
+        266,
+        4
+      ],
+      "lastSutehai": {
+        "pai": "8m",
+        "tsumokiri": true,
+        "riichi": false,
+        "fuuroPlayer": null
+      },
+      "fuuro": [
+        {
+          "type": "minko",
+          "anchor": "5p",
+          "ownPai": [
+            "5p",
+            "5p"
+          ],
+          "otherPai": "5p",
+          "fromPlayer": 2,
+          "kakanPai": null
+        },
+        {
+          "type": "minjun",
+          "anchor": "2p",
+          "ownPai": [
+            "2p",
+            "3p"
+          ],
+          "otherPai": "4p",
+          "fromPlayer": 0,
+          "kakanPai": null
+        }
+      ],
+      "menzen": false,
+      "riichi": {
+        "declared": false,
+        "accepted": false,
+        "double": false,
+        "ippatsu": false
+      }
+    },
+    {
+      "jikaze": 0,
+      "sutehai": [
+        {
+          "pai": "3z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9s",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "7s",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "4z",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "3p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "3p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "5p",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": 1
+        },
+        {
+          "pai": "7z",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "5z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "2z",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "6p",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "3s",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        }
+      ],
+      "sutehaiBitmaps": [
+        0,
+        52,
+        324,
+        95
+      ],
+      "lastSutehai": {
+        "pai": "3s",
+        "tsumokiri": true,
+        "riichi": false,
+        "fuuroPlayer": null
+      },
+      "fuuro": [
+        {
+          "type": "minjun",
+          "anchor": "1m",
+          "ownPai": [
+            "1m",
+            "3m"
+          ],
+          "otherPai": "2m",
+          "fromPlayer": 1,
+          "kakanPai": null
+        },
+        {
+          "type": "minjun",
+          "anchor": "6m",
+          "ownPai": [
+            "7m",
+            "8m"
+          ],
+          "otherPai": "6m",
+          "fromPlayer": 1,
+          "kakanPai": null
+        }
+      ],
+      "menzen": false,
+      "riichi": {
+        "declared": false,
+        "accepted": false,
+        "double": false,
+        "ippatsu": false
+      }
+    },
+    {
+      "jikaze": 1,
+      "sutehai": [
+        {
+          "pai": "3z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "6z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "6z",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9s",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "1s",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "2z",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9m",
+          "tsumokiri": false,
+          "riichi": false,
+          "fuuroPlayer": null
+        },
+        {
+          "pai": "9m",
+          "tsumokiri": true,
+          "riichi": false,
+          "fuuroPlayer": null
+        }
+      ],
+      "sutehaiBitmaps": [
+        257,
+        0,
+        257,
+        39
+      ],
+      "lastSutehai": {
+        "pai": "9m",
+        "tsumokiri": true,
+        "riichi": false,
+        "fuuroPlayer": null
+      },
+      "fuuro": [],
+      "menzen": true,
+      "riichi": {
+        "declared": false,
+        "accepted": false,
+        "double": false,
+        "ippatsu": false
+      }
+    }
+  ],
+  "currDecl": {
+    "0": null,
+    "1": null,
+    "2": null,
+    "3": null,
+    "chi": null,
+    "pon": null,
+    "daiminkan": null,
+    "ron": null
+  },
+  "result": {
+    "type": "ron",
+    "delta": [
+      0,
+      -12000,
+      12000,
+      0
+    ],
+    "kyoutaku": 0,
+    "renchan": true,
+    "points": [
+      4300,
+      34600,
+      42800,
+      18300
+    ],
+    "agari": [
+      {
+        "agariPai": "8m",
+        "juntehai": [
+          "2m",
+          "3m",
+          "4m",
+          "5m",
+          "5m",
+          "6m",
+          "7m",
+          "8m"
+        ],
+        "fuuro": [
+          {
+            "type": "minjun",
+            "anchor": "1m",
+            "ownPai": [
+              "1m",
+              "3m"
+            ],
+            "otherPai": "2m",
+            "fromPlayer": 1,
+            "kakanPai": null
+          },
+          {
+            "type": "minjun",
+            "anchor": "6m",
+            "ownPai": [
+              "7m",
+              "8m"
+            ],
+            "otherPai": "6m",
+            "fromPlayer": 1,
+            "kakanPai": null
+          }
+        ],
+        "menzen": false,
+        "riichi": {
+          "declared": false,
+          "accepted": false,
+          "double": false,
+          "ippatsu": false
+        },
+        "chancha": 2,
+        "agariPlayer": 2,
+        "houjuuPlayer": 1,
+        "honba": 0,
+        "bakaze": 1,
+        "jikaze": 0,
+        "doraHyouji": [
+          "4p"
+        ],
+        "uraDoraHyouji": [],
+        "nKan": 0,
+        "rinshan": false,
+        "chankan": false,
+        "isHaitei": false,
+        "virgin": false,
+        "isRon": true,
+        "isTsumo": false,
+        "agariDecomp": [
+          {
+            "wait": "ryanmen",
+            "mentsu": [
+              {
+                "type": "shuntsu",
+                "anchor": "2m"
+              },
+              {
+                "type": "shuntsu",
+                "anchor": "6m"
+              }
+            ],
+            "jantou": "5m",
+            "k7": null,
+            "kantsu": 0,
+            "suushi": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "sangen": [
+              0,
+              0,
+              0
+            ],
+            "anko": 0,
+            "binsSumSort": [
+              0,
+              0,
+              14
+            ]
+          }
+        ],
+        "fuuroFu": 0,
+        "tehai": [
+          "1m",
+          "2m",
+          "2m",
+          "3m",
+          "3m",
+          "4m",
+          "5m",
+          "5m",
+          "6m",
+          "6m",
+          "7m",
+          "7m",
+          "8m",
+          "8m"
+        ],
+        "bins": [
+          [
+            1,
+            2,
+            2,
+            1,
+            2,
+            2,
+            2,
+            2,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "binsSum": [
+          14,
+          0,
+          0,
+          0
+        ],
+        "dora": {
+          "dora": 0,
+          "uraDora": 0,
+          "akaDora": 0
+        },
+        "doraTotal": 0,
+        "isAgari": true,
+        "basicPoints": 2000,
+        "yaku": [
+          {
+            "name": "chinniisou",
+            "han": 5
+          }
+        ],
+        "yakuTotal": 5,
+        "han": 5,
+        "fu": 30,
+        "delta": [
+          0,
+          -12000,
+          12000,
+          0
+        ]
+      }
+    ]
+  },
+  "endState": {
+    "bakaze": 1,
+    "chancha": 2,
+    "honba": 1,
+    "kyoutaku": 0,
+    "points": [
+      4300,
+      34600,
+      42800,
+      18300
+    ]
+  }
+}
