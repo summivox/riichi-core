@@ -1,16 +1,23 @@
 /**
+ * Represent all 37 pai (including akahai 0m/0p/0s) as integer from 0 to 36.
+ *
+ * @export
+ * @enum {number}
+ */
+export const enum Pai {
+    '0m' =  0, '1m' =  1, '2m' =  2, '3m' =  3, '4m' =  4, '5m' =  5, '6m' =  6, '7m' =  7, '8m' =  8, '9m' =  9,
+    '0p' = 10, '1p' = 11, '2p' = 12, '3p' = 13, '4p' = 14, '5p' = 15, '6p' = 16, '7p' = 17, '8p' = 18, '9p' = 19,
+    '0s' = 20, '1s' = 21, '2s' = 22, '3s' = 23, '4s' = 24, '5s' = 25, '6s' = 26, '7s' = 27, '8s' = 28, '9s' = 29,
+    '1z' = 30, '2z' = 31, '3z' = 32, '4z' = 33, '5z' = 34, '6z' = 35, '7z' = 36,
+}
+
+/**
  * Convert string Pai to int Pai.
- *
- * - 0m, 1m, 2m, ..., 9m => 0, 1, 2, ... 9
- * - 0p, 1p, 2p, ..., 9p => 10, 11, 12, ..., 19
- * - 0s, 1s, 2s, ..., 9s => 20, 21, 22, ..., 29
- * - 1z, 2z, 3z, ..., 7z => 30, 31, 32, ..., 36
- *
  * @export
  * @param {string} str
  * @returns
  */
-export function fromString(paiStr: string) {
+export function fromString(paiStr: string): Pai {
     const n = paiStr.codePointAt(0) - 0x30; // '0'.codePointAt(0)
     const s = paiStr[1];
     switch (s) {
@@ -32,17 +39,11 @@ export function fromString(paiStr: string) {
 
 /**
  * Convert int Pai to string Pai.
- *
- * - 0, 1, 2, ... 9 => 0m, 1m, 2m, ..., 9m
- * - 10, 11, 12, ..., 19 => 0p, 1p, 2p, ..., 9p
- * - 20, 21, 22, ..., 29 => 0s, 1s, 2s, ..., 9s
- * - 30, 31, 32, ..., 36 => 1z, 2z, 3z, ..., 7z
- *
  * @export
- * @param {number} pai
+ * @param {Pai} pai
  * @returns
  */
-export function toString(pai: number) { return paiStringLookup[pai]; }
+export function toString(pai: Pai) { return paiStringLookup[pai]; }
 const paiStringLookup: ReadonlyArray<string> = [
     '0m', '1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m',
     '0p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
@@ -94,47 +95,47 @@ const paiKindLookup = Uint8Array.of(
 );
 
 /** 19mps */
-export function isRaotou(x: number) {
+export function isRaotou(x: Pai) {
     return (paiKindLookup[x] & PaiKind.raotou) !== 0;
 }
 /** 0mps | 2~8mps */
-export function isChunchan(x: number) {
+export function isChunchan(x: Pai) {
     return (paiKindLookup[x] & PaiKind.chunchan) !== 0;
 }
 /** 0mps */
-export function isZero(x: number) {
+export function isZero(x: Pai) {
     return (paiKindLookup[x] & PaiKind.zero) !== 0;
 }
 /** 5mps */
-export function isFive(x: number) {
+export function isFive(x: Pai) {
     return (paiKindLookup[x] & PaiKind.five) !== 0;
 }
 /** 05mps */
-export function isFiveish(x: number) {
+export function isFiveish(x: Pai) {
     return (paiKindLookup[x] & PaiKind.fiveish) !== 0;
 }
 /** 1234z (ESWN) */
-export function isFon(x: number) {
+export function isFon(x: Pai) {
     return 30 <= x && x < 34;
 }
 /** 567z (PFC) */
-export function isSangen(x: number) {
+export function isSangen(x: Pai) {
     return 34 <= x && x < 37;
 }
 /** 0~9mps == 19mps | 2~8mps */
-export function isSuu(x: number) {
+export function isSuu(x: Pai) {
     return 0 <= x && x < 30;
 }
 /** 1~7z == 1234z | 567z */
-export function isTsuu(x: number) {
+export function isTsuu(x: Pai) {
     return 30 <= x && x < 37;
 }
 /** 19mps | 1~7z */
-export function isYaochuu(x: number) {
+export function isYaochuu(x: Pai) {
     return (paiKindLookup[x] & PaiKind.yaochuu) !== 0;
 }
 /** 1~9mps | 1~7z */
-export function isValid(pai: number) {
+export function isValid(pai: Pai) {
     return 0 <= pai && pai < 37;
 }
 
@@ -142,26 +143,26 @@ export function isValid(pai: number) {
  * 0mps => 5mps, otherwise no change
  *
  * @export
- * @param {Number} x
+ * @param {Pai} x
  */
-export function zeroToFive(x: number) { return isZero(x) ? x + 5 : x; }
+export function zeroToFive(x: Pai): Pai { return isZero(x) ? x + 5 : x; }
 /**
  * 5mps => 0mps, otherwise no change
  *
  * @export
- * @param {number} x
+ * @param {Pai} x
  */
-export function fiveToZero(x: number) { return isFive(x) ? x - 5 : x; }
+export function fiveToZero(x: Pai): Pai { return isFive(x) ? x - 5 : x; }
 
 /**
  * Get dora from given doraHyouji.
  * e.g. 1m => 2m, 0p => 6p, 9s => 1s, 1z => 2z, 4z => 1z, 5z => 6z, 7z => 5z
  *
  * @export
- * @param {number} x - doraHyouji
+ * @param {Pai} x - doraHyouji
  * @returns dora
  */
-export function dora(x: number) { return doraLookup[x]; }
+export function dora(x: Pai): Pai { return doraLookup[x]; }
 const doraLookup = Uint8Array.of(
     6, 2, 3, 4, 5, 6, 7, 8, 9, 1,
     16, 12, 13, 14, 15, 16, 17, 18, 19, 11,
@@ -175,11 +176,11 @@ const doraLookup = Uint8Array.of(
  * 4m/4p/4s and 5m/5p/5s, respectively.
  *
  * @export
- * @param {number} l
- * @param {number} r
+ * @param {Pai} l
+ * @param {Pai} r
  * @returns
  */
-export function compare(l: number, r: number) {
+export function compare(l: Pai, r: Pai) {
     const d2 = zeroToFive(l) - zeroToFive(r);
     if (d2 !== 0) return d2;
     return l - r;
@@ -191,12 +192,12 @@ export function compare(l: number, r: number) {
  *      (1m, 2p, 3s) => false, (5z, 6z, 7z) => false
  *
  * @export
- * @param {number} a
- * @param {number} b
- * @param {number} c
+ * @param {Pai} a
+ * @param {Pai} b
+ * @param {Pai} c
  * @returns
  */
-export function isShuntsu(a: number, b: number, c: number) {
+export function isShuntsu(a: Pai, b: Pai, c: Pai) {
     if (!isSuu(a) || !isSuu(c)) return false;
     const p = zeroToFive(a), q = zeroToFive(b), r = zeroToFive(c);
     // NOTE: omitted redundant `~~(p / 10) === ~~(r / 10)` check as 0ps serve
