@@ -25,7 +25,7 @@ export function toUint8Array(x: number) {
     }
     return result;
 }
-/** Unpack 9*3-bit octal number to zero-padded string */
+/** Unpack 9*3-bit octal number to zero-padded string (pretty-print) */
 export function toString(x: number) {
     return x.toString(8).padStart(9, '0');
 }
