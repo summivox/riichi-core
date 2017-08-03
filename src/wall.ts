@@ -37,10 +37,15 @@ export function create(m0 = 1, p0 = 1, s0 = 1) {
 }
 
 export interface WallParts {
+    /** initial deal (13 tiles) to each of the 4 players */
     haipai: number[/*4*/][/*13*/];
+    /** regular deck players draw from, in reverse order (highest index drawn first) */
     piipai: number[/*70*/];
+    /** 4 tiles for drawing after kan, in reverse order (highest index drawn first) */
     rinshan: number[/*4*/];
+    /** dora indicator tiles (lowest index revealed first) */
     doraHyouji: number[/*5*/];
+    /** hidden dora indicator tiles (index corresponds to `doraHyouji`) */
     uraDoraHyouji: number[/*5*/];
 }
 
@@ -107,7 +112,7 @@ export function fromParts(parts: WallParts): number[] {
 
         e[0xc], s[0xc], w[0xc], n[0xc],
 
-        // piipai (reverse)
+        // piipai
         p[69], p[68], p[67], p[66], p[65], p[64], p[63], p[62], p[61], p[60],
         p[59], p[58], p[57], p[56], p[55], p[54], p[53], p[52], p[51], p[50],
         p[49], p[48], p[47], p[46], p[45], p[44], p[43], p[42], p[41], p[40],
@@ -119,7 +124,7 @@ export function fromParts(parts: WallParts): number[] {
         // doraHyouji
         d[4], u[4], d[3], u[3], d[2], u[2], d[1], u[1], d[0], u[0],
 
-        // rinshan (reverse)
+        // rinshan
         r[1], r[0], r[3], r[2],
     ];
 }
