@@ -23,9 +23,7 @@ export function toString(ms: number) {
         ms >>>= 7;
         const pai = m & Literal.OFFSET;
         if (m & Literal.SHUNTSU) {
-            const pai2 = dora(pai);
-            const pai3 = dora(pai2);
-            result += paiToString(pai) + paiToString(pai2) + paiToString(pai3) + ',';
+            result += paiToString(pai) + paiToString(pai + 1) + paiToString(pai + 2) + ',';
         } else {
             const paiS = paiToString(pai);
             result += paiS + paiS + paiS + ',';

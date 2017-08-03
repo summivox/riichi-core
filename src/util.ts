@@ -59,7 +59,7 @@ export function min(arr: ReadonlyArray<number>) {
  */
 export function count(arr: Array<any>, f: (any) => boolean) {
     let n = 0;
-    for (const x of arr) if (f(x))++n;
+    for (const x of arr) if (f(x)) ++n;
     return n;
 }
 export function invert(obj: object) {
