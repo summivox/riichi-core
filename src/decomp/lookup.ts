@@ -115,7 +115,7 @@ function makeWaitingFromOneComplete(suiteComplete: number, complete: ReadonlyArr
         for (let i = 1; i <= 9; ++i) expand('shanpon', 0o2, 0, 0, i);
         allHasShuntsu = true;
         for (let i = 1; i <= 7; ++i) expand('kanchan', 0o101, 1, 0, i);
-        expand('penchan', 0o11, 2, 0, 0);
+        expand('penchan', 0o11, 2, 0, 1);
         for (let i = 2; i <= 7; ++i) {
             expand('ryanmen', 0o11, -1, -1, i);
             expand('ryanmen', 0o11, 2, 0, i);
