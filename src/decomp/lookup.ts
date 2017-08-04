@@ -23,8 +23,10 @@ export interface DecompCompleteEntry {
 
 /** map from packed suite (9*3-bit octal) to ways to decompose it into (koutsu + shuntsu + jantou) */
 export const completeAll = new Map<number, ReadonlyArray<DecompCompleteEntry>>();
-/** map from packed suite (9*3-bit octal) to ways to decompose it into (koutsu + jantou) */
-export const completeKou = new Map<number, ReadonlyArray<DecompCompleteEntry>>();
+/** map from packed suite (9*3-bit octal) to unique way to decompose it into (koutsu + jantou) */
+export const completeKou = new Map<number, DecompCompleteEntry>();
+
+export const completeAllHasShuntsu = new Set<number>();
 
 export type TenpaiType = 'tanki' | 'shanpon' | 'kanchan' | 'penchan' | 'ryanmen';
 export interface DecompWaitingEntry {
@@ -46,13 +48,10 @@ function makeComplete() {
             if (suiteOverflow(newSuite)) continue;
             const newMentsu = mentsuPush(mentsu, false, i + 1);
             const entry: DecompCompleteEntry = {jantou, mentsu: newMentsu, nMentsu: n, hasShuntsu: false};
-            if (completeKou.has(newSuite)) {
-                (completeKou.get(newSuite) as DecompCompleteEntry[]).push(entry);
-            } else {
-                completeKou.set(newSuite, [entry]);
-            }
+            completeKou.set(newSuite, entry);
             if (completeAll.has(newSuite)) {
                 (completeAll.get(newSuite) as DecompCompleteEntry[]).push(entry);
+                // completeAllHasShuntsu.delete(newSuite); // DEBUG
             } else {
                 completeAll.set(newSuite, [entry]);
             }
@@ -72,19 +71,20 @@ function makeComplete() {
                 (completeAll.get(newSuite) as DecompCompleteEntry[]).push(entry);
             } else {
                 completeAll.set(newSuite, [entry]);
+                // completeAllHasShuntsu.add(newSuite); // DEBUG
             }
             if (n < 4) {
                 dfsShun(n + 1, i, newSuite, newMentsu);
             }
         }
     }
-    completeKou.set(0, [{jantou: -1, mentsu: 0, nMentsu: 0, hasShuntsu: false}]);
+    completeKou.set(0, {jantou: -1, mentsu: 0, nMentsu: 0, hasShuntsu: false});
     completeAll.set(0, [{jantou: -1, mentsu: 0, nMentsu: 0, hasShuntsu: false}]);
     dfsKou(1, 0, 0, 0);
     dfsShun(1, 0, 0, 0);
     let suiteJantou = 0o2;
     for (jantou = 1; jantou <= 9; ++jantou, suiteJantou <<= 3) {
-        completeKou.set(suiteJantou, [{jantou, mentsu: 0, nMentsu: 0, hasShuntsu: false}]);
+        completeKou.set(suiteJantou, {jantou, mentsu: 0, nMentsu: 0, hasShuntsu: false});
         completeAll.set(suiteJantou, [{jantou, mentsu: 0, nMentsu: 0, hasShuntsu: false}]);
         dfsKou(1, 0, suiteJantou, 0);
         dfsShun(1, 0, suiteJantou, 0);
@@ -97,7 +97,7 @@ function makeWaiting() {
     }
 }
 
-function makeWaitingFromOneComplete(suiteComplete, complete) {
+function makeWaitingFromOneComplete(suiteComplete: number, complete: ReadonlyArray<DecompCompleteEntry>) {
     const {jantou, nMentsu} = complete[0];
     let hasJantou = jantou > 0;
     // EXPAND: let allHasShuntsu = complete.every(c => c.hasShuntsu);
@@ -108,6 +108,13 @@ function makeWaitingFromOneComplete(suiteComplete, complete) {
             break;
         }
     }
+
+    // DEBUG
+    /*
+    console.assert(allHasShuntsu === completeAllHasShuntsu.has(suiteComplete),
+        `${packedSuite.toString(suiteComplete)}: expect ${allHasShuntsu}, actual ${completeAllHasShuntsu.has(suiteComplete)}`);
+    */
+
     if (!hasJantou) {
         hasJantou = true;
         for (let i = 1; i <= 9; ++i) expand('tanki', 0o1, 0, 0, i);
