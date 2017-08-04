@@ -22,11 +22,9 @@ export interface DecompCompleteEntry {
 }
 
 /** map from packed suite (9*3-bit octal) to ways to decompose it into (koutsu + shuntsu + jantou) */
-export const completeAll = new Map<number, ReadonlyArray<DecompCompleteEntry>>();
-/** map from packed suite (9*3-bit octal) to unique way to decompose it into (koutsu + jantou) */
-export const completeKou = new Map<number, DecompCompleteEntry>();
-
-export const completeAllHasShuntsu = new Set<number>();
+export const completeSuu = new Map<number, ReadonlyArray<DecompCompleteEntry>>();
+/** map from packed winds & honors suite (7*3-bit octal) to the unique way to decompose it into (koutsu + jantou) */
+export const completeTsuu = new Map<number, DecompCompleteEntry>();
 
 export type TenpaiType = 'tanki' | 'shanpon' | 'kanchan' | 'penchan' | 'ryanmen';
 export interface DecompWaitingEntry {
@@ -42,57 +40,57 @@ export const waiting = new Map<number, ReadonlyArray<DecompWaitingEntry>>();
 
 function makeComplete() {
     let jantou = 0;
-    function dfsKou(n: number, i: number, suite: number, mentsu: number) {
-        for (; i < 9; ++i) {
-            const newSuite = suiteAdd(suite, 0o3, i);
+    function dfsKou(n: number, i: Pai, suite: number, mentsu: number) {
+        for (; i <= 9; ++i) {
+            const newSuite = suiteAdd(suite, 0o3, i - 1);
             if (suiteOverflow(newSuite)) continue;
-            const newMentsu = mentsuPush(mentsu, false, i + 1);
+            const newMentsu = mentsuPush(mentsu, false, i);
             const entry: DecompCompleteEntry = {jantou, mentsu: newMentsu, nMentsu: n, hasShuntsu: false};
-            completeKou.set(newSuite, entry);
-            if (completeAll.has(newSuite)) {
-                (completeAll.get(newSuite) as DecompCompleteEntry[]).push(entry);
-                // completeAllHasShuntsu.delete(newSuite); // DEBUG
+            if (i <= 7 && jantou <= 7) completeTsuu.set(newSuite, entry);
+            if (completeSuu.has(newSuite)) {
+                (completeSuu.get(newSuite) as DecompCompleteEntry[]).push(entry);
             } else {
-                completeAll.set(newSuite, [entry]);
+                completeSuu.set(newSuite, [entry]);
             }
             if (n < 4) {
                 dfsKou(n + 1, i + 1, newSuite, newMentsu);
-                dfsShun(n + 1, 0, newSuite, newMentsu);
+                dfsShun(n + 1, 1, newSuite, newMentsu);
             }
         }
     }
-    function dfsShun(n: number, i: number, suite: number, mentsu: number) {
-        for (; i < 7; ++i) {
-            const newSuite = suiteAdd(suite, 0o111, i);
+    function dfsShun(n: number, i: Pai, suite: number, mentsu: number) {
+        for (; i <= 7; ++i) {
+            const newSuite = suiteAdd(suite, 0o111, i - 1);
             if (suiteOverflow(newSuite)) continue;
-            const newMentsu = mentsuPush(mentsu, true, i + 1);
+            const newMentsu = mentsuPush(mentsu, true, i);
             const entry: DecompCompleteEntry = {jantou, mentsu: newMentsu, nMentsu: n, hasShuntsu: true};
-            if (completeAll.has(newSuite)) {
-                (completeAll.get(newSuite) as DecompCompleteEntry[]).push(entry);
+            if (completeSuu.has(newSuite)) {
+                (completeSuu.get(newSuite) as DecompCompleteEntry[]).push(entry);
             } else {
-                completeAll.set(newSuite, [entry]);
-                // completeAllHasShuntsu.add(newSuite); // DEBUG
+                completeSuu.set(newSuite, [entry]);
             }
             if (n < 4) {
                 dfsShun(n + 1, i, newSuite, newMentsu);
             }
         }
     }
-    completeKou.set(0, {jantou: -1, mentsu: 0, nMentsu: 0, hasShuntsu: false});
-    completeAll.set(0, [{jantou: -1, mentsu: 0, nMentsu: 0, hasShuntsu: false}]);
-    dfsKou(1, 0, 0, 0);
-    dfsShun(1, 0, 0, 0);
+    const entry: DecompCompleteEntry = {jantou: 0, mentsu: 0, nMentsu: 0, hasShuntsu: false};
+    completeTsuu.set(0, entry);
+    completeSuu.set(0, [entry]);
+    dfsKou(1, 1, 0, 0);
+    dfsShun(1, 1, 0, 0);
     let suiteJantou = 0o2;
     for (jantou = 1; jantou <= 9; ++jantou, suiteJantou <<= 3) {
-        completeKou.set(suiteJantou, {jantou, mentsu: 0, nMentsu: 0, hasShuntsu: false});
-        completeAll.set(suiteJantou, [{jantou, mentsu: 0, nMentsu: 0, hasShuntsu: false}]);
-        dfsKou(1, 0, suiteJantou, 0);
-        dfsShun(1, 0, suiteJantou, 0);
+        const entry: DecompCompleteEntry = {jantou, mentsu: 0, nMentsu: 0, hasShuntsu: false};
+        if (jantou <= 7) completeTsuu.set(suiteJantou, entry);
+        completeSuu.set(suiteJantou, [entry]);
+        dfsKou(1, 1, suiteJantou, 0);
+        dfsShun(1, 1, suiteJantou, 0);
     }
 }
 
 function makeWaiting() {
-    for (const [suiteComplete, complete] of completeAll.entries()) {
+    for (const [suiteComplete, complete] of completeSuu.entries()) {
         makeWaitingFromOneComplete(suiteComplete, complete);
     }
 }
@@ -108,13 +106,6 @@ function makeWaitingFromOneComplete(suiteComplete: number, complete: ReadonlyArr
             break;
         }
     }
-
-    // DEBUG
-    /*
-    console.assert(allHasShuntsu === completeAllHasShuntsu.has(suiteComplete),
-        `${packedSuite.toString(suiteComplete)}: expect ${allHasShuntsu}, actual ${completeAllHasShuntsu.has(suiteComplete)}`);
-    */
-
     if (!hasJantou) {
         hasJantou = true;
         for (let i = 1; i <= 9; ++i) expand('tanki', 0o1, 0, 0, i);
