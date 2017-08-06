@@ -4,7 +4,7 @@ export interface DecompCompleteEntry {
     mentsu: ReadonlyArray<number>;
 }
 
-declare const decomp1C: Map<number, DecompCompleteEntry>;
+declare const decomp1C: ReadonlyArray<DecompCompleteEntry>;
 
 export const enum TenpaiType {
     tanki = 'tanki',
@@ -26,7 +26,7 @@ export interface DecompWaitingEntry {
     tenpaiType: TenpaiType;
 }
 
-declare const decomp1W: Map<number, DecompWaitingEntry>;
+declare const decomp1W: ReadonlyArray<DecompWaitingEntry>;
 
 /** lookup computation time in nanoseconds */
 declare const STARTUP_TIME: {
