@@ -19,8 +19,8 @@
 # Lots of utilities involving Pai are all piled here in no particular order
 
 require! {
-  './util': {randomShuffle}
-  'lodash.clonedeep': cloneDeep
+  #'./util': {randomShuffle}
+  #'lodash.clonedeep': cloneDeep
 }
 
 SUUPAI = /([0-9])([mps])/
