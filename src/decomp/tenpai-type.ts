@@ -4,4 +4,6 @@ export const enum TenpaiType {
   'kanchan' = 2,
   'penchan' = 3,
   'ryanmen' = 4,
+  'kokushi' = 5,
+  'chiitoi' = 6,
 }

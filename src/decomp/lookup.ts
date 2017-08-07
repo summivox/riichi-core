@@ -2,14 +2,14 @@ import { Pai } from "../pai";
 import { TenpaiType } from "./tenpai-type";
 import * as packedSuite from '../packed-suite';
 const {isOverflow: suiteOverflow, get: suiteGet} = packedSuite;
-import * as packedMentsu from '../packed-mentsu';
+// import * as packedMentsu from '../packed-mentsu'; // all inlined
 import * as now from 'performance-now';
 
 /** map from packed suite (9*3-bit octal) to ways to decompose it into (koutsu + shuntsu + jantou) */
 export const complete = new Map<number, ArrayLike<number>>();
 
 export interface DecompWaitingEntry {
-    cs: ReadonlyArray<number>;
+    menjans: ReadonlyArray<number>;
     hasJantou: boolean;
     tenpaiType: TenpaiType;
     tenpai: Pai;
@@ -70,14 +70,15 @@ function makeWaiting() {
     }
 }
 
-function makeWaitingFromOneComplete(suiteComplete: number, cs: number[]) {
-    let hasJantou = (cs[0] & 0xf) !== 0;
+function makeWaitingFromOneComplete(suiteComplete: number, menjans: number[]) {
+    const menjan = menjans[0];
+    let hasJantou = (menjan & 0xf) !== 0;
     if (!hasJantou) {
         hasJantou = true;
         for (let i = 1; i <= 9; ++i) expand(TenpaiType.tanki, 0o1, 0, 0, i);
         hasJantou = false;
     }
-    const mentsu = cs[0] >> 4;
+    const mentsu = menjan >> 4;
     if (mentsu < 0o777777) {
         // only 3 or less mentsu in complete part
         // try add mentsu-based tenpai pattern
@@ -96,7 +97,7 @@ function makeWaitingFromOneComplete(suiteComplete: number, cs: number[]) {
         const anchor = i + dAnchor;
         if (!suiteOverflow(suite) && suiteGet(suite, tenpai - 1) < 4) {
             const entry: DecompWaitingEntry = {
-                cs, hasJantou, tenpaiType, tenpai, anchor
+                menjans, hasJantou, tenpaiType, tenpai, anchor
             };
             if (waiting.has(suite)) {
                 (waiting.get(suite) as DecompWaitingEntry[]).push(entry);
