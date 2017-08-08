@@ -42,26 +42,59 @@ export function decompTenpai(suites: ArrayLike<number>) {
     }
 
     std: do {
-        // start with tsuupai
+        // tsuupai: handle specially because there can't be shuntsu
         let suiteZ = suites[3];
-        let z1 = 0, z2 = 0;
+        let typeZ = TenpaiType.kokushi; // use obviously invalid for default
+        let j1 = 0, j2 = 0;
         let mentsuZ = 0;
         for (let i = 30; suiteZ !== 0; ++i, suiteZ >>= 3) {
             switch (suiteZ & 0o7) {
                 case 0: break;
                 case 1:
-                    if (z2 >= 1 && ++z1 >= 2) break std;
+                    if (j1 === 0) {
+                        j1 = i;
+                        typeZ = TenpaiType.tanki;
+                    } else break std;
                     break;
                 case 2:
-                    if (z1 >= 1 && ++z2 >= 2) break std;
+                    if (j1 === 0) {
+                        j1 = i;
+                        typeZ = TenpaiType.shanpon;
+                    } else if (j2 === 0) {
+                        if (typeZ !== TenpaiType.shanpon) break std;
+                        j2 = i;
+                    } else break std;
                     break;
                 case 3:
+                    // INLINE: packedMentsu.push(mentsuZ, i, 0)
                     mentsuZ = (mentsuZ << 6) | (i << 1);
                     break;
                 case 4: break std;
             }
         }
-        // const suiteM = suites[0], suiteP = suites[1], suiteS = suites[2];
+        const csM = lookupComplete.get(suites[0]);
+        const csP = lookupComplete.get(suites[1]);
+        const csS = lookupComplete.get(suites[2]);
+        if (typeZ !== TenpaiType.kokushi) {
+            // must be tanki Z, shanpon MPS-Z, or shanpon Z-Z
+            // MPS must be complete
+            if (csM == null || csP == null || csS == null) break std;
+            // MPS must contain at most 1 pair
+            const jM = csM[0] & 0xf;
+            const jP = csP[0] & 0xf;
+            const jS = csS[0] & 0xf;
+            const jMPS = +(jM !== 0) + +(jP !== 0) + +(jS !== 0);
+            if (jMPS > 1) break std;
+            // MPS contain exactly 1 pair => must be shanpon MPS-Z
+            if (jMPS === 1) {
+                if (j2 === 0) {
+                    if (typeZ !== TenpaiType.shanpon) break std;
+                    j2 = jM + jP + jS;
+                } else break std;
+            }
+        } else {
+
+        }
     } while (false);
 
 
