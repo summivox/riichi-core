@@ -57,13 +57,13 @@ export function min(arr: ReadonlyArray<number>) {
  * @param {any} arr
  * @param {any} f
  */
-export function count(arr: Array<any>, f: (any) => boolean) {
+export function count(arr: Array<any>, f: (x: any) => boolean) {
     let n = 0;
     for (const x of arr) if (f(x)) ++n;
     return n;
 }
-export function invert(obj: object) {
-    const result = {};
+export function invert(obj: any) {
+    const result: any = {};
     for (const k in obj) {
         result[obj[k]] = k;
     }
@@ -79,7 +79,9 @@ export function invert(obj: object) {
  * @param {randInt} [randInt] - 0 <= randInt(x) < x
  * @returns
  */
-export function randomShuffle<T>(arr: Array<T>, randInt?: (hi: number) => number) {
+export function randomShuffle<T extends Array<any>>(
+    arr: T, randInt?: (hi: number) => number) {
+
     if (randInt == null) randInt = mathRandomInt;
     const l = arr.length;
     for (let i = l - 1; i > 0; --i) {

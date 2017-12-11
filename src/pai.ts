@@ -1,5 +1,5 @@
 /**
- * Represent all 37 pai (including akahai 0m/0p/0s) as integer from 0 to 36.
+ * Encode Pai (including akahai 0m/0p/0s) into 6-bit integer.
  *
  * @export
  * @enum {number}
@@ -18,7 +18,7 @@ export const enum Pai {
  * @returns
  */
 export function fromString(paiStr: string): Pai {
-    const n = paiStr.codePointAt(0) - 0x30; // '0'.codePointAt(0)
+    const n = paiStr.codePointAt(0)! - 0x30; // '0'.codePointAt(0)
     const s = paiStr[1];
     switch (s) {
         case 'm':
@@ -34,7 +34,7 @@ export function fromString(paiStr: string): Pai {
             if (1 <= n && n <= 7) return n + 29;
             break;
     }
-    throw Error(`${paiStr} is not valid pai`);
+    throw Error(`'${paiStr}' is not valid pai`);
 }
 
 /**
@@ -116,27 +116,27 @@ export function isFiveish(x: Pai) {
 }
 /** 1234z (ESWN) */
 export function isFon(x: Pai) {
-    return 30 <= x && x < 34;
+    return x === (x | 0) && 30 <= x && x < 34;
 }
 /** 567z (PFC) */
 export function isSangen(x: Pai) {
-    return 34 <= x && x < 37;
+    return x === (x | 0) && 34 <= x && x < 37;
 }
 /** 0~9mps == 19mps | 2~8mps */
 export function isSuu(x: Pai) {
-    return 0 <= x && x < 30;
+    return x === (x | 0) && 0 <= x && x < 30;
 }
 /** 1~7z == 1234z | 567z */
 export function isTsuu(x: Pai) {
-    return 30 <= x && x < 37;
+    return x === (x | 0) && 30 <= x && x < 37;
 }
 /** 19mps | 1~7z */
 export function isYaochuu(x: Pai) {
     return (paiKindLookup[x] & PaiKind.yaochuu) !== 0;
 }
 /** 1~9mps | 1~7z */
-export function isValid(pai: Pai) {
-    return 0 <= pai && pai < 37;
+export function isValid(x: Pai) {
+    return x === (x | 0) && 0 <= x && x < 37;
 }
 
 /**
@@ -153,6 +153,18 @@ export function zeroToFive(x: Pai): Pai { return isZero(x) ? x + 5 : x; }
  * @param {Pai} x
  */
 export function fiveToZero(x: Pai): Pai { return isFive(x) ? x - 5 : x; }
+
+/**
+ * Get face number of suupai.
+ * e.g. 2m => 2, 0p => 5
+ * @param {Pai} x
+ */
+export function num(x: Pai) { return numLookup[x]; }
+const numLookup = Uint8Array.of(
+    5, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    15, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    25, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+);
 
 /**
  * Get dora from given doraHyouji.
@@ -187,7 +199,7 @@ export function compare(l: Pai, r: Pai) {
 }
 
 /**
- * Whether 3 pai given in sorted order form a shuntsu.
+ * Whether 3 Pai given in sorted order form a Shuntsu.
  * e.g. (4m, 0m, 6m) => true, (8m, 9m, 1m) => false,
  *      (1m, 2p, 3s) => false, (5z, 6z, 7z) => false
  *

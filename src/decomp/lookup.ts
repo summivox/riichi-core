@@ -1,15 +1,16 @@
 import { Pai } from "../pai";
 import { TenpaiType } from "./tenpai-type";
 import * as packedSuite from '../packed-suite';
-const {isOverflow: suiteOverflow, get: suiteGet} = packedSuite;
-// import * as packedMentsu from '../packed-mentsu'; // all inlined
-import * as now from 'performance-now';
+const {isOverflow: suiteOverflow, add: suiteAdd, get: suiteGet} = packedSuite;
+import * as packedMentsu from '../packed-mentsu';
+const {pushKoutsu, pushShuntsu, pushJantou} = packedMentsu;
+import now = require('performance-now');
 
 /** map from packed suite (9*3-bit octal) to ways to decompose it into (koutsu + shuntsu + jantou) */
 export const complete = new Map<number, ArrayLike<number>>();
 
 export interface DecompWaitingEntry {
-    menjans: ReadonlyArray<number>;
+    menjans: ArrayLike<number>;
     hasJantou: boolean;
     tenpaiType: TenpaiType;
     tenpai: Pai;
@@ -20,36 +21,36 @@ export const waiting = new Map<number, ReadonlyArray<DecompWaitingEntry>>();
 
 function makeComplete() {
     let jantou = 0;
-    function dfsKou(n: number, i: Pai, suite: number, mentsu: number) {
+    function dfsKou(n: number, i: Pai, suite: number, ms: number) {
         for (; i <= 9; ++i) {
-            const newSuite = suite + (0o3 << (3 * (i - 1))); // INLINE: packedSuite.add(suite, 0o3, i - 1)
+            const newSuite = suiteAdd(suite, 0o3, i - 1)
             if (suiteOverflow(newSuite)) continue;
-            const newMentsu = (mentsu << 6) | (i << 1); // INLINE: packedMentsu.push(mentsu, i, 0)
-            const entry = (newMentsu << 4) | jantou;
+            const newMs = pushKoutsu(ms, i);
+            const entry = pushJantou(newMs, jantou);
             if (complete.has(newSuite)) {
                 (complete.get(newSuite) as number[]).push(entry);
             } else {
                 complete.set(newSuite, [entry]);
             }
             if (n < 4) {
-                dfsKou(n + 1, i + 1, newSuite, newMentsu);
-                dfsShun(n + 1, 1, newSuite, newMentsu);
+                dfsKou(n + 1, i + 1, newSuite, newMs);
+                dfsShun(n + 1, 1, newSuite, newMs);
             }
         }
     }
-    function dfsShun(n: number, i: Pai, suite: number, mentsu: number) {
+    function dfsShun(n: number, i: Pai, suite: number, ms: number) {
         for (; i <= 7; ++i) {
-            const newSuite = suite + (0o111 << (3 * (i - 1))); // INLINE: suiteAdd(suite, 0o111, i - 1);
+            const newSuite = suiteAdd(suite, 0o111, i - 1)
             if (suiteOverflow(newSuite)) continue;
-            const newMentsu = (mentsu << 6) | (i << 1) | 1; // INLINE: packedMentsu.push(mentsu, i, 1)
-            const entry = (newMentsu << 4) | jantou;
+            const newMs = pushShuntsu(ms, i);
+            const entry = pushJantou(newMs, jantou);
             if (complete.has(newSuite)) {
                 (complete.get(newSuite) as number[]).push(entry);
             } else {
                 complete.set(newSuite, [entry]);
             }
             if (n < 4) {
-                dfsShun(n + 1, i, newSuite, newMentsu);
+                dfsShun(n + 1, i, newSuite, newMs);
             }
         }
     }
@@ -66,11 +67,11 @@ function makeComplete() {
 
 function makeWaiting() {
     for (const [suite, cs] of complete.entries()) {
-        makeWaitingFromOneComplete(suite, cs as number[]);
+        makeWaitingFromOneComplete(suite, cs);
     }
 }
 
-function makeWaitingFromOneComplete(suiteComplete: number, menjans: number[]) {
+function makeWaitingFromOneComplete(suiteComplete: number, menjans: ArrayLike<number>) {
     const menjan = menjans[0];
     let hasJantou = (menjan & 0xf) !== 0;
     if (!hasJantou) {
@@ -96,7 +97,7 @@ function makeWaitingFromOneComplete(suiteComplete: number, menjans: number[]) {
         const tenpai = i + dTenpai;
         const anchor = i + dAnchor;
         if (!suiteOverflow(suite) && suiteGet(suite, tenpai - 1) < 4) {
-            const entry: DecompWaitingEntry = {
+            const entry = <DecompWaitingEntry>{
                 menjans, hasJantou, tenpaiType, tenpai, anchor
             };
             if (waiting.has(suite)) {

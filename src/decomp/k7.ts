@@ -12,7 +12,7 @@ import * as packedSuite from '../packed-suite';
  */
 export function kokushi(suites: ArrayLike<number>): number {
     let c0 = 0, c1 = 0, c2 = 0;
-    let tenpai: Pai;
+    let tenpai: Pai = 37;
     function count(pai: Pai, n: number) {
         switch (n) {
             case 0:
@@ -60,7 +60,7 @@ export function kokushi(suites: ArrayLike<number>): number {
  */
 export function chiitoi(suites: ArrayLike<number>): Pai | -1 {
     let c1 = 0, c2 = 0;
-    let tenpai: Pai;
+    let tenpai: Pai = 37;
     for (let s = 0; s < 4; ++s) {
         let suite = suites[s];
         for (let n = s * 10 + 1; suite !== 0; ++n, suite >>>= 3) {
