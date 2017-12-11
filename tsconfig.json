@@ -4,7 +4,8 @@
     "target": "es2017",
     "module": "commonjs",
     "declaration": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "strict": true
   },
   "include": [
     "./src/**/*.ts",

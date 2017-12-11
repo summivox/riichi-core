@@ -28,7 +28,7 @@
     "lodash.clonedeep": "^3.0.1",
     "lodash.defaultsdeep": "^4.6.0",
     "lodash.isequal": "^4.5.0",
-    "performance-now": "^0.2.0",
+    "performance-now": "^2.1.0",
     "req-all": "^1.0.0",
     "xorshift": "^1.1.0"
   },
