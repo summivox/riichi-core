@@ -53,10 +53,7 @@ export function get(x: number, i: number) {
     return (x >>> ((i | 0) + (i << 1))) & 7;
 }
 
-/**
- * Add `p` to the `i`-th digit from the right (LSB-side) in a 9*3-bit octal.
- * Equivalent array form: `x.slice()[i] += p`
- */
+/** `x + (p << (i * 3))` (no equivalent array form) */
 export function add(x: number, p: number, i: number) {
     return (x + (p << ((i | 0) + (i << 1)))) | 0;
 }

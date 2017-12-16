@@ -1,32 +1,68 @@
 import { Pai } from "../pai";
-import { TenpaiType } from "./tenpai-type";
+import * as pai from "../pai";
+const {toString: paiToString} = pai;
+
+import { Mentsu } from "../mentsu";
+
 import * as packedSuite from '../packed-suite';
 const {isOverflow: suiteOverflow, add: suiteAdd, get: suiteGet} = packedSuite;
+
 import * as packedMentsu from '../packed-mentsu';
-const {pushKoutsu, pushShuntsu, pushJantou} = packedMentsu;
+const {toString: msToString, pushKoutsu, pushShuntsu} = packedMentsu;
+
+import { TenpaiType } from "./tenpai-type";
+
 import now = require('performance-now');
+
+/** Packed mentsu's + Jantou => string */
+export function msjToString(msj: number) {
+    const j = jFromMsj(msj);
+    const js = j ? paiToString(j) : '--';
+    return js[0] + js + '|' + msToString(msFromMsj(msj));
+}
+
+/** Get Jantou in packed mentsu's + jantou */
+export function jFromMsj(msj: number): Pai { return msj & Mentsu.MASK; }
+/** Get Mentsu's in packed mentsu's + jantou */
+export function msFromMsj(msj: number): number { return msj >>> Mentsu.SHIFT; }
+
+/** Combine packed mentsu's with jantou */
+export function createMsj(ms: number, jantou: Pai) {
+    return (ms << Mentsu.SHIFT) | jantou;
+}
 
 /** map from packed suite (9*3-bit octal) to ways to decompose it into (koutsu + shuntsu + jantou) */
 export const complete = new Map<number, ArrayLike<number>>();
 
 export interface DecompWaitingEntry {
-    menjans: ArrayLike<number>;
+    c: ArrayLike<number>;
     hasJantou: boolean;
     tenpaiType: TenpaiType;
     tenpai: Pai;
     anchor: Pai;
 }
 
+/** Pretty-print waiting entry */
+export function explainW(w: DecompWaitingEntry) {
+    return {
+        c: Array.from(w.c).map(msjToString),
+        hasJantou: w.hasJantou,
+        tenpaiType: TenpaiType[w.tenpaiType],
+        tenpai: paiToString(w.tenpai),
+        anchor: paiToString(w.anchor),
+    };
+}
+
 export const waiting = new Map<number, ReadonlyArray<DecompWaitingEntry>>();
 
 function makeComplete() {
-    let jantou = 0;
+    let jantou = Pai.NULL;
     function dfsKou(n: number, i: Pai, suite: number, ms: number) {
         for (; i <= 9; ++i) {
-            const newSuite = suiteAdd(suite, 0o3, i - 1)
+            const newSuite = suiteAdd(suite, 0o3, i - 1);
             if (suiteOverflow(newSuite)) continue;
             const newMs = pushKoutsu(ms, i);
-            const entry = pushJantou(newMs, jantou);
+            const entry = createMsj(newMs, jantou);
             if (complete.has(newSuite)) {
                 (complete.get(newSuite) as number[]).push(entry);
             } else {
@@ -40,10 +76,10 @@ function makeComplete() {
     }
     function dfsShun(n: number, i: Pai, suite: number, ms: number) {
         for (; i <= 7; ++i) {
-            const newSuite = suiteAdd(suite, 0o111, i - 1)
+            const newSuite = suiteAdd(suite, 0o111, i - 1);
             if (suiteOverflow(newSuite)) continue;
             const newMs = pushShuntsu(ms, i);
-            const entry = pushJantou(newMs, jantou);
+            const entry = createMsj(newMs, jantou);
             if (complete.has(newSuite)) {
                 (complete.get(newSuite) as number[]).push(entry);
             } else {
@@ -54,12 +90,12 @@ function makeComplete() {
             }
         }
     }
-    complete.set(0, [0]);
+    complete.set(0, [createMsj(0, Pai.NULL)]);
     dfsKou(1, 1, 0, 0);
     dfsShun(1, 1, 0, 0);
     let suiteJantou = 0o2;
     for (jantou = 1; jantou <= 9; ++jantou, suiteJantou <<= 3) {
-        complete.set(suiteJantou, [jantou]);
+        complete.set(suiteJantou, [createMsj(0, jantou)]);
         dfsKou(1, 1, suiteJantou, 0);
         dfsShun(1, 1, suiteJantou, 0);
     }
@@ -71,16 +107,16 @@ function makeWaiting() {
     }
 }
 
-function makeWaitingFromOneComplete(suiteComplete: number, menjans: ArrayLike<number>) {
-    const menjan = menjans[0];
-    let hasJantou = (menjan & 0xf) !== 0;
+function makeWaitingFromOneComplete(suiteComplete: number, c: ArrayLike<number>) {
+    const msj = c[0];
+    let hasJantou = jFromMsj(msj) !== Pai.NULL;
     if (!hasJantou) {
         hasJantou = true;
         for (let i = 1; i <= 9; ++i) expand(TenpaiType.tanki, 0o1, 0, 0, i);
         hasJantou = false;
     }
-    const mentsu = menjan >> 4;
-    if (mentsu < 0o777777) {
+    const ms = msFromMsj(msj);
+    if (ms < 0o777777) {
         // only 3 or less mentsu in complete part
         // try add mentsu-based tenpai pattern
         for (let i = 1; i <= 9; ++i) expand(TenpaiType.shanpon, 0o2, 0, 0, i);
@@ -93,12 +129,12 @@ function makeWaitingFromOneComplete(suiteComplete: number, menjans: ArrayLike<nu
         expand(TenpaiType.penchan, 0o11, -1, -1, 8);
     }
     function expand(tenpaiType: TenpaiType, pat: number, dTenpai: number, dAnchor: number, i: Pai) {
-        const suite = suiteComplete + (pat << (3 * (i - 1))); // INLINE: packedSuite.add(suiteComplete, pat, i - 1)
+        const suite = suiteAdd(suiteComplete, pat, i - 1);
         const tenpai = i + dTenpai;
         const anchor = i + dAnchor;
         if (!suiteOverflow(suite) && suiteGet(suite, tenpai - 1) < 4) {
             const entry = <DecompWaitingEntry>{
-                menjans, hasJantou, tenpaiType, tenpai, anchor
+                c, hasJantou, tenpaiType, tenpai, anchor
             };
             if (waiting.has(suite)) {
                 (waiting.get(suite) as DecompWaitingEntry[]).push(entry);

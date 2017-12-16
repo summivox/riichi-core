@@ -1,14 +1,28 @@
 /**
  * Encode Pai (including akahai 0m/0p/0s) into 6-bit integer.
+ * '--' is used as a null/reserved value.
  *
  * @export
  * @enum {number}
  */
 export const enum Pai {
-    '0m' =  0, '1m' =  1, '2m' =  2, '3m' =  3, '4m' =  4, '5m' =  5, '6m' =  6, '7m' =  7, '8m' =  8, '9m' =  9,
-    '0p' = 10, '1p' = 11, '2p' = 12, '3p' = 13, '4p' = 14, '5p' = 15, '6p' = 16, '7p' = 17, '8p' = 18, '9p' = 19,
-    '0s' = 20, '1s' = 21, '2s' = 22, '3s' = 23, '4s' = 24, '5s' = 25, '6s' = 26, '7s' = 27, '8s' = 28, '9s' = 29,
-    '1z' = 30, '2z' = 31, '3z' = 32, '4z' = 33, '5z' = 34, '6z' = 35, '7z' = 36,
+    M = 0,
+    '0m' =  0, '1m' =  1, '2m' =  2, '3m' =  3, '4m' =  4,
+    '5m' =  5, '6m' =  6, '7m' =  7, '8m' =  8, '9m' =  9,
+
+    P = 10,
+    '0p' = 10, '1p' = 11, '2p' = 12, '3p' = 13, '4p' = 14,
+    '5p' = 15, '6p' = 16, '7p' = 17, '8p' = 18, '9p' = 19,
+
+    S = 20,
+    '0s' = 20, '1s' = 21, '2s' = 22, '3s' = 23, '4s' = 24,
+    '5s' = 25, '6s' = 26, '7s' = 27, '8s' = 28, '9s' = 29,
+
+    Z = 30,
+    '--' = 30, '1z' = 31, '2z' = 32, '3z' = 33, '4z' = 34,
+    '5z' = 35, '6z' = 36, '7z' = 37,
+
+    NULL = 30, MIN = 0, MAX = 37,
 }
 
 /**
@@ -31,7 +45,7 @@ export function fromString(paiStr: string): Pai {
             if (0 <= n && n <= 9) return n + 20;
             break;
         case 'z':
-            if (1 <= n && n <= 7) return n + 29;
+            if (1 <= n && n <= 7) return n + 30;
             break;
     }
     throw Error(`'${paiStr}' is not valid pai`);
@@ -48,7 +62,7 @@ const paiStringLookup: ReadonlyArray<string> = [
     '0m', '1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m',
     '0p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
     '0s', '1s', '2s', '3s', '4s', '5s', '6s', '7s', '8s', '9s',
-    '1z', '2z', '3z', '4z', '5z', '6z', '7z',
+    '--', '1z', '2z', '3z', '4z', '5z', '6z', '7z',
 ];
 
 const enum PaiKind {
@@ -90,7 +104,7 @@ const paiKindLookup = Uint8Array.of(
     0b00000110, 0b00000001, 0b00000010, 0b00000010, 0b00000010,
     0b00001010, 0b00000010, 0b00000010, 0b00000010, 0b00000001,
 
-    0b00010000, 0b00010000, 0b00010000, 0b00010000,
+    0b00000000, 0b00010000, 0b00010000, 0b00010000, 0b00010000,
     0b00100000, 0b00100000, 0b00100000,
 );
 
@@ -116,19 +130,19 @@ export function isFiveish(x: Pai) {
 }
 /** 1234z (ESWN) */
 export function isFon(x: Pai) {
-    return x === (x | 0) && 30 <= x && x < 34;
+    return (paiKindLookup[x] & PaiKind.fon) !== 0;
 }
 /** 567z (PFC) */
 export function isSangen(x: Pai) {
-    return x === (x | 0) && 34 <= x && x < 37;
+    return (paiKindLookup[x] & PaiKind.sangen) !== 0;
 }
 /** 0~9mps == 19mps | 2~8mps */
 export function isSuu(x: Pai) {
-    return x === (x | 0) && 0 <= x && x < 30;
+    return (paiKindLookup[x] & PaiKind.suu) !== 0;
 }
 /** 1~7z == 1234z | 567z */
 export function isTsuu(x: Pai) {
-    return x === (x | 0) && 30 <= x && x < 37;
+    return (paiKindLookup[x] & PaiKind.tsuu) !== 0;
 }
 /** 19mps | 1~7z */
 export function isYaochuu(x: Pai) {
@@ -136,7 +150,7 @@ export function isYaochuu(x: Pai) {
 }
 /** 1~9mps | 1~7z */
 export function isValid(x: Pai) {
-    return x === (x | 0) && 0 <= x && x < 37;
+    return (paiKindLookup[x] | 0) !== 0;
 }
 
 /**
@@ -155,16 +169,24 @@ export function zeroToFive(x: Pai): Pai { return isZero(x) ? x + 5 : x; }
 export function fiveToZero(x: Pai): Pai { return isFive(x) ? x - 5 : x; }
 
 /**
- * Get face number of suupai.
- * e.g. 2m => 2, 0p => 5
+ * Get face number of Pai.
+ * e.g. 2m => 2, 0p => 5, 6z => 6
  * @param {Pai} x
  */
 export function num(x: Pai) { return numLookup[x]; }
 const numLookup = Uint8Array.of(
     5, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-    15, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-    25, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+    5, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    5, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+    0, 1, 2, 3, 4, 5, 6, 7,
 );
+
+/**
+ * Get suite number of Pai (mpsz => 0123).
+ * @export
+ * @param {Pai} x
+ */
+export function sNum(x: Pai) { return ~~(x / 10); }
 
 /**
  * Get dora from given doraHyouji.
@@ -179,7 +201,7 @@ const doraLookup = Uint8Array.of(
     6, 2, 3, 4, 5, 6, 7, 8, 9, 1,
     16, 12, 13, 14, 15, 16, 17, 18, 19, 11,
     26, 22, 23, 24, 25, 26, 27, 28, 29, 21,
-    31, 32, 33, 30, 35, 36, 34,
+    30, 32, 33, 34, 31, 36, 37, 35,
 );
 
 /**

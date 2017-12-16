@@ -5,7 +5,6 @@ import * as lookup from '../lib/decomp/lookup';
 describe("lookup", () => {
     it("startup time", () => {
         console.log(JSON.stringify(lookup.STARTUP_TIME));
-        // console.log(JSON.stringify(lookupOld.STARTUP_TIME));
     });
     it("number of entries in complete table", () => {
         assert.equal(lookup.complete.size, 21743);
@@ -15,3 +14,4 @@ describe("lookup", () => {
         assert.equal(lookup.waiting.size, 66913);
     });
 });
+

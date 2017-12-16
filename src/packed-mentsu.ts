@@ -1,79 +1,101 @@
 import { Pai } from "./pai";
-import * as pai from "./pai";
-const {toString: paiToString} = pai;
 import { Mentsu } from './mentsu';
 import * as mentsu from "./mentsu";
 const {toString: mentsuToString, koutsu, shuntsu} = mentsu;
 
-const enum Literal {
-    MASK = 0b111111,
-    SHIFT = 6,
-}
-
 /** Packed mentsu's => array of mentsu's */
 export function toArray(ms: number) {
-    const result = new Array<number>();
+    const result = [];
     while (ms !== 0) {
-        result.push((ms + 1) & Literal.MASK);
-        ms >>>= Literal.SHIFT;
-    }
-}
-
-/** Packed mentsu's => string */
-export function toString(ms: number) {
-    let result = "";
-    while (ms !== 0) {
-        result += mentsuToString(top(ms)) + ',';
-        ms >>>= Literal.SHIFT;
+        result.push(top(ms));
+        ms = pop(ms);
     }
     return result;
 }
 
-/** Packed mentsu's + Jantou => string*/
-export function toStringJ(msj: number) {
-    const j = paiToString(topJ(msj));
-    return j[0] + j + '|' + toString(pop(msj));
+/** Packed mentsu's => string (pretty print) */
+export function toString(ms: number) {
+    let result = "";
+    while (ms !== 0) {
+        result += mentsuToString(top(ms));
+        ms = pop(ms);
+        if (ms) result += ',';
+    }
+    return result;
 }
 
 /** Get LSB in packed mentsu's */
 export function top(ms: number): Mentsu {
-    return ((ms & Literal.MASK) - 1) & Literal.MASK;
-}
-/** Get Jantou in packed mentsu's + jantou */
-export function topJ(msj: number): Pai {
-    return msj & Literal.MASK;
+    return ((ms & Mentsu.MASK) - 1) & Mentsu.MASK;
 }
 
 /** Push mentsu into LSB of packed mentsu's */
 export function push(ms: number, m: Mentsu) {
-    return (ms << Literal.SHIFT) | ((m + 1) & Literal.MASK);
+    return (ms << Mentsu.SHIFT) | ((m + 1) & Mentsu.MASK);
 }
-/** Push koutsu with given anchor into LSB of packed mentsu's */
+/** Push koutsu with given anchor into LSB-side of packed mentsu's */
 export function pushKoutsu(ms: number, anchor: Pai) {
-    return (ms << Literal.SHIFT) | (koutsu(anchor) + 1);
+    return (ms << Mentsu.SHIFT) | (koutsu(anchor) + 1);
 }
-/** Push shuntsu with given anchor into LSB of packed mentsu's */
+/** Push shuntsu with given anchor into LSB-side of packed mentsu's */
 export function pushShuntsu(ms: number, anchor: Pai) {
-    return (ms << Literal.SHIFT) | (shuntsu(anchor) + 1);
-}
-/** Combine packed mentsu's with jantou */
-export function pushJantou(ms: number, jantou: Pai) {
-    return (ms << Literal.SHIFT) | jantou; // NOTE: no offset or conversion needed
+    return (ms << Mentsu.SHIFT) | (shuntsu(anchor) + 1);
 }
 
-/**
- * For packed mentsu's without jantou: pop off LSB mentsu.
- * For packed mentsu's with jantou: pop off jantou.
- */
+/** Pop off LSB-side of packed mentsu's */
 export function pop(ms: number) {
-    return ms >>> Literal.SHIFT;
+    return ms >>> Mentsu.SHIFT;
 }
 
-/** Pop from `src`, add `offset`, push to `dest`, repeat. (no jantou) */
+/** Pop from `src`, add `offset`, push to `dest`, repeat. */
 export function concatOffset(dest: number, src: number, offset: number) {
     while (src !== 0) {
-        dest = (dest << Literal.SHIFT) | ((src & Literal.MASK) + offset);
-        src >>>= Literal.SHIFT;
+        dest = (dest << Mentsu.SHIFT) | ((src & Mentsu.MASK) + offset);
+        src >>>= Mentsu.SHIFT;
     }
     return dest;
+}
+
+export function sort(ms: number) {
+    const orig = ms;
+
+    let a0 = ms & 0o77; ms >>= 6;
+    if (ms === 0) return ms;
+
+    let a1 = ms & 0o77; ms >>= 6;
+    if (ms === 0) {
+        if (a0 <= a1) return orig;
+        return a1 | (a0 << 6);
+    }
+
+    let a2 = ms & 0o77; ms >>= 6;
+    if (ms === 0) {
+        if (a0 > a1) { const t = a0; a0 = a1; a1 = t; }
+        if (a1 > a2) { const t = a1; a1 = a2; a2 = t; }
+        if (a0 > a1) { const t = a0; a0 = a1; a1 = t; }
+        return a0 | (a1 << 6) | (a2 << 12);
+    }
+
+    let a3 = ms & 0o77; ms >>= 6;
+    if (ms === 0) {
+        if (a0 > a1) { const t = a0; a0 = a1; a1 = t; }
+        if (a2 > a3) { const t = a2; a2 = a3; a3 = t; }
+        if (a0 > a2) { const t = a0; a0 = a2; a2 = t; }
+        if (a1 > a3) { const t = a1; a1 = a3; a3 = t; }
+        if (a1 > a2) { const t = a1; a1 = a2; a2 = t; }
+        return a0 | (a1 << 6) | (a2 << 12) | (a3 << 18);
+    }
+
+    throw Error("too many");
+}
+
+export function length(ms: number) {
+    if (ms === 0) return 0;
+    if (ms <= 0o7777) {
+        if (ms <= 0o77) return 1;
+        else return 2;
+    } else {
+        if (ms <= 0o777777) return 3;
+        else return 4;
+    }
 }
